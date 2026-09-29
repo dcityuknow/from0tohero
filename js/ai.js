@@ -72,14 +72,31 @@ fetch('talking.txt',{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).
 const tb=document.createElement('div');
 tb.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 14px/1.3 sans-serif;padding:6px 10px;border-radius:8px;max-width:260px;text-align:center;transform-origin:50% 100%';
 document.body.appendChild(tb);
-let talkT=0,talkShow=0,lastTalk=-1;
+// Dịch câu của boss sang ngôn ngữ người chơi đã chọn (talking.txt viết bằng ngôn ngữ nào cũng được, tự nhận diện nguồn).
+// Bản dịch được lưu lại (bộ nhớ + localStorage) nên mỗi câu chỉ dịch 1 lần / ngôn ngữ. Không dịch được (mất mạng...) -> nói nguyên văn.
+const TRL={vi:'vi',ru:'ru',ng:'en',bn:'bn',id:'id',hi:'hi',zh:'zh-CN',fil:'tl',uk:'uk',ko:'ko'},TRM={};let trBad=0;
+async function trLine(s){
+  const tl=TRL[L]||'en',k=tl+'|'+s;
+  if(TRM[k]!==undefined)return TRM[k];
+  try{const v=localStorage.getItem('ba_tr_'+k);if(v)return TRM[k]=v}catch(e){}
+  if(Date.now()<trBad)return s;                         // vừa lỗi mạng: tạm nói nguyên văn, thử lại sau
+  const get=async u=>{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),3000);
+    try{return await(await fetch(u,{signal:ac.signal})).json()}finally{clearTimeout(to)}};
+  let out='';
+  try{const j=await get('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl='+tl+'&dt=t&q='+encodeURIComponent(s));out=j[0].map(x=>x[0]).join('').trim()}catch(e){}
+  if(!out)try{const j=await get('https://api.mymemory.translated.net/get?q='+encodeURIComponent(s)+'&langpair=Autodetect|'+tl);if(j.responseStatus==200)out=String(j.responseData.translatedText||'').trim()}catch(e){}
+  if(!out){trBad=Date.now()+60000;return s}
+  TRM[k]=out;try{localStorage.setItem('ba_tr_'+k,out)}catch(e){}return out;
+}
+let talkT=0,talkShow=0,lastTalk=-1,talkTok=0;
 function talkTick(dt,bo){
-  if(!bo){talkShow=0;talkT=1.5;return}
+  if(!bo){talkShow=0;talkT=1.5;talkTok++;return}
   if(talkShow>0)talkShow-=dt;
   talkT-=dt;
   if(talkT<=0&&TALK.length){
     let i;do i=Math.floor(Math.random()*TALK.length);while(TALK.length>1&&i===lastTalk);lastTalk=i;
-    tb.textContent=TALK[i];talkShow=Math.min(5,2+TALK[i].length*.06);talkT=talkShow+2+Math.random()*3;   // hiện xong nghỉ 2-5 giây rồi nói tiếp
+    talkT=99;const my=talkTok;                           // chờ bản dịch xong mới hiện
+    trLine(TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(5,2+x.length*.06);talkT=talkShow+2+Math.random()*3});
   }
 }
 const _tp=new THREE.Vector3();

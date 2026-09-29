@@ -20,7 +20,7 @@ function shoot(){
       const hd=h.object.userData.head;b.hp-=hd?w.hd:w.dmg;col=0xff3355;snd(180,.1,'sawtooth',.07*GV,h.point);
       blood(h.point,n,rc.ray.direction,hd?18:11);
       if(b.hp<=0)killBot(b,rc.ray.direction);
-    }else hole(h.point,n,h.object.material.color);
+    }else hole(h.point,n,(Array.isArray(h.object.material)?h.object.material[0]:h.object.material).color);
   }
   tracer.geometry.setFromPoints([from,to]);tracer.visible=true;
   spark.material.color.set(col);spark.position.copy(to);spark.visible=true;fx=.06;

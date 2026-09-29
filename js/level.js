@@ -4,8 +4,17 @@ const NF=4,FH=10,AF=f=>20+5*f;
 const need=f=>50*(f+1);                 // boss xuất hiện sau khi hạ 50 / 100 / 150 / 200 bot (cấp số cộng), mỗi tầng đếm lại từ 0
 let curFl=0;const fk=[0,0,0,0],bossDone=[false,false,false,false],gates=[];let bossAlive=false;
 const FC=[[PK,BL,MT,YL],[0xc9a7ff,0xffb3a7,0xa8e6cf,0xfff2a3],[0xffd166,0x8ecae6,0xf4a3c4,0xb8f2c8],[0x9aa5ff,0xff9fa8,0xb5ead7,0xffdac1]];
+// Sàn xám kẻ ô 2m như tầng 1: chỉ mặt trên của tấm sàn có lưới, các mặt còn lại xám trơn
+const FLOOR_C=0x8a8c96;let _gt=null;
+function gridTex(){if(_gt)return _gt;const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');
+  x.fillStyle='#8a8c96';x.fillRect(0,0,64,64);x.fillStyle='#6b6d78';x.fillRect(0,0,64,3);x.fillRect(0,0,3,64);
+  _gt=new THREE.CanvasTexture(c);_gt.wrapS=_gt.wrapT=THREE.RepeatWrapping;_gt.anisotropy=4;return _gt}
+function gridTop(m,x0,x1,z0,z1){
+  const t=gridTex().clone(),f=v=>((v%1)+1)%1;t.needsUpdate=true;t.repeat.set((x1-x0)/2,(z1-z0)/2);t.offset.set(f(x0/2),f(-z1/2));   // căn ô lưới theo tọa độ thế giới
+  const sd=new THREE.MeshLambertMaterial({color:FLOOR_C});m.material=[sd,sd,new THREE.MeshLambertMaterial({map:t}),sd,sd,sd];
+}
 function slabHole(y,S,x0,x1,z0,z1,c){
-  const B=(xa,xb,za,zb)=>{if(xb-xa>.01&&zb-za>.01)box((xa+xb)/2,y,(za+zb)/2,xb-xa,1,zb-za,c)};
+  const B=(xa,xb,za,zb)=>{if(xb-xa>.01&&zb-za>.01){box((xa+xb)/2,y,(za+zb)/2,xb-xa,1,zb-za,c);gridTop(meshes[meshes.length-1],xa,xb,za,zb)}};
   B(-S,S,-S,z0);B(-S,S,z1,S);B(-S,x0,z0,z1);B(x1,S,z0,z1);
 }
 const LAY=[null,
@@ -23,7 +32,7 @@ const LAY=[null,
   for(const sx of[-1,1])for(const sz of[-1,1])box(sx*9,y,sz*24,10,2,1,a)}];
 for(let f=1;f<NF;f++){
   const y=f*FH,[a,b,c,d]=FC[f],A=AF(f),Af=AF(f-1),s=(f-1)%2;
-  slabHole(y-1,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,c);            // sàn khoét lỗ cho thang từ tầng dưới
+  slabHole(y-1,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
   box(0,y,-(A+.5),2*A+3,9,1,a);box(0,y,A+.5,2*A+3,9,1,a);box(-(A+.5),y,0,1,9,2*A+3,b);box(A+.5,y,0,1,9,2*A+3,b);
   LAY[f](y,a,b,c,d);
 }
