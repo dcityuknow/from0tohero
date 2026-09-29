@@ -82,11 +82,20 @@ function buildBoss(){
   // đầu: cầu trắng (rải vài khối màu), kính chắn có ∞, miệng cười lộ răng và lưỡi, tai hình tia chớp
   const H=new VB(true);
   H.ell(0,1.58,0,.33,.33,.33,(i,j,k)=>((i*7+j*13+k*17)%31===0)?SP[(i+j+k)%5]:WH[(i+j+k)%4],.035,true);
-  H.box(0,1.63,.2,.6,.22,.24,(i,j,k,nx,ny,nz)=>(j===0||j===ny-1||i===0||i===nx-1)?DK:((i+j+k)&1?0xdcdde8:0xf2f3f8),.03,true);
-  H.cyl(-.1,1.63,.335,.088,.03,DK,.02,'z',.052);H.cyl(.1,1.63,.335,.088,.03,DK,.02,'z',.052);H.box(0,1.63,.335,.06,.04,.03,DK,.02);
-  H.box(0,1.425,.28,.4,.1,.06,DK,.02);
-  H.box(0,1.46,.312,.36,.04,.02,(i)=>i&1?0xffffff:0xe8e8f0,.02);H.box(0,1.39,.312,.3,.03,.02,(i)=>i&1?0xffffff:0xe8e8f0,.02);
-  H.box(.07,1.375,.318,.1,.05,.03,0xff9fbf,.02);
+  // kính chắn đen kịch + logo trắng: MỘT vòng khép kín hình "hạt đậu / quả tạ" (hai thùy nối bằng eo hẹp), viền dày, có sắc độ như vòng kim loại
+  H.box(0,1.62,.2,.64,.32,.24,(i,j,k)=>(i+j+k)&1?0x14141b:0x1e1e27,.03,true);
+  {const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
+    so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),      // mép ngoài
+    si=(x,y)=>sm(Math.hypot(x-.5,y)-.26,Math.hypot(x+.5,y)-.26,1.0);        // lỗ bên trong
+    const LW=.5,LS=.014,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2;
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
+      const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
+      if(o>0||n<=0)continue;
+      const g=Math.round(255*(.62+.38*Math.sin(Math.PI*(-o)/(-o+n)))),hex=g<<16|g<<8|g;   // giữa vòng sáng, hai mép xám hơn
+      H.cube(x*u,1.62+y*u,.335,LS*.95,LS*.95,.03,hex,i,j,0)}}
+  H.box(0,1.375,.27,.4,.1,.06,DK,.02);
+  H.box(0,1.41,.302,.36,.04,.02,(i)=>i&1?0xffffff:0xe8e8f0,.02);H.box(0,1.34,.302,.3,.03,.02,(i)=>i&1?0xffffff:0xe8e8f0,.02);
+  H.box(.07,1.325,.308,.1,.05,.03,0xff9fbf,.02);
   for(const sx of[-1,1]){H.box(sx*.36,1.72,0,.06,.1,.1,YEL,.02);H.box(sx*.39,1.63,0,.06,.1,.1,YEL,.02);H.box(sx*.36,1.54,0,.06,.1,.1,YEL,.02)}
   add(b.g,H,true);
   b.lL=pivot(-.17,.6);b.lR=pivot(.17,.6);b.aL=pivot(-.46,1.27);b.aR=pivot(.46,1.27);
