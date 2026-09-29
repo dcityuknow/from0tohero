@@ -1,0 +1,21 @@
+Optimum là mạng tăng tốc dữ liệu phổ quát dành cho blockchain, giúp thông tin di chuyển nhanh hơn và ít lãng phí hơn.  
+Dự án không phải một blockchain mới mà chạy song song với các chain hiện có, không đụng tới consensus.  
+Vấn đề cốt lõi Optimum giải quyết là cách các node gossip block, blob và attestation còn chậm và dư thừa.  
+Ethereum hiện dùng Gossipsub, khiến cùng một dữ liệu bị gửi đi nhiều lần và tốn băng thông.  
+Optimum dùng Random Linear Network Coding (RLNC) để mã hóa dữ liệu thành các gói thông tin hiệu quả hơn.  
+RLNC do giáo sư MIT Muriel Médard đồng phát minh; bà cũng là đồng sáng lập và CEO của Optimum.  
+Thay vì gửi bản sao đầy đủ, mạng gửi các tổ hợp tuyến tính ngẫu nhiên để bên nhận vẫn khôi phục được dữ liệu dù mất một phần gói.  
+Sản phẩm đầu tiên là mump2p, giúp tăng tốc truyền block trên tầng consensus của Ethereum.  
+Trên testnet Hoodi, mump2p đạt thời gian truyền block trung bình khoảng 150ms.  
+So với Gossipsub, tốc độ truyền block/blob có thể nhanh hơn 6 đến 20 lần.  
+Băng thông sử dụng có thể giảm khoảng 90–95% nhờ cắt được phần dữ liệu trùng lặp.  
+Validator hưởng lợi trực tiếp vì nhận block nhanh và ổn định hơn, giảm nguy cơ miss attestation hoặc miss proposal.  
+Khi validator hoạt động tốt hơn, APY và phần thưởng MEV thường cũng cải thiện.  
+Optimum Gateway cho phép operator tích hợp như sidecar, không cần thay client hay đổi rule của mạng.  
+Flexnode là node do cộng đồng vận hành, tham gia mã hóa, giải mã và chuyển tiếp dữ liệu đã được code.  
+Mục tiêu dài hạn của Optimum là trở thành tầng truyền dữ liệu và bộ nhớ cho nhiều chain, không chỉ Ethereum.  
+Họ hướng tới các use case cần latency thấp như trading, gaming, AI on-chain và ứng dụng thời gian thực.  
+Dự án đang hợp tác với nhiều validator và node operator lớn trên testnet trước khi mở rộng mainnet.  
+Optimum nhấn mạnh đây là lớp hạ tầng nền, giúp chain scale mà không phải đánh đổi phi tập trung.  
+Nói ngắn gọn: Optimum làm cho dữ liệu trên blockchain chạy nhanh hơn, rẻ hơn và ổn định hơn ngay từ tầng mạng.
+

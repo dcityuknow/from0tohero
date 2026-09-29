@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Block Arena – bản test</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="hud">
+  <canvas id="mm" width="150" height="150"></canvas>
+  <div id="score" class="pill"><span id="kl"></span> <span id="k">0</span></div>
+  <div id="cross"></div>
+  <div id="stats"><div class="pill" id="hpl"></div><div id="hpwrap"><div id="hp"></div></div></div>
+  <div id="ammo" class="pill"><span id="wn">Súng ngắn</span> · <span id="am">12</span> / <span id="mg">12</span></div>
+  <div id="gren" class="pill">💣 <span id="gn">3</span> · <span id="gk"></span></div>
+  <div id="msg"></div>
+  <div id="scope"></div>
+  <div id="hurt"></div>
+</div>
+<div id="ov">
+  <div id="card">
+    <h1 id="t">Block Arena</h1>
+    <div id="lg"></div>
+    <p id="sub">Bản test: bắn 4 bot đỏ trong đấu trường pastel.</p>
+    <p id="ctrl"></p>
+    <p id="pk"></p><div id="wp"><button class="wb on" data-w="pistol">1 · Súng ngắn</button><button class="wb" data-w="rifle">2 · Súng dài</button><button class="wb" data-w="sniper">3 · Súng ngắm</button></div>
+    <span id="go">Bấm để chơi</span>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/world.js"></script>
+<script src="js/level.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/lang-data.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/input.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/voxel.js"></script>
+<script src="js/player.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/viewmodel.js"></script>
+<script src="js/bots.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/minimap.js"></script>
+<script src="js/items.js"></script>
+<script src="js/grenade.js"></script>
+<script src="js/mobile.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
