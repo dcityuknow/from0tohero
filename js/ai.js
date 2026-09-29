@@ -47,7 +47,7 @@ function bossAI(b,dt,dx,dz,d){
     const v=new THREE.Vector3(P.x-mp.x+(Math.random()-.5)*q,P.y+1.1-mp.y+(Math.random()-.5)*q*.5,P.z-mp.z+(Math.random()-.5)*q).normalize().multiplyScalar(f.sp);
     const m=new THREE.Mesh(BG,BM[w]);if(w==='sniper')m.scale.setScalar(1.5);m.position.copy(mp);S.add(m);
     bul.push({m,x:mp.x,y:mp.y,z:mp.z,vx:v.x,vy:v.y,vz:v.z,life:3,dmg:f.dmg});
-    snd(w==='sniper'?150:w==='rifle'?420:320,w==='sniper'?.25:.1,'square',.05*GV,mp);
+    if(w==='sniper')sniperShot(mp);else snd(w==='rifle'?420:320,.1,'square',.05*GV,mp);
   }
   return 1;
 }

@@ -40,10 +40,21 @@ function goldBoxModel(){
   v.ell(0,.3,0,.05,.05,.05,0xff2a4d,.02);
   return v;
 }
+// Hộp cứu thương: hộp trắng, chữ thập đỏ ở mặt trước, sau và nắp
+function healthBoxModel(){
+  const v=new VB(),R=0xe8283c;
+  v.box(0,0,0,.46,.32,.34,chk(0xffffff,0xf0f0f4),.03,true);
+  v.box(0,.17,0,.48,.04,.36,0xdcdce6,.03,true);
+  v.box(0,-.165,0,.48,.03,.36,0xc9c9d6,.03,true);
+  for(const z of[.176,-.176]){v.box(0,0,z,.22,.07,.012,R,.02);v.box(0,0,z,.07,.22,.012,R,.02)}
+  v.box(0,.196,0,.22,.012,.07,R,.02);v.box(0,.196,0,.07,.012,.22,R,.02);
+  v.box(0,.22,0,.14,.03,.03,0x8a8a99,.015);
+  return v;
+}
 function dropItem(type,x,y,z){
-  const g=new THREE.Group(),v=type==='gren'?new VB():type==='gold'?goldBoxModel():ammoBoxModel(type);
+  const g=new THREE.Group(),v=type==='gren'?new VB():type==='gold'?goldBoxModel():type==='health'?healthBoxModel():ammoBoxModel(type);
   if(type==='gren'){voxGrenade(v,0,0,0);g.scale.set(1.6,1.6,1.6)}
-  else if(type==='gold')g.scale.set(1.3,1.3,1.3);
+  else if(type==='gold'||type==='health')g.scale.set(1.3,1.3,1.3);
   g.add(v.mesh());
   const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture(),color:GLOW[type],blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,fog:false}));
   gl.position.y=.05;gl.scale.set(2,2,1);g.add(gl);
@@ -52,6 +63,7 @@ function dropItem(type,x,y,z){
 function collect(p){
   const ty=p.type;
   if(ty==='gold'){for(const k in RMAX){ammos[k]=W[k].mag;reserve[k]=RMAX[k]}gren+=1;showMsg(t('gold'))}
+  else if(ty==='health'){if(P.hp>=100)return false;P.hp=Math.min(100,P.hp+HP_BOX);showMsg(t('addhp',HP_BOX))}
   else if(ty==='gren'){if(gren>=GMAX)return false;gren++;showMsg(t('addgren'))}
   else{if(reserve[ty]>=RMAX[ty])return false;reserve[ty]=Math.min(RMAX[ty],reserve[ty]+BOX[ty]);showMsg(t('addammo',BOX[ty],t(ty)))}
   snd(700,.15,'sine',.06);return true;

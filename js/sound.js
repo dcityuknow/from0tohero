@@ -45,3 +45,27 @@ function boom(pos){try{
   tone('sine',120,26,1.4,1.6);        // tiếng ục trầm
   tone('sawtooth',260,35,.5,.6);      // tiếng nứt
 }catch(e){}}
+
+// ---- Tiếng súng ngắm: nổ giòn + ục trầm + vang vọng (dùng chung reverb/dội của tiếng bom), có định hướng 3D nếu truyền pos ----
+function sniperShot(pos){try{
+  AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();
+  const B=boomBus(),n=AC.currentTime;
+  const d=pos?Math.hypot(pos.x-C.position.x,pos.y-C.position.y,pos.z-C.position.z):0;
+  const bus=AC.createGain();bus.gain.value=.3+1.7/(1+d/10);
+  let head=bus;
+  if(pos){const p=AC.createPanner();p.panningModel='HRTF';p.rolloffFactor=0;
+    if(p.positionX){p.positionX.value=pos.x;p.positionY.value=pos.y;p.positionZ.value=pos.z}else p.setPosition(pos.x,pos.y,pos.z);bus.connect(p);head=p}
+  const sg=AC.createGain();sg.gain.value=.8;      // lượng vang/dội
+  head.connect(B.comp);head.connect(sg);sg.connect(B.send);
+  if(!_nb){_nb=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const a=_nb.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1}
+  const ns=AC.createBufferSource(),hp=AC.createBiquadFilter(),lp=AC.createBiquadFilter(),ng=AC.createGain();
+  ns.buffer=_nb;hp.type='highpass';hp.frequency.value=500;lp.type='lowpass';
+  lp.frequency.setValueAtTime(7000,n);lp.frequency.exponentialRampToValueAtTime(250,n+.7);
+  ng.gain.setValueAtTime(1.4,n);ng.gain.exponentialRampToValueAtTime(.001,n+.8);
+  ns.connect(hp);hp.connect(lp);lp.connect(ng);ng.connect(bus);ns.start(n);ns.stop(n+.8);
+  const tone=(type,f0,f1,dur,v)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,n);o.frequency.exponentialRampToValueAtTime(f1,n+dur*.85);
+    g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+dur);o.connect(g);g.connect(bus);o.start(n);o.stop(n+dur)};
+  tone('sine',150,30,.9,1.5);         // cú giật trầm
+  tone('sawtooth',900,70,.14,.7);     // tiếng nứt đầu nòng
+  tone('square',320,50,.35,.3);
+}catch(e){}}
