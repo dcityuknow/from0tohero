@@ -55,7 +55,7 @@ const SPK=[new THREE.MeshBasicMaterial({color:0xffe066}),new THREE.MeshBasicMate
 function bossPose(b){b.aR.rotation.x=-1.45;for(const k in GUN)GUN[k].visible=k===b.wp;
   if(Math.random()<.6){   // tia lửa điện quanh người boss
     const sc=b.g.scale.x,m=new THREE.Mesh(UG,SPK[Math.random()<.5?0:1]),z=.05+Math.random()*.08;
-    m.scale.set(z,z*(1+Math.random()*3),z);m.position.set(b.x+(Math.random()-.5)*.9*sc,b.y+(.2+Math.random()*1.7)*sc,b.z+(Math.random()-.5)*.9*sc);
+    m.scale.set(z,z*(1+Math.random()*3),z);m.position.set(b.x+(Math.random()-.5)*.9*sc,b.y+(.2+Math.random()*2.3)*sc,b.z+(Math.random()-.5)*.9*sc);
     spawnPart(m,(Math.random()-.5)*2,.5+Math.random()*2,(Math.random()-.5)*2,.35+Math.random()*.25,false,.01)}}
 function bossDown(b){bossAlive=false;bossDone[b.fl]=true;openGate(b.fl);showMsg(t(b.fl<NF-1?'bossdown':'win'));dropItem('gold',b.x,b.y+.45,b.z)}
 // ---- Bộ sinh quái: cố định theo thời gian, KHÔNG phụ thuộc việc bạn có hạ quái hay không ----
@@ -107,7 +107,7 @@ function talkTick(dt,bo){
 const _tp=new THREE.Vector3();
 function placeBubble(){   // gọi sau khi camera cập nhật: đặt khung chữ trên đầu boss (thu nhỏ khi ở xa)
   if(!playing||talkShow<=0||!boss.on||boss.hp<=0){tb.style.display='none';return}
-  _tp.set(boss.x,boss.y+boss.h+.4,boss.z);const d=_tp.distanceTo(C.position);_tp.project(C);
+  _tp.set(boss.x,boss.y+2.6*boss.g.scale.x+.3,boss.z);const d=_tp.distanceTo(C.position);_tp.project(C);
   if(_tp.z>1||d>45){tb.style.display='none';return}
   tb.style.display='block';
   tb.style.transform='translate('+(_tp.x*.5+.5)*innerWidth+'px,'+(-_tp.y*.5+.5)*innerHeight+'px) translate(-50%,-100%) scale('+Math.max(.6,Math.min(1.2,14/d))+')';
