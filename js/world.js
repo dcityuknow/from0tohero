@@ -1,4 +1,6 @@
 // Bản đồ: sàn, tường, khối chắn
+// MAPK = hệ số phóng to bản đồ (1 = kích thước gốc, 1.5 = rộng gấp 1.5 lần mỗi chiều). CHỈ CẦN SỬA SỐ NÀY để đổi cỡ cả 4 tầng.
+const MAPK=1.5;
 // ---- Map ----
 const boxes=[],meshes=[];
 function box(x,y,z,w,h,d,col){
@@ -6,11 +8,14 @@ function box(x,y,z,w,h,d,col){
   m.position.set(x,y+h/2,z);S.add(m);meshes.push(m);
   boxes.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2});
 }
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(42,42),new THREE.MeshLambertMaterial({color:0x8a8c96}));
+const HALF0=Math.round(20*MAPK);   // nửa cạnh trong của tầng 1 (gốc = 20)
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF0+2,2*HALF0+2),new THREE.MeshLambertMaterial({color:0x8a8c96}));
 floor.rotation.x=-Math.PI/2;S.add(floor);meshes.push(floor);
-const grid=new THREE.GridHelper(42,21,0x6b6d78,0x6b6d78);grid.position.y=.02;S.add(grid);
+const grid=new THREE.GridHelper(2*HALF0+2,HALF0+1,0x6b6d78,0x6b6d78);grid.position.y=.02;S.add(grid);
 const PK=0xff9fbf,BL=0x9ccfff,MT=0xbff0d4,YL=0xffe8a3;
-box(0,0,-20.5,43,9,1,PK);box(0,0,20.5,43,9,1,PK);box(-20.5,0,0,1,9,43,BL);box(20.5,0,0,1,9,43,BL);
-box(-8,0,-6,2,3.5,2,BL);box(8,0,-6,2,3.5,2,BL);box(-8,0,6,2,3.5,2,PK);box(8,0,6,2,3.5,2,PK);
-box(0,0,0,6,1,6,MT);box(0,1,0,3,1,3,YL);
-box(-15,0,-14,6,1.2,3,MT);box(15,0,14,6,1.2,3,MT);box(0,0,-13,10,2,1,PK);box(0,0,13,10,2,1,BL);
+box(0,0,-(HALF0+.5),2*HALF0+3,9,1,PK);box(0,0,HALF0+.5,2*HALF0+3,9,1,PK);box(-(HALF0+.5),0,0,1,9,2*HALF0+3,BL);box(HALF0+.5,0,0,1,9,2*HALF0+3,BL);
+// khối chắn: bố cục gốc, nhân MAPK theo chiều ngang (vị trí + kích thước), giữ nguyên chiều cao
+const bk=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);
+bk(-8,0,-6,2,3.5,2,BL);bk(8,0,-6,2,3.5,2,BL);bk(-8,0,6,2,3.5,2,PK);bk(8,0,6,2,3.5,2,PK);
+bk(0,0,0,6,1,6,MT);bk(0,1,0,3,1,3,YL);
+bk(-15,0,-14,6,1.2,3,MT);bk(15,0,14,6,1.2,3,MT);bk(0,0,-13,10,2,1,PK);bk(0,0,13,10,2,1,BL);

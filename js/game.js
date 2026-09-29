@@ -3,7 +3,7 @@
 function hurt(n){P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;setTimeout(()=>$('hurt').style.opacity=0,120);
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();$('ov').style.display='flex'}}
-function restart(){P.x=0;P.z=16;P.y=0;P.vy=0;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
+function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
 let last=performance.now();
 function frame(now){
   requestAnimationFrame(frame);

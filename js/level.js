@@ -1,6 +1,6 @@
-// Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong: 20/25/30/35).
+// Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong gốc: 20/25/30/35, nhân với MAPK ở world.js).
 // Thang tầng chẵn ở TÂY, tầng lẻ ở ĐÔNG. Cổng khóa ở chân thang, mở khi hạ boss của tầng đó.
-const NF=4,FH=10,AF=f=>20+5*f;
+const NF=4,FH=10,AF=f=>Math.round((20+5*f)*MAPK);
 const need=f=>50*(f+1);                 // boss xuất hiện sau khi hạ 50 / 100 / 150 / 200 bot (cấp số cộng), mỗi tầng đếm lại từ 0
 let curFl=0;const fk=[0,0,0,0],bossDone=[false,false,false,false],gates=[];let bossAlive=false;
 const FC=[[PK,BL,MT,YL],[0xc9a7ff,0xffb3a7,0xa8e6cf,0xfff2a3],[0xffd166,0x8ecae6,0xf4a3c4,0xb8f2c8],[0x9aa5ff,0xff9fa8,0xb5ead7,0xffdac1]];
@@ -18,23 +18,24 @@ function slabHole(y,S,x0,x1,z0,z1,c){
   B(-S,S,-S,z0);B(-S,S,z1,S);B(-S,x0,z0,z1);B(x1,S,z0,z1);
 }
 const LAY=[null,
- (y,a,b,c,d)=>{   // tầng 2: khối trung tâm, 4 cột, 2 tường dài, 2 bục thấp
+ (y,a,b,c,d,box)=>{   // tầng 2: khối trung tâm, 4 cột, 2 tường dài, 2 bục thấp
   box(0,y,0,8,1,8,c);box(0,y+1,0,4,1,4,d);
   for(const sx of[-1,1])for(const sz of[-1,1])box(sx*10,y,sz*10,2,3.5,2,b);
   box(0,y,-15,14,2,1,a);box(0,y,15,14,2,1,a);box(-12,y,0,3,1.2,10,c);box(12,y,0,3,1.2,10,c)},
- (y,a,b,c,d)=>{   // tầng 3: chia 4 phòng có cửa, tháp giữa
+ (y,a,b,c,d,box)=>{   // tầng 3: chia 4 phòng có cửa, tháp giữa
   box(0,y,-18,1,3.5,10,b);box(0,y,18,1,3.5,10,b);box(-14,y,0,10,3.5,1,a);box(14,y,0,10,3.5,1,a);
   box(0,y,0,5,2,5,c);box(0,y+2,0,2.5,1.5,2.5,d);
   for(const sx of[-1,1])for(const sz of[-1,1])box(sx*10,y,sz*10,3,1.1,3,d)},
- (y,a,b,c,d)=>{   // tầng 4: đấu trường vòng cột, đồi bậc thang ở giữa
+ (y,a,b,c,d,box)=>{   // tầng 4: đấu trường vòng cột, đồi bậc thang ở giữa
   box(0,y,0,12,1,12,c);box(0,y+1,0,7,1,7,d);box(0,y+2,0,3,1,3,a);
   for(const [x,z] of[[16,16],[-16,16],[16,-16],[-16,-16],[0,-20],[0,20],[-20,0],[20,0]])box(x,y,z,2,4,2,b);
   for(const sx of[-1,1])for(const sz of[-1,1])box(sx*9,y,sz*24,10,2,1,a)}];
+const sbox=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);   // bố cục tầng 2-4 co giãn theo MAPK
 for(let f=1;f<NF;f++){
   const y=f*FH,[a,b,c,d]=FC[f],A=AF(f),Af=AF(f-1),s=(f-1)%2;
   slabHole(y-1,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
   box(0,y,-(A+.5),2*A+3,9,1,a);box(0,y,A+.5,2*A+3,9,1,a);box(-(A+.5),y,0,1,9,2*A+3,b);box(A+.5,y,0,1,9,2*A+3,b);
-  LAY[f](y,a,b,c,d);
+  LAY[f](y,a,b,c,d,sbox);
 }
 {const A=AF(NF-1)+1;box(0,NF*FH-1,0,2*A,1,2*A,0xdcdce6)}           // trần tầng cao nhất
 for(let f=0;f<NF-1;f++){
@@ -49,7 +50,7 @@ for(let f=0;f<NF-1;f++){
 function openGate(f){const g=gates[f];if(!g||g.open)return;g.open=true;boxes.splice(boxes.indexOf(g.e),1);meshes.splice(meshes.indexOf(g.m),1);S.remove(g.m)}
 // điểm spawn cho từng tầng: lấy mẫu lưới ở vùng giữa, bỏ điểm chạm vật cản
 const _sp=[];
-function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:14,c=[];
+function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:Math.round(14*MAPK),c=[];
   for(let x=-R;x<=R;x+=3)for(let z=-(A-3);z<=A-3;z+=3)if(!hit({x,y:f*FH+.02,z,r:.7,h:1.7}).length)c.push([x,z]);
   const k=Math.max(1,Math.floor(c.length/14));return _sp[f]=c.filter((_,i)=>i%k===0)}
 function resetLevel(){

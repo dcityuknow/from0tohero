@@ -8,17 +8,29 @@ const CFG={
   quality:MOBILE?.7:1,     // 1 = mặc định · 1.5 = mảnh nhỏ hơn, đẹp hơn, nặng hơn · 0.6 = mảnh to, nhẹ máy
   density:MOBILE?.7:1,     // nhân số lượng vật thể
   seed:2025,               // đổi số này để ra bố cục khác
+  scaleExp:1.8,            // số lượng vật thể tăng theo (diện tích tầng)^scaleExp; 2 = mật độ không đổi khi map to ra, nhỏ hơn = thưa hơn (nhẹ máy)
+  litter:140,              // lá / cánh hoa rơi vãi trên mặt đất (chi tiết nhỏ, rất nhẹ)
   waves:true,              // mặt hồ nhấp nhô
   splash:true,             // tóe nước khi lội
   critters:true,           // bướm bay
-  wade:.6,                 // tốc độ khi lội nước (1 = không chậm)
-  viewDist:60              // xa hơn mức này thì ẩn bớt vật thể
+  wade:.6,                 // tốc độ khi lội nước tới ngang đùi (1 = không chậm)
+  deepWade:.8,             // nhân thêm khi nước sâu quá 0.6m (0.8 = chậm thêm 20% ở giữa hồ)
+  viewDist:60,             // xa hơn mức này thì ẩn bớt vật thể
+  // ---- Chiều sâu hồ (MỚI) ----
+  depth:1.15,              // mực nước ở giữa hồ (m so với sàn) ~ ngang ngực
+  shelf:2.6,               // bề rộng dốc từ mép hồ tới chỗ sâu nhất (m); lớn hơn = dốc thoải hơn
+  sinkMax:.7,              // camera hạ tối đa bao nhiêu m khi ngập sâu
+  eye:1.6,                 // chiều cao mắt so với chân người chơi (chỉnh khớp game của bạn để nhận đúng lúc "chìm hẳn")
+  underwater:true          // lớp màu nước + sương mù + bọt khí khi đầu ngập dưới mặt nước
 };
 const V=s=>s/CFG.quality;
+const clamp01=x=>x<0?0:x>1?1:x;
+const smooth=t=>t*t*(3-2*t);
 function RNG(seed){let a=seed>>>0;const r=()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
   r.range=(lo,hi)=>lo+(hi-lo)*r();r.int=(lo,hi)=>Math.floor(lo+r()*(hi-lo+1));r.pick=a=>a[Math.floor(r()*a.length)];return r}
 
 // ---- Chủ đề từng tầng. Bảng lá/thông: [chính, sáng, tối] ----
+// water = [trung bình, sáng, tối, bọt mép]  (màu tối [2] dùng cho vùng sâu giữa hồ)
 const THM=[
  {name:'Đồng cỏ',trunk:[0x8a5a3c,0x6f452c,0x9b6a48],leaf:[0x4fc36a,0x6fdc7f,0x3aa856],leafB:[0xffa8c8,0xffc2d8,0xff8fb8],pine:[0x2f9a5a,0x3fb56b,0x2a8a50],cap:null,
   rock:[0x9a9ca8,0xb0b2bd,0x80828e],moss:0x6fcf7f,ground:[0x7fd18a,0x6fc47c,0x8fdc99],tuft:[0x5fc46c,0x7fdc84,0x4aa85a],water:[0x4da6ff,0x6fc0ff,0x3d8fe8,0x8fd3ff],
@@ -118,10 +130,18 @@ function stumpMesh(T){
 const circleRect=(x,z,r,k)=>{const dx=Math.max(k.x0-x,0,x-k.x1),dz=Math.max(k.z0-z,0,z-k.z1);return dx*dx+dz*dz<r*r};
 function keepOuts(f){
   const k=[];
-  if(f===0)k.push({x0:-3.5,x1:3.5,z0:12.5,z1:19.5});
+  if(f===0)k.push({x0:-3.5*MAPK,x1:3.5*MAPK,z0:12.5*MAPK,z1:19.5*MAPK});
   if(f<NF-1){const A=AF(f),cx=(f%2?1:-1)*(A-2);k.push({x0:cx-3.2,x1:cx+3.2,z0:A-23,z1:A-.5})}
   if(f>0){const Af=AF(f-1),s=(f-1)%2,a=s?Af-4:-Af,b=s?Af:-Af+4;k.push({x0:a-2,x1:b+2,z0:Af-24,z1:Af-2})}
   return k;
+}
+
+// ---- Độ sâu hồ: mực nước (m so với sàn) tại điểm (x,z). Dốc dần từ mép (0.1m) tới CFG.depth ở giữa ----
+function lakeH(l,x,z){
+  if(l.ice)return .1;
+  const m=Math.min(l.rx,l.rz),sh=Math.max(.5,Math.min(CFG.shelf,m*.7));
+  const dist=(1-l.rho(x,z))*m;                       // khoảng cách (m) từ mép vào trong
+  return .1+(Math.max(.2,CFG.depth)-.1)*smooth(clamp01(dist/sh));
 }
 
 // ---- Dựng cả 1 tầng ----
@@ -129,7 +149,9 @@ const _m=new THREE.Matrix4(),_p=new THREE.Vector3(),_q=new THREE.Quaternion(),_s
 const variants=(key,mk)=>cache[key]||(cache[key]=Array.from({length:3},mk));
 function waveLake(l,t){
   const s=l.g*.97;
-  for(let i=0;i<l.tiles.length;i++){const q=l.tiles[i],h=.1+(l.ice?0:.024*(Math.sin(q.x*1.1+t*1.5)+Math.sin(q.z*1.3-t*1.1)+Math.sin((q.x+q.z)*.7+t*.9)*.6));
+  for(let i=0;i<l.tiles.length;i++){const q=l.tiles[i],
+    w=l.ice?0:.024*(Math.sin(q.x*1.1+t*1.5)+Math.sin(q.z*1.3-t*1.1)+Math.sin((q.x+q.z)*.7+t*.9)*.6)*Math.min(1,q.h0*2.5),
+    h=q.h0+w;
     _p.set(q.x,l.y+h/2,q.z);_s.set(s,h,s);_m.compose(_p,_q,_s);l.mesh.setMatrixAt(i,_m)}
   l.mesh.instanceMatrix.needsUpdate=true;
 }
@@ -139,7 +161,7 @@ function butterfly(col){
   S.add(g);return {g,wl:mk(-1),wr:mk(1)};
 }
 function buildFloor(f){
-  const T=THM[f],A=AF(f),y0=f*FH,rand=RNG(CFG.seed*131+f*7919+1),k=Math.pow(A/20,1.6)*CFG.density;
+  const T=THM[f],A=AF(f),y0=f*FH,rand=RNG(CFG.seed*131+f*7919+1),k=Math.pow(A/20,CFG.scaleExp)*CFG.density;
   const Fl={f,y:y0,objs:[],lakes:[],crit:[],deco:null},keep=keepOuts(f),placed=[],d=new VB(),lim=A-1.2;
   let cn=0,pn=0;
   const dc=(x,y,z,sx,sy,sz,hex)=>d.cube(x,y,z,sx,sy,sz,hex,cn++,(cn*7)&63,(cn*13)&31);   // 1 mảnh rubik gộp vào mesh trang trí
@@ -173,7 +195,7 @@ function buildFloor(f){
 
   // 1) Hồ nước (đặt trước để mọi thứ khác tránh ra)
   const mkLake=(cx,cz,rx,rz)=>{const ph=rand()*6.283,a1=rand.range(.08,.14),a2=rand.range(.04,.09),nz=a=>1+a1*Math.sin(3*a+ph)+a2*Math.sin(5*a+ph*1.7);
-    return {cx,cz,rx,rz,y:y0,ice:!!T.ice,nz,rho:(x,z)=>{const u=(x-cx)/rx,v=(z-cz)/rz;return Math.hypot(u,v)/nz(Math.atan2(v,u))},at:(a,p)=>[cx+rx*Math.cos(a)*p*nz(a),cz+rz*Math.sin(a)*p*nz(a)]}};
+    return {cx,cz,rx,rz,y:y0,ice:!!T.ice,T,nz,rho:(x,z)=>{const u=(x-cx)/rx,v=(z-cz)/rz;return Math.hypot(u,v)/nz(Math.atan2(v,u))},at:(a,p)=>[cx+rx*Math.cos(a)*p*nz(a),cz+rz*Math.sin(a)*p*nz(a)]}};
   const lakeOk=(x,z,rx,rz)=>{
     if(keep.some(q=>circleRect(x,z,Math.max(rx,rz)*.95,q)))return false;
     for(const o of Fl.lakes)if(Math.hypot(x-o.cx,z-o.cz)<(Math.max(rx,rz)+Math.max(o.rx,o.rz))*1.1)return false;
@@ -181,7 +203,7 @@ function buildFloor(f){
       if(hitAny({x:bx,y:y0+.02,z:bz,r:.5,h:.5})||!sup(bx,bz,.3))return false}
     return !hitAny({x,y:y0+.02,z,r:.6,h:.5});
   };
-  const spec=f===0?[[14.2,-3.5,4.3,5.6],[-11.6,9.5,2.1,2.3]]:[[null,null,3.2+f*1.1,4+f*1.1],[null,null,2.2+.3*f,2.2+.3*f]];
+  const K=MAPK,spec=f===0?[[14.2*K,-3.5*K,4.3*K,5.6*K],[-11.6*K,9.5*K,2.1*K,2.3*K]]:[[null,null,(3.2+f*1.1)*K,(4+f*1.1)*K],[null,null,(2.2+.3*f)*K,(2.2+.3*f)*K]];
   for(const [cx,cz,rx0,rz0] of spec){
     let l=null;
     if(cx!==null)l=mkLake(cx,cz,rx0,rz0);
@@ -196,12 +218,17 @@ function buildFloor(f){
     const g=V(.5),pos=[],edge=.9/Math.min(l.rx,l.rz);l.g=g;
     for(let x=l.cx-l.rx*1.4,ix=0;x<=l.cx+l.rx*1.4;x+=g,ix++)for(let z=l.cz-l.rz*1.4,iz=0;z<=l.cz+l.rz*1.4;z+=g,iz++){
       const p=l.rho(x,z);
-      if(p<1)pos.push({x,z,p,ix,iz});
+      if(p<1)pos.push({x,z,p,ix,iz,h0:.1});
       else if(p<1+edge&&(f===0||hitAny({x,y:y0-.6,z,r:.05,h:.3})))dc(x,y0+.045,z,g*.94,.05,g*.94,T.sand[(ix+iz)&1]);   // bãi cát / tuyết quanh hồ
     }
     if(pos.length){
-      const mesh=new THREE.InstancedMesh(UG,new THREE.MeshLambertMaterial({color:0xffffff,transparent:!T.ice,opacity:T.ice?1:.86,emissive:0x0a1a2a}),pos.length),col=new THREE.Color();
-      pos.forEach((q,i)=>{const w=T.water;col.setHex(q.p<.45?w[2]:q.p<.75?w[0]:q.p<.93?w[1]:w[3]);if((q.ix+q.iz)&1)col.multiplyScalar(.93);mesh.setColorAt(i,col)});
+      // nước: bớt sáng (emissive đen), đục hơn để có chiều sâu; màu chuyển dần từ nhạt ở mép sang tối đậm ở giữa hồ
+      const mesh=new THREE.InstancedMesh(UG,new THREE.MeshLambertMaterial({color:0xffffff,transparent:!T.ice,opacity:T.ice?1:.92,emissive:0x000000}),pos.length),col=new THREE.Color(),deep=new THREE.Color(),shal=new THREE.Color();
+      pos.forEach((q,i)=>{const w=T.water,dd=Math.min(1,(1-q.p)/.85);   // dd: 0 ở mép → 1 ở giữa hồ
+        q.h0=lakeH(l,q.x,q.z);
+        shal.setHex(w[3]);deep.setHex(w[2]).multiplyScalar(T.ice?.85:.45);
+        col.copy(shal).lerp(deep,Math.pow(dd,.7));
+        if((q.ix+q.iz)&1)col.multiplyScalar(.93);mesh.setColorAt(i,col)});
       mesh.frustumCulled=false;S.add(mesh);l.mesh=mesh;l.tiles=pos;waveLake(l,0);
     }
     // đá cuội, lau sậy, lá súng ven và trên hồ
@@ -212,8 +239,9 @@ function buildFloor(f){
       if(f&&!hitAny({x:cx,y:y0-.6,z:cz,r:.05,h:.3}))continue;
       for(let b=0,m=rand.int(3,5);b<m;b++){const x=cx+rand.range(-.25,.25),z=cz+rand.range(-.25,.25),h=rand.range(1,1.7);
         dc(x,y0+h/2,z,.045,h,.045,rand.pick(T.reed));if(rand()<.5)dc(x,y0+h-.12,z,.075,.24,.075,0x6b4a32)}}
-    if(!T.ice)for(let i=0,n=Math.round(l.rx*l.rz*.35*CFG.density);i<n;i++){const [x,z]=l.at(rand()*6.283,rand.range(.1,.8)),r=rand.range(.22,.32);
-      d.cyl(x,y0+.185,z,r,.03,rand.pick(T.pad),V(.075),'y');if(rand()<.4)dc(x,y0+.23,z,.09,.07,.09,rand()<.5?0xff9fbf:0xffffff)}
+    // lá súng nổi theo mực nước tại chỗ nó nằm
+    if(!T.ice)for(let i=0,n=Math.round(l.rx*l.rz*.35*CFG.density);i<n;i++){const [x,z]=l.at(rand()*6.283,rand.range(.1,.8)),r=rand.range(.22,.32),wy=y0+lakeH(l,x,z);
+      d.cyl(x,wy+.09,z,r,.03,rand.pick(T.pad),V(.075),'y');if(rand()<.4)dc(x,wy+.135,z,.09,.07,.09,rand()<.5?0xff9fbf:0xffffff)}
   }
 
   // 2) Tảng đá (kể cả vài tảng sát mép hồ)
@@ -268,6 +296,10 @@ function buildFloor(f){
   for(let i=0,n=Math.round(T.flowers*k);i<n;i++){const x=rand.range(-lim,lim),z=rand.range(-lim,lim);
     if(wet(x,z,.3)||hitAny({x,y:y0+.02,z,r:.08,h:.3})||(f&&!sup(x,z,0)))continue;
     const c=rand.pick(T.flower);dc(x,y0+.11,z,.03,.22,.03,T.tuft[2]);dc(x,y0+.25,z,.1,.07,.1,c);dc(x,y0+.27,z,.04,.05,.04,0xffd23f)}
+  // 5b) Lá / cánh hoa rơi vãi (mảnh phẳng nhỏ, gộp chung mesh trang trí)
+  for(let i=0,n=Math.round(CFG.litter*k);i<n;i++){const x=rand.range(-lim,lim),z=rand.range(-lim,lim);
+    if(wet(x,z,.2)||hitAny({x,y:y0+.02,z,r:.08,h:.3})||(f&&!sup(x,z,0)))continue;
+    const s=rand.range(.06,.13);dc(x,y0+.105,z,s,.02,s*rand.range(.7,1.2),rand.pick(rand()<.55?T.leaf:T.leafB))}
   const dm=d.mesh();dm.frustumCulled=false;S.add(dm);Fl.deco=dm;
 
   // 6) Bướm bay
@@ -294,14 +326,57 @@ function vis(){
 function lakeAt(x,y,z){for(const Fl of FL)for(const l of Fl.lakes)if(!l.ice&&Math.abs(y-l.y)<.35&&l.rho(x,z)<.96)return l;return null}
 function splash(x,z,l,n){
   for(let i=0;i<n;i++){const m=new THREE.Mesh(UG,M(i&1?0x9fd8ff:0xffffff)),s=.04+Math.random()*.05;
-    m.scale.set(s,s,s);m.position.set(x+(Math.random()-.5)*.5,l.y+.15,z+(Math.random()-.5)*.5);
+    m.scale.set(s,s,s);m.position.set(x+(Math.random()-.5)*.5,l.y+lakeH(l,x,z)+.05,z+(Math.random()-.5)*.5);
     spawnPart(m,(Math.random()-.5)*2.5,1.5+Math.random()*2,(Math.random()-.5)*2.5,.5+Math.random()*.3,false,.02)}
 }
-// Lội nước thì đi chậm lại (bọc hàm move của physics.js, chỉ áp dụng cho người chơi)
-const _mv=move;
-move=function(e,dx,dy,dz){if(e===P&&lakeAt(e.x,e.y,e.z)){dx*=CFG.wade;dz*=CFG.wade}return _mv(e,dx,dy,dz)};
+function bubble(x,y,z){
+  const m=new THREE.Mesh(UG,M(0xeafcff)),s=.02+Math.random()*.03;
+  m.scale.set(s,s,s);m.position.set(x,y,z);
+  spawnPart(m,(Math.random()-.5)*.3,.9+Math.random()*.6,(Math.random()-.5)*.3,.8+Math.random()*.4,false,.02);
+}
 
-let last=performance.now(),tm=0,cl=0,wv=0,spl=0,inW=false,lx=0,lz=0;
+// Lội nước: càng sâu càng chậm (bọc hàm move của physics.js, chỉ áp dụng cho người chơi)
+const _mv=move;
+move=function(e,dx,dy,dz){
+  if(e===P){const l=lakeAt(e.x,e.y,e.z);
+    if(l){const dp=lakeH(l,e.x,e.z),a=1-(1-CFG.wade)*clamp01(dp/.6),kk=a*(1-(1-CFG.deepWade)*clamp01((dp-.6)/.5));dx*=kk;dz*=kk}}
+  return _mv(e,dx,dy,dz);
+};
+
+// ---- Chìm xuống nước: hạ camera + lớp màu nước + sương mù (không cần biết tên biến camera) ----
+let sink=0;
+if(THREE.WebGLRenderer&&!THREE.WebGLRenderer.prototype.__natureSink){
+  const _r=THREE.WebGLRenderer.prototype.render;
+  THREE.WebGLRenderer.prototype.render=function(sc,cam){
+    if(sink>.002&&cam&&cam.position){cam.position.y-=sink;try{return _r.call(this,sc,cam)}finally{cam.position.y+=sink}}
+    return _r.call(this,sc,cam);
+  };
+  THREE.WebGLRenderer.prototype.__natureSink=true;
+}
+const ov=document.createElement('div');
+ov.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:5;opacity:0;transition:none';
+(document.body||document.documentElement).appendChild(ov);
+let ovT=null,uw=0,fog0=null,fogOn=false;
+const _wc=new THREE.Color();
+function tintOverlay(T){
+  if(ovT===T)return;ovT=T;
+  const c=new THREE.Color(T.water[2]).multiplyScalar(.75),r=Math.round(c.r*255),g=Math.round(c.g*255),b=Math.round(c.b*255);
+  ov.style.background='linear-gradient(rgba('+r+','+g+','+b+',.55),rgba('+r+','+g+','+b+',.8))';
+}
+function fogApply(k,T){
+  const F=S.fog;if(!F)return;
+  if(!fog0)fog0={c:F.color.clone(),n:F.near,f:F.far,d:F.density};
+  if(k<.005){
+    if(fogOn){F.color.copy(fog0.c);if(F.near!==undefined){F.near=fog0.n;F.far=fog0.f}else if(F.density!==undefined)F.density=fog0.d;fogOn=false}
+    return;
+  }
+  fogOn=true;_wc.setHex(T.water[2]).multiplyScalar(.8);
+  F.color.copy(fog0.c).lerp(_wc,k);
+  if(F.near!==undefined){F.near=fog0.n+(.3-fog0.n)*k;F.far=fog0.f+(18-fog0.f)*k}
+  else if(F.density!==undefined)F.density=fog0.d+(.11-fog0.d)*k;
+}
+
+let last=performance.now(),tm=0,cl=0,wv=0,spl=0,inW=false,lx=0,lz=0,wasUW=false,bub=0;
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(.1,(now-last)/1000);last=now;tm+=dt;
@@ -314,14 +389,30 @@ function loop(now){
       c.g.rotation.y=Math.atan2(-Math.sin(a)*c.rr,Math.cos(a*1.3)*1.3*c.rr*.8);
       const w=Math.sin(tm*22+c.ph)*.9;c.wl.rotation.z=-w;c.wr.rotation.z=w}
   }
-  if(playing){const l=lakeAt(P.x,P.y,P.z);
-    if(l){if(!inW){inW=true;if(CFG.splash)splash(P.x,P.z,l,10);snd(260,.18,'sine',.05)}
+  let l=null,dp=0,under=false;
+  if(playing){l=lakeAt(P.x,P.y,P.z);
+    if(l){dp=lakeH(l,P.x,P.z);
+      if(!inW){inW=true;if(CFG.splash)splash(P.x,P.z,l,10);snd(260,.18,'sine',.05)}
       spl-=dt;if(CFG.splash&&spl<=0&&Math.hypot(P.x-lx,P.z-lz)>dt*1.5){spl=.13;splash(P.x,P.z,l,4)}}
     else inW=false}
+  else inW=false;
+  // camera chìm dần theo độ sâu (+ nhấp nhô nhẹ khi ngập sâu)
+  const deepK=clamp01((dp-.45)/.7),target=l?deepK*CFG.sinkMax+Math.sin(tm*2.1)*.035*deepK:0;
+  sink+=(target-sink)*Math.min(1,dt*6);if(sink<0)sink=0;
+  // mắt có nằm dưới mặt nước không?
+  if(l&&CFG.underwater){const eyeY=P.y+CFG.eye-sink;under=eyeY<l.y+dp-.05}
+  const T=l?l.T:ovT;
+  uw+=((under?1:0)-uw)*Math.min(1,dt*10);
+  if(T){tintOverlay(T);ov.style.opacity=uw<.01?0:uw.toFixed(2);fogApply(uw,T)}
+  if(under){
+    if(!wasUW)snd(150,.25,'sine',.05);
+    bub-=dt;if(bub<=0){bub=.3+Math.random()*.3;bubble(P.x+(Math.random()-.5)*.6,P.y+CFG.eye-sink-.35,P.z+(Math.random()-.5)*.6)}
+  }
+  wasUW=under;
   lx=P.x;lz=P.z;
 }
 FL.push(buildFloor(0));vis();
 for(let f=1;f<NF;f++)setTimeout(()=>{FL.push(buildFloor(f));vis()},400*f);
 requestAnimationFrame(loop);
-window.Nature={cfg:CFG,floors:FL};
+window.Nature={cfg:CFG,floors:FL,lakeH};
 })();
