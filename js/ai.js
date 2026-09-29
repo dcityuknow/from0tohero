@@ -9,7 +9,7 @@ function steer(b,tx,tz,sp,dt){
   move(b,Math.sin(a)*sp*dt,b.vy*dt,Math.cos(a)*sp*dt);
 }
 // ---- Boss (1 con, dùng lại cho từng tầng, máu tăng theo tầng) ----
-const boss=mkBot();boss.boss=true;boss.r=.5;boss.h=2.2;boss.g.scale.setScalar(1.3);boss.cd=1;boss.dir=1;boss.flip=0;boss.fl=0;boss.maxhp=500;boss.on=false;
+const boss=buildBoss();boss.boss=true;boss.r=.5;boss.h=2.2;boss.g.scale.setScalar(1.3);boss.cd=1;boss.dir=1;boss.flip=0;boss.fl=0;boss.maxhp=500;boss.on=false;
 // Loadout theo tầng: 1 = ngắn; 2 = AK + ngắn; 3 = ngắn + AK + ngắm; 4 = tất cả + lựu đạn
 const LO=[['pistol'],['rifle','pistol'],['pistol','rifle','sniper'],['pistol','rifle','sniper','grenade']];
 const F={pistol:{cd:.55,dmg:8,sp:22,q:.9},rifle:{cd:.12,dmg:5,sp:26,q:1.6},sniper:{cd:1.8,dmg:35,sp:70,q:0}},MZ={pistol:.9,rifle:1.25,sniper:1.65};
@@ -51,7 +51,12 @@ function bossAI(b,dt,dx,dz,d){
   }
   return 1;
 }
-function bossPose(b){b.aR.rotation.x=-1.45;for(const k in GUN)GUN[k].visible=k===b.wp}
+const SPK=[new THREE.MeshBasicMaterial({color:0xffe066}),new THREE.MeshBasicMaterial({color:0xff9a3c})];
+function bossPose(b){b.aR.rotation.x=-1.45;for(const k in GUN)GUN[k].visible=k===b.wp;
+  if(Math.random()<.6){   // tia lửa điện quanh người boss
+    const sc=b.g.scale.x,m=new THREE.Mesh(UG,SPK[Math.random()<.5?0:1]),z=.05+Math.random()*.08;
+    m.scale.set(z,z*(1+Math.random()*3),z);m.position.set(b.x+(Math.random()-.5)*.9*sc,b.y+(.2+Math.random()*1.7)*sc,b.z+(Math.random()-.5)*.9*sc);
+    spawnPart(m,(Math.random()-.5)*2,.5+Math.random()*2,(Math.random()-.5)*2,.35+Math.random()*.25,false,.01)}}
 function bossDown(b){bossAlive=false;bossDone[b.fl]=true;openGate(b.fl);showMsg(t(b.fl<NF-1?'bossdown':'win'));dropItem('gold',b.x,b.y+.45,b.z)}
 // ---- Bộ sinh quái: cố định theo thời gian, KHÔNG phụ thuộc việc bạn có hạ quái hay không ----
 const MAXBOT=100;                  // tối đa số bot thường còn sống cùng lúc trong 1 map (tăng nếu máy khỏe)

@@ -36,13 +36,14 @@ class VB{
       else this.cube(cx+u,cy+w,cz+v,cs*g,cl*g,cs*g,hex,a,b,l);
     }
   }
-  ell(cx,cy,cz,rx,ry,rz,col,s=.02){
+  ell(cx,cy,cz,rx,ry,rz,col,s=.02,shell=false){
     const nx=Math.round(2*rx/s),ny=Math.round(2*ry/s),nz=Math.round(2*rz/s),g=.93;this.seed++;
+    const ins=(i,j,k)=>((i+.5-nx/2)*s/rx)**2+((j+.5-ny/2)*s/ry)**2+((k+.5-nz/2)*s/rz)**2<=1;
     for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)for(let k=0;k<nz;k++){
-      const x=(i+.5-nx/2)*s,y=(j+.5-ny/2)*s,z=(k+.5-nz/2)*s;
-      if((x/rx)**2+(y/ry)**2+(z/rz)**2>1)continue;
+      if(!ins(i,j,k))continue;
+      if(shell&&ins(i-1,j,k)&&ins(i+1,j,k)&&ins(i,j-1,k)&&ins(i,j+1,k)&&ins(i,j,k-1)&&ins(i,j,k+1))continue;
       const hex=typeof col==='function'?col(i,j,k):col;
-      this.cube(cx+x,cy+y,cz+z,s*g,s*g,s*g,hex,i,j,k);
+      this.cube(cx+(i+.5-nx/2)*s,cy+(j+.5-ny/2)*s,cz+(k+.5-nz/2)*s,s*g,s*g,s*g,hex,i,j,k);
     }
   }
   mesh(){
