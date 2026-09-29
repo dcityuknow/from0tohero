@@ -20,16 +20,25 @@ function buildBot(){
   T.box(0,1.0,-.28,.42,.44,.16,BLU,.045,true);T.box(0,1.15,-.29,.44,.1,.18,0x3a7fe0,.04,true);
   T.box(0,.88,-.375,.28,.16,.03,0xffd23f,.03,true);T.box(0,1.05,-.375,.06,.06,.02,0xff4d5e,.02);
   add(b.g,T,false);
-  // đầu: kính che mắt, mắt trắng-xanh, miệng có răng, má hồng, tai nghe, mũ nhiều màu, ăng-ten
-  const H=new VB(true);
-  H.box(0,1.55,0,.44,.44,.44,PINK,.05,true);
-  H.box(0,1.58,.235,.42,.12,.03,0x2b2a3a,.03,true);
-  for(const sx of[-.1,.1]){H.box(sx,1.58,.252,.08,.07,.012,0xffffff,.015);H.box(sx,1.58,.262,.035,.035,.012,0x4d9dff,.012);H.box(sx,1.66,.25,.1,.02,.012,0x2b2a3a,.01)}
-  H.box(0,1.45,.232,.22,.05,.02,0x2b2a3a,.01);H.box(0,1.45,.245,.2,.03,.01,(i)=>i&1?0xffffff:-1,.02);
-  for(const sx of[-.16,.16])H.box(sx,1.5,.226,.06,.04,.012,0xff9fbf,.02);
-  for(const sx of[-1,1]){H.cyl(sx*.245,1.55,0,.07,.05,0xffd23f,.02,'x');H.cyl(sx*.27,1.55,0,.04,.02,0x3a3850,.015,'x')}
-  H.box(0,1.79,0,.34,.06,.34,tri(0xffd23f,0x4d9dff,0x7fe0a0),.04,true);H.box(0,1.77,.22,.34,.03,.14,0xff9a3c,.03);
-  H.cyl(.08,1.88,0,.012,.12,0x3a3850,.012,'y');H.ell(.08,1.97,0,.035,.035,.035,0xff2a4d,.015);
+  // đầu (to hơn ~27%): kính đen chắn mắt + logo trắng như boss, miệng có răng, má hồng, tai nghe, mũ nhiều màu, ăng-ten
+  const H=new VB(true),HY=1.6,VY=1.65,VF=.32;
+  H.box(0,HY,0,.56,.56,.56,PINK,.05,true);
+  H.box(0,VY,.27,.6,.28,.1,(i,j,k)=>(i+j+k)&1?0x14141b:0x1e1e27,.04,true);   // kính đen
+  // logo trắng hình "hạt đậu / quả tạ" (cùng công thức với boss, thu nhỏ)
+  {const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
+    so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),
+    si=(x,y)=>sm(Math.hypot(x-.5,y)-.26,Math.hypot(x+.5,y)-.26,1.0);
+    const LW=.46,LS=.0139,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2;
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
+      const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
+      if(o>0||n<=0)continue;
+      const g=Math.round(255*(.62+.38*Math.sin(Math.PI*(-o)/(-o+n)))),hex=g<<16|g<<8|g;
+      H.cube(x*u,VY+y*u,VF+.01,LS*.95,LS*.95,.02,hex,i,j,0)}}
+  H.box(0,1.4,.292,.28,.06,.02,0x2b2a3a,.01);H.box(0,1.4,.305,.25,.035,.01,(i)=>i&1?0xffffff:-1,.02);
+  for(const sx of[-.2,.2])H.box(sx,1.45,.286,.07,.04,.012,0xff9fbf,.02);
+  for(const sx of[-1,1]){H.cyl(sx*.3,1.6,0,.08,.05,0xffd23f,.02,'x');H.cyl(sx*.325,1.6,0,.045,.02,0x3a3850,.015,'x')}
+  H.box(0,1.91,0,.4,.06,.4,tri(0xffd23f,0x4d9dff,0x7fe0a0),.04,true);H.box(0,1.89,.26,.4,.03,.14,0xff9a3c,.03);
+  H.cyl(.1,2.0,0,.012,.12,0x3a3850,.012,'y');H.ell(.1,2.09,0,.035,.035,.035,0xff2a4d,.015);
   add(b.g,H,true);
   b.lL=pivot(-.17,.6);b.lR=pivot(.17,.6);b.aL=pivot(-.46,1.27);b.aR=pivot(.46,1.27);
   // chân: đầu gối vàng, giày trắng viền xanh, đế đen

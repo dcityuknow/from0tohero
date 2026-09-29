@@ -30,8 +30,9 @@ function setupFloor(){
   nb.forEach((b,i)=>{b.on=i<want;if(b.on)spawnBot(b)});
   boss.on=bossAlive&&boss.fl===curFl;if(boss.on){const h=boss.hp;spawnBot(boss);boss.hp=h}
 }
+const bname=f=>f===0?'FLASH':t('bossname');   // boss tầng 1 tên FLASH
 function onKill(){const f=curFl;fk[f]++;
-  if(!bossDone[f]&&!bossAlive&&fk[f]>=need(f)){bossAlive=true;boss.fl=f;boss.maxhp=500*(1+.6*f);bossScale(f);boss.on=true;spawnBot(boss);showMsg(t('bossappear'))}}
+  if(!bossDone[f]&&!bossAlive&&fk[f]>=need(f)){bossAlive=true;boss.fl=f;boss.maxhp=500*(1+.6*f);bossScale(f);boss.on=true;spawnBot(boss);showMsg(t('bossappear',bname(f)))}}
 function sight(b){const n=Math.ceil(Math.hypot(P.x-b.x,P.z-b.z)/.8);
   for(let i=1;i<n;i++){const u=i/n;if(hitAny({x:b.x+(P.x-b.x)*u,y:b.y+1.6+(P.y+1.3-b.y-1.6)*u,z:b.z+(P.z-b.z)*u,r:.05,h:.1}))return false}return true}
 function bossAI(b,dt,dx,dz,d){
@@ -76,10 +77,12 @@ fetch('talking.txt',{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).
   const l=x.replace(/^\uFEFF/,'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean);if(l.length)TALK=l}).catch(()=>{});
 const tb=document.createElement('div');
 tb.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 14px/1.3 sans-serif;padding:6px 10px;border-radius:8px;max-width:260px;text-align:center;transform-origin:50% 100%';
+tb.className='bt';   // mũi nhọn tam giác dưới khung chữ, chĩa xuống đầu boss
+{const st=document.createElement('style');st.textContent='.bt::after{content:"";position:absolute;left:50%;top:100%;margin-left:-11px;border:11px solid transparent;border-top:12px solid #000;border-bottom:0}';document.head.appendChild(st)}
 document.body.appendChild(tb);
 // Dịch câu của boss sang ngôn ngữ người chơi đã chọn (talking.txt viết bằng ngôn ngữ nào cũng được, tự nhận diện nguồn).
 // Bản dịch được lưu lại (bộ nhớ + localStorage) nên mỗi câu chỉ dịch 1 lần / ngôn ngữ. Không dịch được (mất mạng...) -> nói nguyên văn.
-const TRL={vi:'vi',ru:'ru',ng:'en',bn:'bn',id:'id',hi:'hi',zh:'zh-CN',fil:'tl',uk:'uk',ko:'ko'},TRM={};let trBad=0;
+const TRL={vi:'vi',en:'en',ru:'ru',ng:'en',bn:'bn',id:'id',hi:'hi',zh:'zh-CN',fil:'tl',uk:'uk',ko:'ko'},TRM={};let trBad=0;
 async function trLine(s){
   const tl=TRL[L]||'en',k=tl+'|'+s;
   if(TRM[k]!==undefined)return TRM[k];
@@ -110,7 +113,8 @@ function placeBubble(){   // gọi sau khi camera cập nhật: đặt khung ch�
   _tp.set(boss.x,boss.y+2.6*boss.g.scale.x+.3,boss.z);const d=_tp.distanceTo(C.position);_tp.project(C);
   if(_tp.z>1||d>45){tb.style.display='none';return}
   tb.style.display='block';
-  tb.style.transform='translate('+(_tp.x*.5+.5)*innerWidth+'px,'+(-_tp.y*.5+.5)*innerHeight+'px) translate(-50%,-100%) scale('+Math.max(.6,Math.min(1.2,14/d))+')';
+  const sc=Math.max(.6,Math.min(1.2,14/d));
+  tb.style.transform='translate('+(_tp.x*.5+.5)*innerWidth+'px,'+(-_tp.y*.5+.5)*innerHeight+'px) translate(-50%,-100%) translate(0,'+(-12*sc)+'px) scale('+sc+')';   // đầu mũi nhọn chạm đúng điểm trên đầu boss
 }
 let lk=0;
 function tickBoss(dt){
@@ -118,7 +122,7 @@ function tickBoss(dt){
   const nf=Math.min(NF-1,Math.max(0,Math.floor((P.y+.05)/FH)));if(nf!==curFl){curFl=nf;setupFloor()}
   tickSpawn(dt);
   const bo=boss.on&&boss.hp>0;talkTick(dt,bo);bb.style.display='block';$('bbw').style.display=bo?'block':'none';
-  $('bbn').textContent=bo?t('bossname'):bossDone[curFl]?t('floorclear',curFl+1):t('floor',curFl+1,fk[curFl],need(curFl));
+  $('bbn').textContent=bo?bname(boss.fl):bossDone[curFl]?t('floorclear',curFl+1):t('floor',curFl+1,fk[curFl],need(curFl));
   if(bo)$('bbf').style.width=Math.max(0,boss.hp/boss.maxhp*100)+'%';
   for(let i=bul.length-1;i>=0;i--){const p=bul[i];let gone=false;p.life-=dt;
     for(let k=0;k<6&&!gone;k++){const s=dt/6;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;
