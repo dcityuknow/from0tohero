@@ -325,7 +325,7 @@ function carpetTex(){   // viền nhạt quanh mỗi mảnh 0.5m -> nhìn như m
   _ct=new THREE.CanvasTexture(c);_ct.anisotropy=4;return _ct}
 function buildFloor(f){
   const T=THM[f],A=AF(f),y0=f*FH,rand=RNG(CFG.seed*131+f*7919+1),k=Math.pow(A/20,CFG.scaleExp)*CFG.density;
-  const Fl={f,y:y0,objs:[],lakes:[],crit:[],deco:null,cells:new Map(),terr:[],detail:[],hg:false,hAt:null,bridges:[]},keep=keepOuts(f),placed=[],d=new VB(),lim=A-1.2;
+  const Fl={f,y:y0,objs:[],lakes:[],crit:[],deco:null,cells:new Map(),terr:[],detail:[],hg:false,hAt:null,bridges:[],stones:[]},keep=keepOuts(f),placed=[],d=new VB(),lim=A-1.2;
   let cn=0,pn=0;
   const dkC=new THREE.Color(),dkG=(h,m)=>dkC.setHex(h).multiplyScalar(m).getHex();
   let hAt=()=>0;   // độ cao địa hình tại (x,z) - gán ở bước 1d
@@ -535,15 +535,15 @@ function buildFloor(f){
     if(q<.62){const v=rand.pick(variants(f+'boulder',()=>boulder(T,rand))),sc=rand.range(.8,1.3),hh=v.half*sc;
       if(!ok&&!(ok=spot(hh+.2,hh)))return;
       if(ok===true)ok={x,z};
-      inst(v.geo,ok.x,y0-.05,ok.z,sc,rand()*6.283,true);solidBox(ok.x,ok.z,hh,hh,v.ch*sc);placed.push({x:ok.x,z:ok.z,r:hh*1.1})}
+      inst(v.geo,ok.x,y0-.05,ok.z,sc,rand()*6.283,true);solidBox(ok.x,ok.z,hh,hh,v.ch*sc);placed.push({x:ok.x,z:ok.z,r:hh*1.1});Fl.stones.push({x:ok.x,z:ok.z,r:hh+.2,n:3,max:3,t:0})}   // nguồn đá cho bot nhặt
     else if(q<.8){const v=rand.pick(variants(f+'pillar',()=>pillar(T,rand))),hh=v.half,pt=spot(hh+.3,hh+.3);
       if(!pt)return;inst(v.geo,pt.x,y0-.05,pt.z,1,rand()*6.283,true);solidBox(pt.x,pt.z,hh,hh,v.ch);placed.push({x:pt.x,z:pt.z,r:hh*1.2})}
-    else{const v=rand.pick(variants(f+'pebbles',()=>pebbles(T,rand))),pt=spot(.5,.5);if(!pt)return;inst(v.geo,pt.x,y0,pt.z,rand.range(.9,1.4),rand()*6.283,false);placed.push({x:pt.x,z:pt.z,r:.4})}
+    else{const v=rand.pick(variants(f+'pebbles',()=>pebbles(T,rand))),pt=spot(.5,.5);if(!pt)return;inst(v.geo,pt.x,y0,pt.z,rand.range(.9,1.4),rand()*6.283,false);placed.push({x:pt.x,z:pt.z,r:.4});Fl.stones.push({x:pt.x,z:pt.z,r:.25,n:5,max:5,t:0})}
   };
   for(let i=0,n=Math.round(T.rocks*k);i<n;i++)putRock();
   for(const l of Fl.lakes)for(let j=0;j<7;j++){   // đá to ngay bờ sông
     const [x,z]=l.at(rand()*6.283,1.3+rand()*.15),v=rand.pick(variants(f+'boulder',()=>boulder(T,rand))),sc=rand.range(.8,1.2),hh=v.half*sc;
-    if(okAt(x,z,hh+.1,hh)){inst(v.geo,x,y0-.05,z,sc,rand()*6.283,true);solidBox(x,z,hh,hh,v.ch*sc);placed.push({x,z,r:hh*1.1})}
+    if(okAt(x,z,hh+.1,hh)){inst(v.geo,x,y0-.05,z,sc,rand()*6.283,true);solidBox(x,z,hh,hh,v.ch*sc);placed.push({x,z,r:hh*1.1});Fl.stones.push({x,z,r:hh+.2,n:3,max:3,t:0})}
   }
 
   // 3) Cây
@@ -559,7 +559,7 @@ function buildFloor(f){
   // 4) Bụi cây, khúc gỗ, gốc cây, nấm
   for(let i=0,n=Math.round(T.bushes*k);i<n;i++){
     const pal=rand()<.5?T.leaf:T.leafB,v=rand.pick(variants(f+'bush'+(pal===T.leaf?0:1),()=>bush(T,rand,pal))),pt=spot(.55,.6);if(!pt)continue;
-    inst(v.geo,pt.x,y0-.03,pt.z,rand.range(.8,1.3),rand()*6.283,true);placed.push({x:pt.x,z:pt.z,r:.5});
+    inst(v.geo,pt.x,y0-.03,pt.z,rand.range(.8,1.3),rand()*6.283,true);placed.push({x:pt.x,z:pt.z,r:.5});Fl.stones.push({x:pt.x,z:pt.z,r:.55,n:2,max:2,t:0});
   }
   for(let i=0,n=Math.max(1,Math.round(T.logs*k*.6));i<n;i++){   // mỗi "log" giờ là 1 đống gỗ nhiều khúc nên đặt ít đống hơn
     const v=rand.pick(variants(f+'log',()=>logMesh(T,rand))),rad=Math.hypot(v.L,v.W)/2*.9,pt=spot(rad,rad);if(!pt)continue;
@@ -954,5 +954,5 @@ function wetAt(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
   const w=Fl.cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL)))||Fl.lakes.some(l=>!l.ice&&l.rho(x,z)<1+(m||0)/l.rz);
   if(w)for(const B of Fl.bridges){const q=B.along?x:z,ww=B.along?z:x;if(Math.abs(q-B.q)<1.55&&ww>B.wa&&ww<B.wb)return false}
   return w}
-window.Nature={cfg:CFG,floors:FL,lakeH,rayWater,bulletSplash,explosionSplash,isWater,wetAt,bridges:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.bridges||[]},heightAt:(f,x,z)=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.hAt?Fl.hAt(x,z):0}};
+window.Nature={cfg:CFG,floors:FL,stones:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.stones||[]},lakeH,rayWater,bulletSplash,explosionSplash,isWater,wetAt,bridges:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.bridges||[]},heightAt:(f,x,z)=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.hAt?Fl.hAt(x,z):0}};
 })();

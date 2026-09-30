@@ -3,13 +3,13 @@ let deadT=0,stepD=0,pg=true;   // deadT: 0->1 hoạt ảnh ngã xuống khi hế
 function hurt(n){P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;setTimeout(()=>$('hurt').style.opacity=0,120);
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
-function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
+function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
 let last=performance.now();
 function frame(now){
   requestAnimationFrame(frame);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(playing){
-    cd-=dt;slideCd-=dt;gcd-=dt;tickThrow(dt);tickG(dt);tickPickups(dt);
+    cd-=dt;slideCd-=dt;gcd-=dt;tickThrow(dt);tickG(dt);tickRocks(dt);tickPickups(dt);
     if(rel>0){rel-=dt;if(rel<=0){const n=Math.min(W[cur].mag-ammos[cur],reserve[cur]);ammos[cur]+=n;reserve[cur]-=n}}
     // move
     const fw=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y;
@@ -41,12 +41,12 @@ function frame(now){
       const dx=P.x-b.x,dz=P.z-b.z,d=Math.hypot(dx,dz);let mv=0;
       // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
       if(!dead&&d<P.r+b.r&&Math.abs(P.y-b.y)<1.6){const o=P.r+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}
-      b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(d>1.4){b.vy-=22*dt;mv=botAI(b,dt,dx,dz,d)}
+      b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
       else if(!dead&&Math.abs(P.y-b.y)<1.5)hurt(28*dt);
       b.mv+=(mv-b.mv)*Math.min(1,dt*8);{const s0=Math.sin(b.t);b.t+=dt*11*b.mv;if(b.mv>.5&&s0*Math.sin(b.t)<0&&d<14){if(b.sw)snd(280+Math.random()*140,.14,'sine',.05,b.g.position);else botStepSnd(b.g.position,b.boss)}}
       const sw=Math.sin(b.t)*.95*b.mv;b.lL.rotation.x=sw;b.lR.rotation.x=-sw;b.aL.rotation.x=-sw*.8;b.aR.rotation.x=sw*.8;
       b.g.position.set(b.x,b.y+Math.abs(Math.sin(b.t))*.07*b.mv,b.z);{const ty=b.hdUse?b.hd:Math.atan2(dx,dz);if(b.ry===undefined)b.ry=ty;let da=ty-b.ry;da=Math.atan2(Math.sin(da),Math.cos(da));b.ry+=da*Math.min(1,dt*10);b.g.rotation.y=b.ry}   // quay mượt: gần thì nhìn người chơi, xa / đi cầu thì nhìn theo hướng đi
-      if(b.boss)bossPose(b);
+      if(b.rk)rockPose(b);if(b.boss)bossPose(b);
     }
     // fx
     if(fx>0){fx-=dt;if(fx<=0){tracer.visible=false;spark.visible=false;flash.visible=false}}

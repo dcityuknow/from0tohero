@@ -24,6 +24,7 @@
     // Kẻ địch: mô hình bot/boss, di chuyển, boss, bộ sinh quái, thoại boss, quản lý tầng
     'entities/bot-model.js','entities/boss-model.js','entities/steering.js','entities/boss.js',
     'entities/spawner.js','entities/boss-talk.js','entities/floor-manager.js',
+    'entities/bot-throw.js',   // bot nhặt đá ở thảm thực vật rồi ném (nạp sau floor-manager)
     // Gameplay: bắn, hiệu ứng, vật phẩm, lựu đạn
     'gameplay/combat.js','gameplay/effects.js','ui/minimap.js','gameplay/items.js','gameplay/grenade.js',
     // Cảm ứng điện thoại
