@@ -183,6 +183,7 @@ const circleRect=(x,z,r,k)=>{const dx=Math.max(k.x0-x,0,x-k.x1),dz=Math.max(k.z0
 function keepOuts(f){
   const k=[];
   if(f===0)k.push({x0:-3.5*MAPK,x1:3.5*MAPK,z0:12.5*MAPK,z1:19.5*MAPK});
+  if(f===0)k.push({x0:-9.2,x1:9.2,z0:10.5,z1:22});   // nhà rubik (world/house.js) + cây cảnh quanh nhà: không mọc cây / đá / sông đè lên
   if(f<NF-1){const A=AF(f),cx=(f%2?1:-1)*(A-2);k.push({x0:cx-3.2,x1:cx+3.2,z0:A-23,z1:A-.5})}
   if(f>0){const Af=AF(f-1),s=(f-1)%2,a=s?Af-4:-Af,b=s?Af:-Af+4;k.push({x0:a-2,x1:b+2,z0:Af-24,z1:Af-2})}
   return k;
