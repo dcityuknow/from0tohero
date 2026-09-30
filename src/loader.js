@@ -16,7 +16,7 @@
     // Đa ngôn ngữ
     'i18n/lang-data.js','i18n/i18n.js',
     // Engine dùng chung: nhập liệu, âm thanh, lõi voxel
-    'engine/input.js','engine/sound.js','engine/voxel.js',
+    'engine/input.js','engine/sound.js','engine/music.js','engine/voxel.js',
     // Người chơi (góc nhìn thứ nhất): tay, vũ khí, viewmodel
     'player/player.js','player/weapons.js','player/viewmodel.js',
     // Thiên nhiên (phải nạp SAU viewmodel, TRƯỚC bot)

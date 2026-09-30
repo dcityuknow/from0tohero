@@ -12,8 +12,16 @@ function tickThrow(dt){
   if(holding)holdT+=dt;
   if(autoP){holdT+=dt*AUTO_K;if(holdT>=PIN_T){autoP=false;holdT=PIN_T;doThrow(12)}}
   if(throwT<=0)return;throwT-=dt;if(!thrown&&throwT<=TH*.55){thrown=true;launchG()}if(throwT<=0){throwT=0;if(gren<=0&&cur==='grenade')pick(prevW)}}
+// Câu thoại khi ném lựu đạn: hiện chữ trên màn hình + đọc thành tiếng (Web Speech API, giọng tiếng Anh)
+const GREN_LINE='Optimum fire in the house';
+function sayGren(){
+  showMsg('🗣️ "'+GREN_LINE+'"');
+  try{const ss=window.speechSynthesis;if(!ss)return;
+    ss.cancel();   // ném liên tiếp thì không dồn hàng đợi
+    const u=new SpeechSynthesisUtterance(GREN_LINE);u.lang='en-US';u.rate=1;u.pitch=.9;u.volume=1;ss.speak(u)}catch(e){}
+}
 function launchG(){
-  gren--;gcd=.8;
+  gren--;gcd=.8;sayGren();
   const d=new THREE.Vector3();C.getWorldDirection(d);
   const m=grenadeModel();
   S.add(m);

@@ -8,7 +8,7 @@ function shoot(){
   const w=W[cur];
   if(cur==='grenade'||cd>0||rel>0)return;
   if(ammos[cur]<=0){if(reserve[cur]>0)reload();else{snd(90,.05,'square',.04);cd=.3;showMsg(t('noammo',t(cur)))}return}
-  ammos[cur]--;cd=w.rate;if(cur==='sniper')sniperShot();else snd(cur==='rifle'?420:520,.1,'square',.05*GV);
+  ammos[cur]--;cd=w.rate;if(cur==='sniper')sniperShot();else gunShot(cur);
   const sp=(cur==='sniper'&&scoped)?0:w.sp;rc.setFromCamera({x:(Math.random()-.5)*sp*2,y:(Math.random()-.5)*sp*2},C);
   const hs=rc.intersectObjects(meshes.concat(botMeshes.filter(m=>m.userData.bot.on&&m.userData.bot.hp>0)),false);
   const from=muzzle.getWorldPosition(new THREE.Vector3());

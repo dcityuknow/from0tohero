@@ -92,12 +92,12 @@ function wadeSnd(){try{AC=AC||new AudioContext();const r=.88+Math.random()*.24; 
   tone2('sine',330*r,720*r,.06,.12,.21);                    // giọt nước li ti rơi lại
   noiseBurst('lowpass',800,160,.24,.3,.5,.02);              // nước xào xạc, mềm, không chói
 }catch(e){}}
-function splashSnd(big){try{AC=AC||new AudioContext();const r=.9+Math.random()*.2;   // rơi tõm xuống nước: bì bõm
-  noiseBurst('bandpass',2200*r,350,big?.75:.4,big?2.4:1.6,.7);
-  noiseBurst('lowpass',900,120,big?.5:.3,big?1.8:1.1);
-  tone2('sine',300*r,90,big?.35:.2,big?1.6:1,0);
-  tone2('sine',520*r,160,.2,.9,.09);
-  if(big)tone2('sine',420*r,130,.22,.8,.2);
+function splashSnd(big){try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();   // chạm nước: "tũm" trầm, mềm (không còn tiếng rít chói)
+  const r=.94+Math.random()*.12,k=big?1:.55;
+  tone2('sine',300*r,85*r,.2,.5*k,0);                        // "tũm": âm trầm rơi nhanh
+  tone2('sine',170*r,380*r,.13,.2*k,.05);                    // bọt khí nhỏ nổi lên "bủm"
+  noiseBurst('lowpass',650,140,big?.28:.18,.3*k,.4,0);       // nước xao nhẹ, đã lọc mềm
+  if(big)tone2('sine',240*r,520*r,.09,.09,.16);              // giọt nước rơi lại rất khẽ
 }catch(e){}}
 function thudSnd(){try{AC=AC||new AudioContext();   // ngã xuống đất
   noiseBurst('lowpass',900,60,.35,2.2);
@@ -118,4 +118,22 @@ function botStepSnd(pos,boss){try{AC=AC||new AudioContext();if(AC.state==='suspe
   const o=AC.createOscillator(),og=AC.createGain(),dt=boss?.18:.08;
   o.type=boss?'sine':'triangle';o.frequency.setValueAtTime((boss?75:260)*r,n);o.frequency.exponentialRampToValueAtTime(boss?32:130,n+dt);
   og.gain.setValueAtTime(vt,n);og.gain.exponentialRampToValueAtTime(.001,n+dt);o.connect(og);og.connect(out);o.start(n);o.stop(n+dt+.02);
+}catch(e){}}
+
+// ---- Tiếng súng ngắn / súng dài (AK) của người chơi: to, dày (tiếng nổ + cú giật trầm), qua bộ nén để không vỡ tiếng ----
+// Chỉnh to/nhỏ: GUN_VOL (1 = mặc định, 1.5 = to hơn nữa)
+const GUN_VOL=1;let _gb=null;
+function gunBus(){if(_gb)return _gb;
+  const c=AC.createDynamicsCompressor();c.threshold.value=-10;c.ratio.value=8;c.attack.value=.001;c.release.value=.12;
+  const g=AC.createGain();g.gain.value=GUN_VOL;g.connect(c);c.connect(AC.destination);return _gb=g}
+function gunShot(type){try{
+  AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();
+  const n=AC.currentTime,out=gunBus(),rf=type==='rifle',r=.95+Math.random()*.1;
+  const s=noiseSrc(),fl=AC.createBiquadFilter(),ng=AC.createGain(),nd=rf?.09:.12;   // tiếng "đoàng" giòn
+  fl.type='bandpass';fl.Q.value=.8;fl.frequency.setValueAtTime((rf?2000:2500)*r,n);fl.frequency.exponentialRampToValueAtTime(500,n+nd);
+  ng.gain.setValueAtTime(rf?.9:1,n);ng.gain.exponentialRampToValueAtTime(.001,n+nd);s.connect(fl);fl.connect(ng);ng.connect(out);s.start(n,Math.random()*1.5);s.stop(n+nd+.02);
+  const tone=(ty,f0,f1,d,v)=>{const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.setValueAtTime(f0,n);o.frequency.exponentialRampToValueAtTime(f1,n+d);
+    g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g);g.connect(out);o.start(n);o.stop(n+d+.02)};
+  tone('square',(rf?420:520)*r,80,rf?.1:.11,.32);   // tiếng nổ chính
+  tone('sine',(rf?130:160)*r,45,.14,.9);            // cú giật trầm
 }catch(e){}}
