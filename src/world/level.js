@@ -1,7 +1,7 @@
 // Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong gốc: 20/25/30/35, nhân với MAPK ở world.js).
 // Thang tầng chẵn ở TÂY, tầng lẻ ở ĐÔNG. Cổng khóa ở chân thang, mở khi hạ boss của tầng đó.
 const SLAB=2.4;                         // độ dày sàn các tầng 2-4 (m). Dày hơn để đào sông sâu (đáy sông sâu tối đa SLAB-.3)
-const NF=4,FH=10,AF=f=>Math.round((20+5*f)*MAPK);
+const NF=4,AF=f=>Math.round((20+5*f)*MAPK);
 const need=f=>50*(f+1);                 // boss xuất hiện sau khi hạ 50 / 100 / 150 / 200 bot (cấp số cộng), mỗi tầng đếm lại từ 0
 let curFl=0;const fk=[0,0,0,0],bossDone=[false,false,false,false],gates=[];let bossAlive=false;
 const FC=[[PK,BL,MT,YL],[0xc9a7ff,0xffb3a7,0xa8e6cf,0xfff2a3],[0xffd166,0x8ecae6,0xf4a3c4,0xb8f2c8],[0x9aa5ff,0xff9fa8,0xb5ead7,0xffdac1]];
@@ -15,7 +15,7 @@ function gridTop(m,x0,x1,z0,z1){
   const sd=new THREE.MeshLambertMaterial({color:FLOOR_C});m.material=[sd,sd,new THREE.MeshLambertMaterial({map:t}),sd,sd,sd];
 }
 function slabHole(y,S,x0,x1,z0,z1,c){
-  const B=(xa,xb,za,zb)=>{if(xb-xa>.01&&zb-za>.01){box((xa+xb)/2,y,(za+zb)/2,xb-xa,SLAB,zb-za,c);gridTop(meshes[meshes.length-1],xa,xb,za,zb)}};
+  const B=(xa,xb,za,zb)=>{if(xb-xa>.01&&zb-za>.01){box((xa+xb)/2,y,(za+zb)/2,xb-xa,SLAB,zb-za,c);gridTop(meshes[meshes.length-1],xa,xb,za,zb);ceilWhite(meshes[meshes.length-1])}};
   B(-S,S,-S,z0);B(-S,S,z1,S);B(-S,x0,z0,z1);B(x1,S,z0,z1);
 }
 const LAY=[null,
@@ -35,14 +35,14 @@ const sbox=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);   // bố c�
 for(let f=1;f<NF;f++){
   const y=f*FH,[a,b,c,d]=FC[f],A=AF(f),Af=AF(f-1),s=(f-1)%2;
   slabHole(y-SLAB,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
-  box(0,y,-(A+.5),2*A+3,9,1,a);box(0,y,A+.5,2*A+3,9,1,a);box(-(A+.5),y,0,1,9,2*A+3,b);box(A+.5,y,0,1,9,2*A+3,b);
+  box(0,y,-(A+.5),2*A+3,FH-1,1,a);box(0,y,A+.5,2*A+3,FH-1,1,a);box(-(A+.5),y,0,1,FH-1,2*A+3,b);box(A+.5,y,0,1,FH-1,2*A+3,b);
   LAY[f](y,a,b,c,d,sbox);
 }
-{const A=AF(NF-1)+1;box(0,NF*FH-1,0,2*A,1,2*A,0xdcdce6)}           // trần tầng cao nhất
+// tầng cao nhất KHÔNG có trần: để hở ra bầu trời (world/sky.js dựng vòm trời + mây)
 for(let f=0;f<NF-1;f++){
   const y=f*FH,A=AF(f),s=f%2,sg=s?1:-1,cx=sg*(A-2),zs=A-4,col=FC[f];
-  for(let i=0;i<20;i++)box(cx,y,zs-.9*i-.45,4,.5*(i+1),.9,i%2?col[3]:col[2]);   // 20 bậc x 0.5m = 10m
-  box(sg*(A-4.15),y,zs-9,.3,12.2,18,col[1]);                                      // tường trong + rào lỗ ở tầng trên
+  const NS=Math.round(FH/.5),SD=18/NS;for(let i=0;i<NS;i++)box(cx,y,zs-SD*i-SD/2,4,(FH/NS)*(i+1),SD,i%2?col[3]:col[2]);   // mỗi bậc cao .5m, cả thang dài 18m (khớp lỗ sàn)
+  box(sg*(A-4.15),y,zs-9,.3,FH+2.2,18,col[1]);                                      // tường trong + rào lỗ ở tầng trên
   box(sg*(A+.15),y+FH,zs-9,.3,2.2,18,col[1]);box(cx,y+FH,zs+.1,4,2.2,.2,col[1]);   // rào ngoài + rào phía nam
   box(cx,y,zs+.45,4,4.2,.3,0xff3355);
   const g={open:false,e:boxes[boxes.length-1],m:meshes[meshes.length-1]};

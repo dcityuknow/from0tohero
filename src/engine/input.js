@@ -1,7 +1,7 @@
 // Bàn phím, chuột, nạp đạn
 // Khi đang chơi: chỉ cho các phím có chức năng trong game hoạt động. Mọi phím tắt của trình duyệt (Ctrl+S, Ctrl+P, Ctrl+F, Ctrl+R, F5, Tab, Alt...) bị chặn.
 // Esc (thoát khóa chuột / tạm dừng), F11 (toàn màn hình), F12 (DevTools) vẫn cho qua.
-const GAME_KEYS=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyR','KeyF','Digit1','Digit2','Digit3','Digit4']);
+const GAME_KEYS=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyR','KeyF','Digit1','Digit2','Digit3','Digit4','KeyY','KeyN']);
 const PASS_KEYS=new Set(['Escape','F11','F12']);
 addEventListener('keydown',e=>{
   if(!playing||PASS_KEYS.has(e.code))return;

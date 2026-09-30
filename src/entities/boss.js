@@ -43,7 +43,7 @@ function bossPose(b){b.aR.rotation.x=-1.45;for(const k in GUN)GUN[k].visible=k==
     const sc=b.g.scale.x,m=new THREE.Mesh(UG,SPK[Math.random()<.5?0:1]),z=.05+Math.random()*.08;
     m.scale.set(z,z*(1+Math.random()*3),z);m.position.set(b.x+(Math.random()-.5)*.9*sc,b.y+(.2+Math.random()*2.3)*sc,b.z+(Math.random()-.5)*.9*sc);
     spawnPart(m,(Math.random()-.5)*2,.5+Math.random()*2,(Math.random()-.5)*2,.35+Math.random()*.25,false,.01)}}
-function bossDown(b){bossAlive=false;bossDone[b.fl]=true;openGate(b.fl);showMsg(t(b.fl<NF-1?'bossdown':'win'));dropItem('gold',b.x,b.y+.45,b.z)}
+function bossDown(b){bossAlive=false;bossDone[b.fl]=true;openGate(b.fl);showMsg(t(b.fl<NF-1?'bossdown':'win'));dropItem('gold',b.x,b.y+.45,b.z);killAllMinions();allyOffer(b)}   // ally.js: quái thường chết hết + hỏi thu phục
 // Lựu đạn ném ra dùng đúng mô hình voxel như lựu đạn cầm tay
 let _gm=null;
 function grenadeModel(){if(!_gm){const v=new VB();voxGrenade(v,0,0,0,false);_gm=v.mesh()}const g=new THREE.Group();g.add(_gm.clone());g.scale.setScalar(1.6);return g}

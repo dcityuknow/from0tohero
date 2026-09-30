@@ -10,7 +10,7 @@ function shoot(){
   if(ammos[cur]<=0){if(reserve[cur]>0)reload();else{snd(90,.05,'square',.04);cd=.3;showMsg(t('noammo',t(cur)))}return}
   ammos[cur]--;cd=w.rate;if(cur==='sniper')sniperShot();else gunShot(cur);
   const sp=(cur==='sniper'&&scoped)?0:w.sp;rc.setFromCamera({x:(Math.random()-.5)*sp*2,y:(Math.random()-.5)*sp*2},C);
-  const hs=rc.intersectObjects(meshes.concat(botMeshes.filter(m=>m.userData.bot.on&&m.userData.bot.hp>0)),false);
+  const hs=rc.intersectObjects(meshes.concat(botMeshes.filter(m=>m.userData.bot.on&&m.userData.bot.hp>0&&!m.userData.bot.ally)),false);
   const from=muzzle.getWorldPosition(new THREE.Vector3());
   let to=rc.ray.at(60,new THREE.Vector3()),col=0xffe066;
   const h=hs.find(x=>{const b=x.object.userData.bot;return !b||b.hp>0});

@@ -33,7 +33,7 @@ function explode(g){
   boom(c);quake(c);
   if(window.Nature&&Nature.explosionSplash)Nature.explosionSplash(g.x,g.y,g.z);   // nổ dưới nước: cột nước + bọt lớn
   for(const b of bots){
-    if(b.hp<=0||!b.on||g.foe)continue;
+    if(b.hp<=0||!b.on||g.foe||b.ally)continue;
     const o=new THREE.Vector3(b.x,b.y+.9,b.z).sub(c),d=o.length();
     if(d<RAD){b.hp-=160*(1-d/RAD);blood(new THREE.Vector3(b.x,b.y+.9,b.z),new THREE.Vector3(0,1,0),o.clone().normalize(),8);if(b.hp<=0)killBot(b,o.normalize())}
   }
