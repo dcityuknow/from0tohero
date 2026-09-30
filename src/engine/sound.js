@@ -86,10 +86,11 @@ function stepSnd(){try{AC=AC||new AudioContext();_stepAlt^=1;const r=.85+Math.ra
   noiseBurst('lowpass',(1300+_stepAlt*300)*r,140,.13,1.7/6);     // tiếng "cộp" của gót giày
   tone2('sine',(_stepAlt?120:100)*r,42,.11,1.3/6);               // tiếng ục trầm của bước chân
 }catch(e){}}
-function wadeSnd(){try{AC=AC||new AudioContext();const r=.85+Math.random()*.3;   // một bước lội nước: tõm nhỏ
-  noiseBurst('bandpass',1500*r,500,.28,1.6,.8);
-  tone2('sine',330*r,110,.16,1.1);
-  tone2('sine',480*r,180,.12,.6,.07);
+function wadeSnd(){try{AC=AC||new AudioContext();const r=.88+Math.random()*.24;   // một bước lội nước: "bì - bõm" (bọt nhỏ rồi bọt lớn trầm, âm đi lên như bong bóng nước)
+  tone2('sine',210*r,480*r,.07,.3,0);                       // "bì": bọt nhỏ
+  tone2('sine',110*r,280*r,.17,.7,.09);                     // "bõm": bọt lớn, trầm
+  tone2('sine',330*r,720*r,.06,.12,.21);                    // giọt nước li ti rơi lại
+  noiseBurst('lowpass',800,160,.24,.3,.5,.02);              // nước xào xạc, mềm, không chói
 }catch(e){}}
 function splashSnd(big){try{AC=AC||new AudioContext();const r=.9+Math.random()*.2;   // rơi tõm xuống nước: bì bõm
   noiseBurst('bandpass',2200*r,350,big?.75:.4,big?2.4:1.6,.7);
