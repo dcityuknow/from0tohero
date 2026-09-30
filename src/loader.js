@@ -20,7 +20,7 @@
     // Người chơi (góc nhìn thứ nhất): tay, vũ khí, viewmodel
     'player/player.js','player/weapons.js','player/viewmodel.js',
     // Thiên nhiên (phải nạp SAU viewmodel, TRƯỚC bot)
-    'world/house.js',   // nhà rubik (thay khối dài) - phải nạp trước nature.js để cây/đá né nhà
+    'world/house.js','world/pavilion.js',   // chòi Nhật (nạp sau house.js để mở rộng HouseZone) · nhà rubik (thay khối dài) - phải nạp trước nature.js để cây/đá né nhà
     'world/nature.js',
     // Kẻ địch: mô hình bot/boss, di chuyển, boss, bộ sinh quái, thoại boss, quản lý tầng
     'entities/bot-model.js','entities/boss-model.js','entities/steering.js','entities/boss.js',
