@@ -740,6 +740,28 @@ function bulletSplash(x,y,z){   // đạn (của mình hoặc của boss) chạm
   return false;
 }
 
+// ---- Lựu đạn nổ dưới nước: cột nước phun lên + vòng bọt bắn ra + nhiều lớp sóng + tiếng tõm lớn (to và nhiều hơn bọt đạn nhiều lần) ----
+function explosionSplash(x,y,z){
+  const ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
+  for(const Fl of FL){const l=Fl.cells.size&&Fl.cells.get(ck(ci,cj));
+    if(!(l&&y<l.y+1&&y>l.y-l.dmax-1))continue;
+    const sy=l.y-CFG.level,pos={x,y:sy,z},col=i=>M(i%3?0x9fd8ff:0xffffff);
+    const add=(n,size,jit,vh,vy0,vy1,life)=>{for(let i=0;i<n;i++){
+      const a=Math.random()*6.283,r=Math.random()*jit,sz=size[0]+Math.random()*(size[1]-size[0]),m=new THREE.Mesh(UG,col(i)),v=vh[0]+Math.random()*(vh[1]-vh[0]);
+      m.scale.set(sz,sz,sz);m.position.set(x+Math.cos(a)*r,sy+.05,z+Math.sin(a)*r);
+      spawnPart(m,Math.cos(a)*v,vy0+Math.random()*(vy1-vy0),Math.sin(a)*v,life[0]+Math.random()*(life[1]-life[0]),false,.02)}};
+    add(45,[.12,.28],.5,[0,1.2],9,16,[1.1,1.6]);       // cột nước phun cao ở giữa
+    add(70,[.08,.2],.8,[3,8],4,9,[.9,1.4]);            // vòng bọt lớn tóe ra xung quanh
+    add(80,[.04,.1],1.6,[1,10],2,7,[.6,1.1]);          // bụi nước mịn bay tứ tung
+    ripple(x,z,l,3.5);ripple(x,z,l,5.5);ripple(x,z,l,8);
+    setTimeout(()=>{ripple(x,z,l,10);add(25,[.08,.18],1.2,[1,6],3,7,[.7,1.1])},220);   // đợt bọt thứ hai khi cột nước đổ xuống
+    setTimeout(()=>{ripple(x,z,l,12)},450);
+    splashSnd(true);snd(220,.3,'sine',.14,pos);snd(120,.5,'triangle',.12,pos);
+    return true;
+  }
+  return false;
+}
+
 // Lội / bơi (bọc hàm move của physics.js; áp dụng cho người chơi và bot - bot có mảng .parts)
 //  - nước nông: đi chậm dần theo độ sâu
 //  - đang bơi (e.sw): tốc độ ngang giảm, chiều dọc do e.swv điều khiển (nổi lên / lặn xuống), KHÔNG rơi theo trọng lực
@@ -916,5 +938,5 @@ requestAnimationFrame(loop);
 function isWater(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
   if(Fl.cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL))))return true;
   return Fl.lakes.some(l=>l.rho(x,z)<1+(m||0)/l.rz)}
-window.Nature={cfg:CFG,floors:FL,lakeH,rayWater,bulletSplash,isWater,heightAt:(f,x,z)=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.hAt?Fl.hAt(x,z):0}};
+window.Nature={cfg:CFG,floors:FL,lakeH,rayWater,bulletSplash,explosionSplash,isWater,heightAt:(f,x,z)=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.hAt?Fl.hAt(x,z):0}};
 })();
