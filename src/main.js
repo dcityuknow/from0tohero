@@ -59,6 +59,8 @@ function frame(now){
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
   C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de);applyShake(dt);C.updateMatrixWorld();listen();placeBubble();
   $('hp').style.width=P.hp+'%';const gr=cur==='grenade';$('am').textContent=gr?gren:rel>0?'…':ammos[cur];$('mg').textContent=gr?GMAX:reserve[cur];$('gn').textContent=gren;
-  R.render(S,C);
+  // 2 lượt vẽ: thế giới trước, rồi xóa depth và vẽ súng + tay đè lên -> không bao giờ bị tường/quái cắt hay lòi ra
+  C.layers.set(0);R.clear();R.render(S,C);
+  if(vm.visible){R.clearDepth();C.layers.set(1);R.render(S,C);C.layers.set(0)}
 }
 requestAnimationFrame(frame);

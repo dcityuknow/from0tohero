@@ -26,7 +26,7 @@ function buildVM(){
   G.add(muzzle,flash);
   const mb=MG.position.clone();
   vm.userData={G,MG,SL,la,pn:wb.pn,lb:la.position.clone(),lt,sg:wb.sg,mb,ho:new THREE.Vector3(lt.x-mb.x,(lt.y-mb.y)*.5,lt.z-mb.z),st:0,pistol:cur==='pistol'||cur==='grenade'};
-  C.add(vm);vm.position.y=-.35;
+  C.add(vm);vm.position.y=-.35;vm.traverse(o=>o.layers.set(1));   // súng/tay ở layer 1: vẽ lượt riêng, không cắm xuyên tường/quái
 }
 function pick(w){if(throwT>0||autoP)return;holding=false;if(w!=='grenade')prevW=w;cur=w;rel=0;scoped=false;buildVM();$('wn').textContent=t(w);$('mg').textContent=W[w].mag;
   document.querySelectorAll('.wb').forEach(b=>b.classList.toggle('on',b.dataset.w===w))}
