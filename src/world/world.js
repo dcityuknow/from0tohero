@@ -18,7 +18,8 @@ const PK=0xff9fbf,BL=0x9ccfff,MT=0xbff0d4,YL=0xffe8a3;
 box(0,0,-(HALF0+.5),2*HALF0+3,FH-1,1,PK);box(0,0,HALF0+.5,2*HALF0+3,FH-1,1,PK);box(-(HALF0+.5),0,0,1,FH-1,2*HALF0+3,BL);box(HALF0+.5,0,0,1,FH-1,2*HALF0+3,BL);
 // khối chắn: bố cục gốc, nhân MAPK theo chiều ngang (vị trí + kích thước), giữ nguyên chiều cao
 const bk=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);
-bk(-8,0,-6,2,3.5,2,BL);bk(8,0,-6,2,3.5,2,BL);bk(-8,0,6,2,3.5,2,PK);bk(8,0,6,2,3.5,2,PK);
+bk(-8,0,-6,2,3.5,2,BL);bk(8,0,-6,2,3.5,2,BL);// (2 khối hồng bk(±8,0,6,2,3.5,2,PK) đã đổi thành 2 bệ tượng đá: xem world/statues.js)
+
 bk(0,0,0,6,1,6,MT);bk(0,1,0,3,1,3,YL);
 bk(-15,0,-14,6,1.2,3,MT);bk(15,0,14,6,1.2,3,MT);// (tường hồng dài bk(0,0,-13,10,2,1,PK) đã đổi thành chòi kiểu Nhật: xem world/pavilion.js)
    // (khối dài xanh bk(0,0,13,10,2,1,BL) đã đổi thành nhà rubik: xem world/house.js)

@@ -122,6 +122,44 @@ function build(hx,hz){
   text(v,'OPTIMUM',SCX,1.2,5.261,.055,0xffffff);
   cb(SX0,SX1,0,2.75,5.1,5.3);
 
+  // ---- KỆ TRANH (easel trắng + tranh anh đào / cầu vòm / hoàng hôn) x10, chia đều 5 bên trái + 5 bên phải ----
+  const WHITE=[0xf4f4f4,0xe8e8e8,0xfafafa];
+  const seg=(ax,ay,az,bx,by,bz,c)=>{                       // thanh chéo bằng chuỗi voxel .08
+    const n=Math.ceil(Math.hypot(bx-ax,by-ay,bz-az)/.06);
+    for(let t=0;t<=n;t++){const x=ax+(bx-ax)*t/n,y=ay+(by-ay)*t/n,z=az+(bz-az)*t/n;
+      fb(x-.04,x+.04,y-.04,y+.04,z-.04,z+.04,c[t%3],.08)}};
+  const hsh=(i,j)=>((i*73856093)^(j*19349663))>>>0;
+  const painting=(u,w,i,j)=>{                              // u: 0..1 trái→phải, w: 0..1 dưới→trên (ô 25x25)
+    const ell=(cx,cy,rx,ry)=>((u-cx)/rx)**2+((w-cy)/ry)**2<1;
+    if(i===0||j===0||i===24||j===24)return 0x33261f;       // viền
+    const h=hsh(i,j)%7;
+    if(w<.66&&Math.abs(u-(.13+.10*w))<.03+.03*(1-w))return h<2?0x3a281e:0x54392a;     // thân cây
+    if(u>.13&&u<.55&&w>.5&&w<.85&&Math.abs(w-(.5+(u-.13)*.9))<.02)return 0x4a3226;    // cành
+    if(ell(.32,.75,.3,.2)&&h<5)return h<2?0xffe4ee:(h<4?0xf6b8cc:0xef9db8);           // tán hoa anh đào
+    if(ell(.85,.52,.11,.06)||ell(.76,.47,.07,.04))return h<3?0x1f7a5a:0x2f9a72;       // cây thông
+    const bx=Math.abs(u-.56);
+    if(bx<.2&&w>.44&&w<.5)return (i%2===0||w>.48)?0xa8362e:0xf1d27a;                  // lan can cầu
+    if(bx<.21&&w>.3&&w<=.44&&!ell(.56,.3,.12,.09))return 0x3d2a36;                    // thân cầu vòm
+    if(w<.36&&ell(.6,.17,.48,.2))return ell(.52,.21,.1,.06)?0xffffff:((j&1)?0x3f93d6:0x7cc6ea); // nước + bóng trăng
+    if(w<.44)return w>.38?0xa9c66a:(h<2?0xdcc060:0xe9cf72);                           // bờ cỏ / đất
+    if(ell(.55,.6,.2,.2))return w<.62?0xffb03a:0xffd063;                              // mặt trời
+    const t=(w-.44)/.4;return w>.85?0xc8e4ea:mix(0xf7dc82,0xf2b0b4,Math.min(1,t));    // bầu trời
+  };
+  const easel=(cx,cz,idx)=>{
+    const F=FL;
+    seg(cx-.64,F,cz+.45,cx-.56,F+2.0,cz+.05,WHITE);        // 2 chân trước
+    seg(cx+.64,F,cz+.45,cx+.56,F+2.0,cz+.05,WHITE);
+    seg(cx,F,cz-.6,cx,F+1.95,cz+.02,WHITE);                // chân sau
+    seg(cx-.62,F+.35,cz+.38,cx+.62,F+.35,cz+.38,WHITE);    // thanh ngang dưới
+    seg(cx-.56,F+1.95,cz+.06,cx+.56,F+1.95,cz+.06,WHITE);  // thanh ngang trên
+    fb(cx-.6,cx+.6,F+.68,F+.74,cz+.16,cz+.34,0xf0f0f0,.06); // gờ đỡ tranh
+    const flip=idx&1;
+    fp(cx-.5,cx+.5,F+.75,F+1.75,cz+.21,cz+.25,.04,(x,y,z,i,j)=>painting(flip?1-(x-(cx-.5)):(x-(cx-.5)),y-(F+.75),i,j));
+    for(const s of[-.3,.3])fb(cx+s-.06,cx+s+.06,F+1.75,F+1.85,cz+.19,cz+.27,0xbdbdbd,.06); // kẹp trên
+    cb(cx-.65,cx+.65,F,F+2.0,cz-.62,cz+.47);
+  };
+  {let idx=0;for(const sx of[-1,1])for(const ax of[1.3,3.1,4.9,6.7,8.5])easel(sx*ax,-1.2,idx++);}
+
   const m=v.mesh();m.position.set(hx,0,hz);S.add(m);meshes.push(m);
 }
 build(PX,PZ);
