@@ -69,3 +69,52 @@ function sniperShot(pos){try{
   tone('sawtooth',900,70,.14,.7);     // tiếng nứt đầu nòng
   tone('square',320,50,.35,.3);
 }catch(e){}}
+
+// ---- Bước chân / bì bõm / ngã xuống (tiếng to, rõ; dùng noise + tiếng ục trầm) ----
+let _sn=null;
+function noiseSrc(){AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();
+  if(!_sn){_sn=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const a=_sn.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1}
+  const s=AC.createBufferSource();s.buffer=_sn;return s}
+function tone2(type,f0,f1,dur,v,t0){const n=AC.currentTime+(t0||0),o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f0,n);o.frequency.exponentialRampToValueAtTime(f1,n+dur);
+  g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+dur);o.connect(g);g.connect(AC.destination);o.start(n);o.stop(n+dur+.02)}
+function noiseBurst(kind,f0,f1,dur,v,q,t0){const n=AC.currentTime+(t0||0),s=noiseSrc(),fl=AC.createBiquadFilter(),g=AC.createGain();
+  fl.type=kind;fl.Q.value=q||1;fl.frequency.setValueAtTime(f0,n);fl.frequency.exponentialRampToValueAtTime(f1,n+dur);
+  g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.001,n+dur);s.connect(fl);fl.connect(g);g.connect(AC.destination);s.start(n,Math.random()*1.5);s.stop(n+dur+.02)}
+let _stepAlt=0;
+function stepSnd(){try{AC=AC||new AudioContext();_stepAlt^=1;const r=.85+Math.random()*.3;
+  noiseBurst('lowpass',(1300+_stepAlt*300)*r,140,.13,1.7/6);     // tiếng "cộp" của gót giày
+  tone2('sine',(_stepAlt?120:100)*r,42,.11,1.3/6);               // tiếng ục trầm của bước chân
+}catch(e){}}
+function wadeSnd(){try{AC=AC||new AudioContext();const r=.85+Math.random()*.3;   // một bước lội nước: tõm nhỏ
+  noiseBurst('bandpass',1500*r,500,.28,1.6,.8);
+  tone2('sine',330*r,110,.16,1.1);
+  tone2('sine',480*r,180,.12,.6,.07);
+}catch(e){}}
+function splashSnd(big){try{AC=AC||new AudioContext();const r=.9+Math.random()*.2;   // rơi tõm xuống nước: bì bõm
+  noiseBurst('bandpass',2200*r,350,big?.75:.4,big?2.4:1.6,.7);
+  noiseBurst('lowpass',900,120,big?.5:.3,big?1.8:1.1);
+  tone2('sine',300*r,90,big?.35:.2,big?1.6:1,0);
+  tone2('sine',520*r,160,.2,.9,.09);
+  if(big)tone2('sine',420*r,130,.22,.8,.2);
+}catch(e){}}
+function thudSnd(){try{AC=AC||new AudioContext();   // ngã xuống đất
+  noiseBurst('lowpass',900,60,.35,2.2);
+  tone2('sine',95,28,.6,2);
+}catch(e){}}
+
+// Bước chân của quái: to bằng 1/2 bước chân người chơi, âm sắc khác (tiếng "tạch" khô, cao hơn; boss thì nặng, trầm), có định hướng 3D
+function botStepSnd(pos,boss){try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();
+  const n=AC.currentTime,r=.9+Math.random()*.2,out=AC.createGain();out.gain.value=1;
+  if(pos){const p=AC.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=2;p.rolloffFactor=1.2;p.maxDistance=60;
+    if(p.positionX){p.positionX.value=pos.x;p.positionY.value=pos.y;p.positionZ.value=pos.z}else p.setPosition(pos.x,pos.y,pos.z);
+    out.connect(p);p.connect(AC.destination)}else out.connect(AC.destination);
+  const s=noiseSrc(),fl=AC.createBiquadFilter(),g=AC.createGain(),vn=1.7/12,vt=1.3/12;
+  if(boss){fl.type='lowpass';fl.frequency.setValueAtTime(600*r,n);fl.frequency.exponentialRampToValueAtTime(90,n+.16)}
+  else{fl.type='bandpass';fl.Q.value=1.4;fl.frequency.setValueAtTime(2600*r,n);fl.frequency.exponentialRampToValueAtTime(1000,n+.07)}
+  const dn=boss?.16:.07;g.gain.setValueAtTime(vn,n);g.gain.exponentialRampToValueAtTime(.001,n+dn);
+  s.connect(fl);fl.connect(g);g.connect(out);s.start(n,Math.random()*1.5);s.stop(n+dn+.02);
+  const o=AC.createOscillator(),og=AC.createGain(),dt=boss?.18:.08;
+  o.type=boss?'sine':'triangle';o.frequency.setValueAtTime((boss?75:260)*r,n);o.frequency.exponentialRampToValueAtTime(boss?32:130,n+dt);
+  og.gain.setValueAtTime(vt,n);og.gain.exponentialRampToValueAtTime(.001,n+dt);o.connect(og);og.connect(out);o.start(n);o.stop(n+dt+.02);
+}catch(e){}}

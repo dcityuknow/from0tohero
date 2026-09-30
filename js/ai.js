@@ -1,10 +1,10 @@
 // AI: né vật cản (steering + nhảy qua khối thấp) và Boss tầng 1 cầm súng
 const free=(b,ax,az,len,dy=.3,h=1.2)=>!hitAny({x:b.x+ax*len,y:b.y+dy,z:b.z+az*len,r:b.r,h});
 function steer(b,tx,tz,sp,dt){
-  const a0=Math.atan2(tx-b.x,tz-b.z),s=b.side||1,len=b.r+.5;let a=null;
+  const a0=Math.atan2(tx-b.x,tz-b.z),s=b.side||1,len=b.r+.5,so=b.sw?1.4:0;let a=null;   // so: đang bơi -> dò vật cản cao hơn mặt nước, bờ/sàn không chặn đường
   if(b.ground&&!free(b,Math.sin(a0),Math.cos(a0),len,.6)&&free(b,Math.sin(a0),Math.cos(a0),len,1.5,.3)){b.vy=8;b.ground=false}
   for(const o of[0,.6*s,-.6*s,1.2*s,-1.2*s,1.9*s,-1.9*s]){
-    const A=a0+o;if(free(b,Math.sin(A),Math.cos(A),len,.6)){a=A;if(o)b.side=Math.sign(o);break}}
+    const A=a0+o;if(free(b,Math.sin(A),Math.cos(A),len,.6+so)){a=A;if(o)b.side=Math.sign(o);break}}
   if(a===null)a=a0+Math.PI*s;
   move(b,Math.sin(a)*sp*dt,b.vy*dt,Math.cos(a)*sp*dt);
 }
@@ -126,7 +126,7 @@ function tickBoss(dt){
   if(bo)$('bbf').style.width=Math.max(0,boss.hp/boss.maxhp*100)+'%';
   for(let i=bul.length-1;i>=0;i--){const p=bul[i];let gone=false;p.life-=dt;
     for(let k=0;k<6&&!gone;k++){const s=dt/6;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;
-      if(p.y<curFl*FH||hitAny({x:p.x,y:p.y-.05,z:p.z,r:.05,h:.1}))gone=true;
+      if(p.y<curFl*FH||hitAny({x:p.x,y:p.y-.05,z:p.z,r:.05,h:.1})){gone=true;if(window.Nature)Nature.bulletSplash(p.x,p.y,p.z)}
       else if(!dead&&Math.hypot(P.x-p.x,P.z-p.z)<P.r+.15&&p.y>P.y&&p.y<P.y+P.h){hurt(p.dmg);gone=true}}
     if(gone||p.life<=0){S.remove(p.m);bul.splice(i,1)}else p.m.position.set(p.x,p.y,p.z)}
   lk-=dt;const g=gates[curFl];

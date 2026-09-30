@@ -6,6 +6,7 @@
 const MOBILE=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const CFG={
   quality:MOBILE?.7:1,     // 1 = mặc định · 1.5 = mảnh nhỏ hơn, đẹp hơn, nặng hơn · 0.6 = mảnh to, nhẹ máy
+  treeDetail:1.35,         // độ chi tiết của CÂY (thân, cành, tán lá): càng cao khối rubik càng nhỏ, cây càng chi tiết nhưng nặng hơn (1 = như cũ)
   density:MOBILE?.7:1,     // nhân số lượng vật thể
   seed:2025,               // đổi số này để ra bố cục khác
   scaleExp:1.8,            // số lượng vật thể tăng theo (diện tích tầng)^scaleExp; 2 = mật độ không đổi khi map to ra, nhỏ hơn = thưa hơn (nhẹ máy)
@@ -17,13 +18,26 @@ const CFG={
   deepWade:.8,             // nhân thêm khi nước sâu quá 0.6m (0.8 = chậm thêm 20% ở giữa hồ)
   viewDist:60,             // xa hơn mức này thì ẩn bớt vật thể
   // ---- Chiều sâu hồ (MỚI) ----
-  depth:1.15,              // mực nước ở giữa hồ (m so với sàn) ~ ngang ngực
-  shelf:2.6,               // bề rộng dốc từ mép hồ tới chỗ sâu nhất (m); lớn hơn = dốc thoải hơn
-  sinkMax:.7,              // camera hạ tối đa bao nhiêu m khi ngập sâu
+  depth:3.2,               // độ SÂU đáy sông ở giữa dòng (m dưới mặt sàn). Tầng 1 tùy ý; tầng 2-4 tối đa SLAB-.3 (SLAB = độ dày sàn, khai báo ở level.js)
+  shelf:4,                 // bề rộng dốc từ mép sông tới chỗ sâu nhất (m); lớn hơn = dốc thoải hơn
+  level:.08,               // mặt nước nằm thấp hơn mặt sàn bao nhiêu m (hồ lõm thật, người chơi lún xuống đáy)
   eye:1.6,                 // chiều cao mắt so với chân người chơi (chỉnh khớp game của bạn để nhận đúng lúc "chìm hẳn")
-  underwater:true          // lớp màu nước + sương mù + bọt khí khi đầu ngập dưới mặt nước
+  underwater:true,         // lớp màu nước + sương mù + bọt khí khi đầu ngập dưới mặt nước
+  // ---- Sông & bơi (MỚI) ----
+  riverW:5,                // NỬA bề rộng sông (m): 5 = sông rộng ~10m (tầng cao hơn rộng hơn chút)
+  riverBend:1,             // độ uốn lượn của dòng sông (0 = thẳng tắp, 1.5 = uốn nhiều)
+  swimOn:1.25,             // nước sâu từ mức này (m) -> TỰ ĐỘNG chuyển sang chế độ bơi
+  swimOff:.85,             // nước nông hơn mức này -> thôi bơi, lội bộ
+  swimSpeed:.68,           // tốc độ bơi trên mặt nước (1 = như đi bộ)
+  diveSpeed:.55,           // tốc độ khi lặn (đầu chìm dưới nước)
+  air:10,                  // số giây nín thở tối đa khi đầu chìm dưới nước
+  drownDmg:6,              // máu mất mỗi nhịp khi đã hết hơi
+  drownTick:.6             // khoảng cách giữa 2 nhịp mất máu (giây)  => mặc định mất 10 máu/giây
 };
+const SLT=typeof SLAB==='number'?SLAB:1;   // độ dày sàn tầng 2-4 (level.js)
 const V=s=>s/CFG.quality;
+const TV=s=>s/(CFG.quality*CFG.treeDetail);   // như V nhưng riêng cho cây
+const CELL=.5,ck=(ci,cj)=>(ci+600)*2048+(cj+600);   // lưới ô của hồ căn theo tọa độ thế giới (ô .5m)
 const clamp01=x=>x<0?0:x>1?1:x;
 const smooth=t=>t*t*(3-2*t);
 function RNG(seed){let a=seed>>>0;const r=()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
@@ -55,33 +69,59 @@ const geoOf=vb=>vb.mesh().geometry;
 const bandFn=(cols,ny)=>(i,j,k)=>{let b=j<ny*.33?2:j<ny*.7?0:1;if((i*5+j*3+k*7)%7===0)b=(b+1)%3;return cols[b]};   // tối ở dưới, sáng ở trên
 const rockFn=(T,ny)=>(i,j,k)=>{if(T.moss&&j>ny*.7&&(i*7+k*11)%4)return T.moss;const b=j<ny*.34?2:j<ny*.7?0:1;return T.rock[((i*3+k*5+j)%9===0)?(b+1)%3:b]};
 
-function trunk(v,T,r,H){   // thân cây: các đốt trụ rỗng thu nhỏ dần + 4 rễ
-  const s=V(.1),segs=Math.max(3,Math.round(H/.45)),col=(a,b,l)=>T.trunk[(a*3+b*5+l*7)%T.trunk.length];
-  for(let i=0;i<segs;i++){
-    const a=-.15+(H+.15)*i/segs,b=-.15+(H+.15)*(i+1)/segs,u=i/(segs-1),rr=r*(1.35-.6*Math.min(1,u*1.5));
-    v.cyl(0,(a+b)/2,0,rr,b-a,col,s,'y',Math.max(0,rr-s*1.6));
+// ---- Cây: thân thẳng hoặc cong/nghiêng, cành chính + cành phụ xòe ra, tán lá là các cụm ở đầu cành ----
+function bendFn(rand,amt){   // đường cong của thân: amt = độ lệch tối đa ở ngọn (m); 0 = thẳng tắp
+  const a=rand()*6.283,c=Math.cos(a),sn=Math.sin(a),ph=rand()*6.283;
+  return u=>{u=clamp01(u);const m=amt*(Math.pow(u,1.5)+.3*Math.sin(u*4.4+ph)*u),p=amt*.25*Math.sin(u*3.4+ph*1.7)*u;return[c*m-sn*p,sn*m+c*p]};
+}
+function bTrunk(v,T,r,H,off,tp=.6){   // thân: các đốt trụ xếp chồng, mỗi đốt lệch theo đường cong, thu nhỏ dần + 4 rễ
+  const ts=TV(.1),hs=.3,col=(a,b,l)=>T.trunk[(a*3+b*5+l*7)%T.trunk.length];
+  for(let y=-.15;y<H;y+=hs){const u=(y+hs/2)/H,rr=r*(1.35-tp*Math.min(1,u*1.5)),[ox,oz]=off(u);
+    v.cyl(ox,y+hs/2,oz,rr,hs*1.25,col,ts,'y',Math.max(0,rr-ts*1.6))}
+  for(const [x,z,w,d] of [[1,0,.3,.16],[-1,0,.3,.16],[0,1,.16,.3],[0,-1,.16,.3]])v.box(x*r*1.45,.09,z*r*1.45,w,.18,d,T.trunk[0],ts);
+}
+function limb(v,T,a,b,r0,r1,ts){   // 1 cành: dãy khối nhỏ nối từ a tới b, mảnh dần
+  const dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],len=Math.hypot(dx,dy,dz),n=Math.max(2,Math.ceil(len/(ts*.8)));
+  for(let k=0;k<=n;k++){const t=k/n,r=r0+(r1-r0)*t,d=Math.max(ts*.9,2*r);
+    v.cube(a[0]+dx*t,a[1]+dy*t,a[2]+dz*t,d,d,d,T.trunk[(k+(k>>2))%T.trunk.length],k,k>>1,n)}
+}
+function roundTree(T,rand,cols,vi=0,wide=false){   // vi: 0,1 = thân thẳng · 2 = cong nhẹ · 3 = cong/nghiêng mạnh; wide = anh đào (cành xòe ngang, rủ)
+  const v=new VB(),s=TV(.22),ts=TV(.1),tr=rand.range(.2,.27),H=rand.range(2.6,3.4),
+    amt=[0,0,rand.range(.5,.8),rand.range(.95,1.4)][vi%4],off=bendFn(rand,amt);let ext=1,top=H;
+  bTrunk(v,T,tr,H,off);
+  const blob=(x,y,z,rx,ry,rz)=>{v.ell(x,y,z,rx,ry,rz,bandFn(cols,Math.round(2*ry/s)),s,true);ext=Math.max(ext,Math.hypot(x,z)+rx);top=Math.max(top,y+ry)};
+  const n=rand.int(wide?5:4,wide?7:6),a0=rand()*6.283;
+  for(let i=0;i<n;i++){
+    const a=a0+i/n*6.283+rand.range(-.35,.35),hb=H*rand.range(.5,.92),[ox,oz]=off(hb/H),hl=rand.range(.85,1.5)*(wide?1.2:1),
+      rise=hl*rand.range(wide?.05:.3,wide?.45:.85),p0=[ox,hb,oz],p1=[ox+Math.cos(a)*hl,hb+rise,oz+Math.sin(a)*hl],
+      r0=tr*(1.35-.6*Math.min(1,hb/H*1.5))*.55;
+    limb(v,T,p0,p1,r0,r0*.4,ts);                                         // cành chính
+    const R=rand.range(.55,.85);blob(p1[0],p1[1]+R*.35,p1[2],R,R*.8,R);   // cụm lá ở đầu cành
+    const sa=a+rand.range(.5,.9)*(rand()<.5?1:-1),m=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2,(p0[2]+p1[2])/2],sl=hl*rand.range(.5,.75),
+      p2=[m[0]+Math.cos(sa)*sl,m[1]+sl*rand.range(.2,.7),m[2]+Math.sin(sa)*sl];
+    limb(v,T,m,p2,r0*.6,r0*.3,ts);                                       // cành phụ tách ra từ giữa cành chính
+    const R2=R*rand.range(.6,.85);blob(p2[0],p2[1]+R2*.3,p2[2],R2,R2*.8,R2);
   }
-  for(const [x,z,w,d] of [[1,0,.3,.16],[-1,0,.3,.16],[0,1,.16,.3],[0,-1,.16,.3]])v.box(x*r*1.45,.09,z*r*1.45,w,.18,d,T.trunk[0],s);
+  const [tx,tz]=off(1),R3=rand.range(.75,1);blob(tx,H+R3*.35,tz,R3,R3*.8,R3);   // cụm lá trên ngọn
+  return {geo:geoOf(v),crown:Math.max(1.3,ext*.8),tr,th:H,h:top+.05};
 }
-function roundTree(T,rand,cols){   // cây tán tròn: nhiều khối cầu chồng nhau
-  const v=new VB(),tr=rand.range(.2,.27),H=rand.range(2.9,3.6),R=rand.range(1.05,1.4),s=V(.22),cy=H+R*.4;
-  trunk(v,T,tr,H);
-  const blob=(x,y,z,rx,ry,rz)=>v.ell(x,y,z,rx,ry,rz,bandFn(cols,Math.round(2*ry/s)),s,true);
-  blob(0,cy,0,R,R*.82,R);
-  for(let i=0,n=rand.int(3,4);i<n;i++){const a=i/n*6.283+rand()*.8,d=R*rand.range(.55,.75),rr=R*rand.range(.5,.65);
-    blob(Math.cos(a)*d,cy-R*.12+rand.range(-.15,.2),Math.sin(a)*d,rr,rr*.85,rr)}
-  blob(rand.range(-.2,.2),cy+R*.6,rand.range(-.2,.2),R*.58,R*.48,R*.58);
-  return {geo:geoOf(v),crown:R*1.3,tr,th:H,h:cy+R*1.08};
-}
-function pineTree(T,rand){   // cây thông: các tầng đĩa xếp chồng (tầng 4 có tuyết phủ)
-  const v=new VB(),tr=rand.range(.16,.21),H=rand.range(2.2,2.6),s=V(.18),tiers=rand.int(6,7),step=rand.range(.58,.68),R0=rand.range(1.2,1.5),cols=T.pine;
-  trunk(v,T,tr,H);
+function pineTree(T,rand,vi=0){   // thông: mỗi tầng là 1 vòng cành rủ xuống, đầu cành có cụm kim; thân thẳng hoặc hơi nghiêng
+  const v=new VB(),tr=rand.range(.16,.21),H=rand.range(2.2,2.6),s=TV(.18),ts=TV(.1),tiers=rand.int(6,7),step=rand.range(.58,.68),R0=rand.range(1.2,1.5),cols=T.pine,
+    Ht=H-.25+tiers*step+.3,amt=[0,0,rand.range(.3,.5),rand.range(.6,.9)][vi%4],off=bendFn(rand,amt);
+  bTrunk(v,T,tr,Ht,off,.95);   // thân chạy suốt chiều cao cây, mảnh dần về ngọn
   for(let q=0;q<tiers;q++){
-    const u=q/(tiers-1),rr=R0*(1-u*.86)+.12,y=H-.25+q*step,base=q%2?0:2;
-    v.cyl(0,y,0,rr,s,(a,b)=>cols[((a*5+b*3+q*2)%7===0)?1:base],s,'y');
-    if(T.cap)v.cyl(0,y+s*.85,0,rr*.8,s*.8,(a,b)=>T.cap[(a+b)&1],s,'y');
+    const u=q/(tiers-1),rr=R0*(1-u*.86)+.12,y=H-.25+q*step,base=q%2?0:2,[ox,oz]=off(y/Ht),nb=Math.max(4,Math.round(3+rr*3.2)),a0=rand()*6.283;
+    for(let k=0;k<nb;k++){
+      const a=a0+k/nb*6.283+rand.range(-.25,.25),hl=rr*rand.range(.85,1.05),dr=hl*rand.range(.12,.3),ca=Math.cos(a),sa=Math.sin(a);
+      if(hl>.45)limb(v,T,[ox,y,oz],[ox+ca*hl,y-dr,oz+sa*hl],tr*.3,tr*.15,ts);
+      const cw=Math.max(.32,hl*.45),cx=ox+ca*hl*.72,cz=oz+sa*hl*.72,cy=y-dr*.7;
+      v.ell(cx,cy,cz,cw,TV(.15),cw,(i,j,kk)=>cols[((i*5+j*3+q*2+k)%7===0)?1:base],s,true);
+      if(T.cap)v.ell(cx,cy+TV(.12),cz,cw*.85,TV(.07),cw*.85,(i,j,kk)=>T.cap[(i+kk)&1],TV(.09),false);
+    }
+    v.cyl(ox,y,oz,rr*.38,s,(a,b)=>cols[((a*5+b*3+q*2)%7===0)?1:base],s,'y');
+    if(T.cap)v.cyl(ox,y+s*.85,oz,rr*.3,s*.8,(a,b)=>T.cap[(a+b)&1],s,'y');
   }
-  const top=H-.25+tiers*step;v.cyl(0,top-.1,0,.1,.5,cols[1],V(.08),'y');
+  const top=H-.25+tiers*step,[tx,tz]=off(top/Ht);v.cyl(tx,top-.1,tz,.1,.5,cols[1],TV(.08),'y');
   return {geo:geoOf(v),crown:R0,tr,th:H,h:top+.2};
 }
 function boulder(T,rand){
@@ -111,16 +151,24 @@ function bush(T,rand,cols){
     v.cube(Math.cos(th)*Math.sin(ph)*r0*1.02,y0*.9+Math.cos(ph)*y0*1.02,Math.sin(th)*Math.sin(ph)*r0*1.02,.09,.09,.09,rand.pick(T.flower),i,3,7)}
   return {geo:geoOf(v)};
 }
-function logMesh(T,rand){   // khúc gỗ nằm: thân rỗng + mặt cắt vòng năm
-  const v=new VB(),s=V(.09),r=.3,L=rand.range(1.8,2.4);
-  v.cyl(0,r,0,r,L,(a,b,l)=>T.trunk[(a+b*2+l*3)%T.trunk.length],s,'x',r-s*1.6);
-  const ring=(a,b)=>((Math.hypot(a-3,b-3)|0)&1)?0xd9b38c:0xb8895f;
-  for(const sx of[-1,1])v.cyl(sx*(L/2-s*.4),r,0,r,s*.8,ring,s,'x');
-  if(T.moss)v.box(rand.range(-.4,.4),2*r+.02,0,.5,.07,.24,T.moss,s);
-  return {geo:geoOf(v),L,r};
+function logMesh(T,rand){   // BÃI GỖ: nhiều khúc gỗ xếp chồng thành đống (dưới rộng, trên hẹp), đầu khúc lộ vòng năm
+  const v=new VB(),s=V(.09),r=rand.range(.24,.3),Lb=rand.range(1.7,2.3),rows=rand.int(2,3),n0=rand.int(3,4);
+  let W=0,Hh=0,idx=0;
+  for(let row=0;row<rows;row++){
+    const cnt=n0-row,y=r+row*r*1.72;
+    for(let i=0;i<cnt;i++){
+      const z=(i-(cnt-1)/2)*r*2.02,Li=Lb*rand.range(.82,1),x=rand.range(-.12,.12),rr=r*rand.range(.92,1.04),id=idx++,
+        nl=Math.max(1,Math.round(2*rr/s)),c2=(nl-1)/2,ring=(a,b)=>((Math.hypot(a-c2,b-c2)|0)&1)?0xd9b38c:0xb8895f;
+      v.cyl(x,y,z,rr,Li,(a,b,l)=>T.trunk[(a+b*2+l*3+id)%T.trunk.length],s,'x',rr-s*1.6);
+      for(const sx of[-1,1])v.cyl(x+sx*(Li/2-s*.4),y,z,rr,s*.8,ring,s,'x');
+      W=Math.max(W,Math.abs(z)*2+2*rr);Hh=Math.max(Hh,y+rr);
+    }
+  }
+  if(T.moss)v.box(rand.range(-.3,.3),Hh+.02,0,.5,.07,.24,T.moss,s);
+  return {geo:geoOf(v),L:Lb,W,H:Hh};
 }
 function stumpMesh(T){
-  const v=new VB(),s=V(.09),r=.38;
+  const v=new VB(),s=V(.07),r=.38;
   v.cyl(0,.24,0,r,.48,(a,b,l)=>T.trunk[(a+b*2+l*3)%T.trunk.length],s,'y',r-s*1.6);
   v.cyl(0,.48,0,r,s*.8,(a,b)=>((Math.hypot(a-4,b-4)|0)&1)?0xd9b38c:0xb8895f,s,'y');
   return {geo:geoOf(v)};
@@ -137,23 +185,129 @@ function keepOuts(f){
 }
 
 // ---- Độ sâu hồ: mực nước (m so với sàn) tại điểm (x,z). Dốc dần từ mép (0.1m) tới CFG.depth ở giữa ----
-function lakeH(l,x,z){
+function lakeH(l,x,z){   // ĐỘ SÂU đáy hồ (m dưới mặt sàn) tại (x,z)
   if(l.ice)return .1;
   const m=Math.min(l.rx,l.rz),sh=Math.max(.5,Math.min(CFG.shelf,m*.7));
-  const dist=(1-l.rho(x,z))*m;                       // khoảng cách (m) từ mép vào trong
-  return .1+(Math.max(.2,CFG.depth)-.1)*smooth(clamp01(dist/sh));
+  const dist=(1-l.rho(x,z))*m;
+  return .1+(l.dmax-.1)*smooth(clamp01(dist/sh));
 }
+const wdep=(l,x,z)=>Math.max(0,lakeH(l,x,z)-CFG.level);   // độ sâu NƯỚC (từ đáy lên mặt nước)
 
 // ---- Dựng cả 1 tầng ----
 const _m=new THREE.Matrix4(),_p=new THREE.Vector3(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),cache={};
-const variants=(key,mk)=>cache[key]||(cache[key]=Array.from({length:3},mk));
-function waveLake(l,t){
-  const s=l.g*.97;
-  for(let i=0;i<l.tiles.length;i++){const q=l.tiles[i],
-    w=l.ice?0:.024*(Math.sin(q.x*1.1+t*1.5)+Math.sin(q.z*1.3-t*1.1)+Math.sin((q.x+q.z)*.7+t*.9)*.6)*Math.min(1,q.h0*2.5),
-    h=q.h0+w;
-    _p.set(q.x,l.y+h/2,q.z);_s.set(s,h,s);_m.compose(_p,_q,_s);l.mesh.setMatrixAt(i,_m)}
+const variants=(key,mk,cnt=3)=>cache[key]||(cache[key]=Array.from({length:cnt},mk));
+function waveLake(l,t,px,pz){   // px,pz (tùy chọn): chỉ cập nhật ô trong bán kính 60m quanh người chơi (sông dài nhiều ô)
+  const s=l.g*.995,cull=px!==undefined;
+  for(let i=0;i<l.tiles.length;i++){const q=l.tiles[i];
+    if(l.ice){_p.set(q.x,l.y+q.h0/2,q.z);_s.set(s,q.h0,s)}
+    else{if(cull){const dx=q.x-px,dz=q.z-pz;if(dx*dx+dz*dz>3600)continue}
+      const w=.018*(Math.sin(q.u*1.1-t*2.1)+Math.sin(q.v*1.5+t*1.2)+Math.sin((q.u+q.v)*.7-t*1.3)*.6)*Math.min(1,q.h0*2.5);   // sóng chạy xuôi dòng
+      _p.set(q.x,l.y-CFG.level+w-.03,q.z);_s.set(s,.06,s)}   // mặt nước mỏng, nằm THẤP hơn sàn
+    _m.compose(_p,_q,_s);l.mesh.setMatrixAt(i,_m)}
   l.mesh.instanceMatrix.needsUpdate=true;
+}
+// ---- Đào hồ: dựng hình học tùy biến (lát sàn có lỗ, đáy hồ bậc thang, thành hồ) ----
+function GB(){return{p:[],n:[],c:[],u:[],a:[],b:[],k:0}}
+function gq(g,pts,n,col,uv,top){   // 1 mặt phẳng 4 điểm, tự chỉnh chiều quay theo pháp tuyến n
+  let [a,b,c,d]=pts;
+  const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+  if((uy*vz-uz*vy)*n[0]+(uz*vx-ux*vz)*n[1]+(ux*vy-uy*vx)*n[2]<0)[b,d]=[d,b];
+  const k=g.k,r=col?col.r:1,gr=col?col.g:1,bl=col?col.b:1;
+  for(const q of[a,b,c,d]){g.p.push(q[0],q[1],q[2]);g.n.push(n[0],n[1],n[2]);g.c.push(r,gr,bl);g.u.push(uv?q[0]:0,uv?q[2]:0)}
+  (top?g.b:g.a).push(k,k+1,k+2,k,k+2,k+3);g.k+=4;
+}
+function gfin(g,grouped){
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(g.p,3));
+  geo.setAttribute('normal',new THREE.Float32BufferAttribute(g.n,3));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(g.c,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(g.u,2));
+  geo.setIndex(g.a.concat(g.b));
+  if(grouped){if(g.a.length)geo.addGroup(0,g.a.length,0);if(g.b.length)geo.addGroup(g.a.length,g.b.length,2)}
+  return geo;
+}
+function topRuns(g,i0,i1,j0,j1,y,cells){   // mặt trên: mỗi hàng ô gộp thành các đoạn liền, bỏ những ô thuộc hồ
+  for(let cj=j0;cj<j1;cj++){let run=null;
+    for(let ci=i0;ci<=i1;ci++){
+      const open=ci<i1&&!cells.has(ck(ci,cj));
+      if(open&&run===null)run=ci;
+      else if(!open&&run!==null){const xa=run*CELL,xb=ci*CELL,za=cj*CELL,zb=za+CELL;
+        gq(g,[[xa,y,za],[xa,y,zb],[xb,y,zb],[xb,y,za]],[0,1,0],null,true,true);run=null}
+    }}
+}
+const _bc1=new THREE.Color(),_bc2=new THREE.Color();
+function bedColor(l,ci,cj,d,out){   // cát ở mép -> xanh đậm ở chỗ sâu
+  const dd=clamp01((d-.1)/(l.dmax-.1));
+  _bc1.setHex(l.T.sand[(ci+cj)&1]);_bc2.setHex(l.T.water[2]).multiplyScalar(.5);
+  return out.copy(_bc1).lerp(_bc2,Math.pow(dd,.6));
+}
+function bedGeometry(l,Fl){   // đáy hồ dạng bậc thang (mỗi ô 1 độ sâu) + thành hồ dựng đứng
+  const g=GB(),col=new THREE.Color(),wc=new THREE.Color(),y0=l.y;
+  const dOf=(ci,cj)=>Fl.cells.get(ck(ci,cj))===l?lakeH(l,(ci+.5)*CELL,(cj+.5)*CELL):0;
+  for(const [ci,cj] of l.cl){
+    const d=dOf(ci,cj),xa=ci*CELL,xb=xa+CELL,za=cj*CELL,zb=za+CELL,yb=y0-d;
+    bedColor(l,ci,cj,d,col);
+    gq(g,[[xa,yb,za],[xa,yb,zb],[xb,yb,zb],[xb,yb,za]],[0,1,0],col,false,false);
+    for(const [di,dj] of[[1,0],[-1,0],[0,1],[0,-1]]){
+      const nd=dOf(ci+di,cj+dj);if(nd>=d-1e-4)continue;
+      const yh=y0-nd;wc.copy(col).multiplyScalar(.8);let pts,n;
+      if(di===1){pts=[[xb,yb,za],[xb,yb,zb],[xb,yh,zb],[xb,yh,za]];n=[-1,0,0]}
+      else if(di===-1){pts=[[xa,yb,za],[xa,yb,zb],[xa,yh,zb],[xa,yh,za]];n=[1,0,0]}
+      else if(dj===1){pts=[[xa,yb,zb],[xb,yb,zb],[xb,yh,zb],[xa,yh,zb]];n=[0,0,-1]}
+      else{pts=[[xa,yb,za],[xb,yb,za],[xb,yh,za],[xa,yh,za]];n=[0,0,1]}
+      gq(g,pts,n,wc,false,false);
+    }
+  }
+  return gfin(g,false);
+}
+function carve(Fl,f,y0){   // cắt lỗ trên sàn ở chỗ có hồ
+  if(!Fl.cells.size)return;
+  const cells=Fl.cells,lk=(x,z)=>cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL)));
+  if(f===0){
+    const n=Math.round((HALF0+1)/CELL),g=GB();
+    topRuns(g,-n,n,-n,n,0,cells);
+    floor.geometry.dispose();floor.geometry=gfin(g,false);floor.rotation.set(0,0,0);floor.position.set(0,0,0);
+    // lưới ô 2m: bỏ các đoạn nằm hoàn toàn trong lòng hồ
+    const gp=grid.geometry.attributes.position,gc=grid.geometry.attributes.color,np=[],nc=[],gy=gp.getY(0),has=(a,b)=>cells.has(ck(a,b));
+    for(let s=0;s+1<gp.count;s+=2){
+      const ax=gp.getX(s),az=gp.getZ(s),bx=gp.getX(s+1),bz=gp.getZ(s+1),alongZ=Math.abs(bz-az)>Math.abs(bx-ax),
+        cnt=Math.round((alongZ?Math.abs(bz-az):Math.abs(bx-ax))/CELL);
+      for(let i=0;i<cnt;i++){
+        const t0=i/cnt,t1=(i+1)/cnt,x0=ax+(bx-ax)*t0,z0=az+(bz-az)*t0,x1=ax+(bx-ax)*t1,z1=az+(bz-az)*t1,
+          ci=Math.floor((x0+x1)/2/CELL),cj=Math.floor((z0+z1)/2/CELL),
+          inside=alongZ?(has(Math.round(ax/CELL)-1,cj)&&has(Math.round(ax/CELL),cj)):(has(ci,Math.round(az/CELL)-1)&&has(ci,Math.round(az/CELL)));
+        if(inside)continue;
+        np.push(x0,gy,z0,x1,gy,z1);
+        const r=gc?gc.getX(s):.42,gg=gc?gc.getY(s):.43,bl=gc?gc.getZ(s):.47;nc.push(r,gg,bl,r,gg,bl);
+      }
+    }
+    const ng=new THREE.BufferGeometry();
+    ng.setAttribute('position',new THREE.Float32BufferAttribute(np,3));ng.setAttribute('color',new THREE.Float32BufferAttribute(nc,3));
+    grid.geometry.dispose();grid.geometry=ng;
+    return;
+  }
+  // tầng 2-4: sàn là các tấm dày 1m (level.js). Tấm nào có hồ -> dựng lại mặt trên có lỗ + cho va chạm bỏ qua ô hồ
+  const cl=[];for(const l of Fl.lakes)if(l.cl)for(const c of l.cl)cl.push(c);
+  const tx=gridTex().clone();tx.needsUpdate=true;tx.repeat.set(.5,.5);
+  const topMat=new THREE.MeshLambertMaterial({map:tx});
+  for(const b of boxes){
+    if(Math.abs(b.y1-y0)>1e-6||Math.abs(b.y0-(y0-SLT))>1e-6)continue;
+    const i0=Math.round(b.x0/CELL),i1=Math.round(b.x1/CELL),j0=Math.round(b.z0/CELL),j1=Math.round(b.z1/CELL);
+    if(!cl.some(([ci,cj])=>ci>=i0&&ci<i1&&cj>=j0&&cj<j1))continue;
+    const cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2,cz=(b.z0+b.z1)/2,
+      m=meshes.find(q=>q.geometry&&q.geometry.type==='BoxGeometry'&&Array.isArray(q.material)&&Math.abs(q.position.x-cx)<1e-6&&Math.abs(q.position.y-cy)<1e-6&&Math.abs(q.position.z-cz)<1e-6);
+    if(!m)continue;
+    const g=GB(),yb=b.y0,yt=b.y1;
+    topRuns(g,i0,i1,j0,j1,yt,cells);
+    gq(g,[[b.x0,yb,b.z0],[b.x1,yb,b.z0],[b.x1,yb,b.z1],[b.x0,yb,b.z1]],[0,-1,0],null,false,false);
+    gq(g,[[b.x0,yb,b.z0],[b.x0,yb,b.z1],[b.x0,yt,b.z1],[b.x0,yt,b.z0]],[-1,0,0],null,false,false);
+    gq(g,[[b.x1,yb,b.z0],[b.x1,yb,b.z1],[b.x1,yt,b.z1],[b.x1,yt,b.z0]],[1,0,0],null,false,false);
+    gq(g,[[b.x0,yb,b.z0],[b.x1,yb,b.z0],[b.x1,yt,b.z0],[b.x0,yt,b.z0]],[0,0,-1],null,false,false);
+    gq(g,[[b.x0,yb,b.z1],[b.x1,yb,b.z1],[b.x1,yt,b.z1],[b.x0,yt,b.z1]],[0,0,1],null,false,false);
+    const old=m.material;m.geometry.dispose();m.geometry=gfin(g,true);m.position.set(0,0,0);
+    m.material=[old[0],old[0],topMat];
+    b.hole=lk;   // physics.js: va chạm với tấm sàn này bỏ qua nếu tâm vật thể nằm trong ô hồ
+  }
 }
 function butterfly(col){
   const g=new THREE.Group(),b=new THREE.Mesh(UG,M(0x2b2a3a));b.scale.set(.03,.03,.12);g.add(b);
@@ -162,11 +316,12 @@ function butterfly(col){
 }
 function buildFloor(f){
   const T=THM[f],A=AF(f),y0=f*FH,rand=RNG(CFG.seed*131+f*7919+1),k=Math.pow(A/20,CFG.scaleExp)*CFG.density;
-  const Fl={f,y:y0,objs:[],lakes:[],crit:[],deco:null},keep=keepOuts(f),placed=[],d=new VB(),lim=A-1.2;
+  const Fl={f,y:y0,objs:[],lakes:[],crit:[],deco:null,cells:new Map()},keep=keepOuts(f),placed=[],d=new VB(),lim=A-1.2;
   let cn=0,pn=0;
   const dc=(x,y,z,sx,sy,sz,hex)=>d.cube(x,y,z,sx,sy,sz,hex,cn++,(cn*7)&63,(cn*13)&31);   // 1 mảnh rubik gộp vào mesh trang trí
   const sup=(x,z,r)=>f===0||[[0,0],[r,0],[-r,0],[0,r],[0,-r]].every(([a,b])=>hitAny({x:x+a,y:y0-.6,z:z+b,r:.05,h:.3}));   // có sàn đỡ bên dưới (tầng trên có lỗ thang)
-  const wet=(x,z,m)=>Fl.lakes.some(l=>l.rho(x,z)<1+m/Math.min(l.rx,l.rz));
+  const inLk=(x,z)=>Fl.cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL)));
+  const wet=(x,z,m)=>inLk(x,z)||Fl.lakes.some(l=>l.rho(x,z)<1+m/Math.min(l.rx,l.rz));
   const okAt=(x,z,rad,edge)=>{
     if(Math.abs(x)>lim-edge||Math.abs(z)>lim-edge)return false;
     if(keep.some(q=>circleRect(x,z,rad+.3,q)))return false;
@@ -193,55 +348,80 @@ function buildFloor(f){
       d.ell(mx,y0+h+cr*.3,mz,cr,cr*.6,cr,(a,b,c)=>((a+b*2+c)%4===0)?0xffffff:cap,.05,true)}
   };
 
-  // 1) Hồ nước (đặt trước để mọi thứ khác tránh ra)
-  const mkLake=(cx,cz,rx,rz)=>{const ph=rand()*6.283,a1=rand.range(.08,.14),a2=rand.range(.04,.09),nz=a=>1+a1*Math.sin(3*a+ph)+a2*Math.sin(5*a+ph*1.7);
-    return {cx,cz,rx,rz,y:y0,ice:!!T.ice,T,nz,rho:(x,z)=>{const u=(x-cx)/rx,v=(z-cz)/rz;return Math.hypot(u,v)/nz(Math.atan2(v,u))},at:(a,p)=>[cx+rx*Math.cos(a)*p*nz(a),cz+rz*Math.sin(a)*p*nz(a)]}};
-  const lakeOk=(x,z,rx,rz)=>{
-    if(keep.some(q=>circleRect(x,z,Math.max(rx,rz)*.95,q)))return false;
-    for(const o of Fl.lakes)if(Math.hypot(x-o.cx,z-o.cz)<(Math.max(rx,rz)+Math.max(o.rx,o.rz))*1.1)return false;
-    for(let i=0;i<16;i++){const a=i/16*6.283,bx=x+Math.cos(a)*rx*1.15,bz=z+Math.sin(a)*rz*1.15;
-      if(hitAny({x:bx,y:y0+.02,z:bz,r:.5,h:.5})||!sup(bx,bz,.3))return false}
-    return !hitAny({x,y:y0+.02,z,r:.6,h:.5});
-  };
-  const K=MAPK,spec=f===0?[[14.2*K,-3.5*K,4.3*K,5.6*K],[-11.6*K,9.5*K,2.1*K,2.3*K]]:[[null,null,(3.2+f*1.1)*K,(4+f*1.1)*K],[null,null,(2.2+.3*f)*K,(2.2+.3*f)*K]];
-  for(const [cx,cz,rx0,rz0] of spec){
-    let l=null;
-    if(cx!==null)l=mkLake(cx,cz,rx0,rz0);
-    else for(let n=0,sc=1;n<120&&!l;n++){
-      if(n%30===29)sc*=.85;
-      const rx=rx0*sc,rz=rz0*sc,x=rand.range(-lim+rx*1.3+1,lim-rx*1.3-1),z=rand.range(-lim+rz*1.3+1,lim-rz*1.3-1);
-      if(lakeOk(x,z,rx,rz))l=mkLake(x,z,rx,rz);
+  // 1) Sông (đặt trước để mọi thứ khác tránh ra): 1 dải nước dài, uốn lượn, chạy xuyên hết map từ tường này sang tường kia.
+  //    Chỗ có vật cản (cột, bục...) của map thì chừa lại thành "đảo"; chỗ có lỗ thang / vùng cấm thì tự tránh.
+  const inm=(x,z)=>Math.abs(x)<A-.5&&Math.abs(z)<A-.5;
+  const blocked=(x,z)=>hitAny({x,y:y0+.02,z,r:.05,h:.5})||keep.some(q=>circleRect(x,z,.5,q))||(f>0&&!sup(x,z,1));
+  const mkRiver=()=>{
+    const W=CFG.riverW*(1+.04*f),dmax=f>0?Math.min(Math.max(.2,CFG.depth),SLT-.3):Math.max(.2,CFG.depth),bend=CFG.riverBend;
+    let best=null,bs=1e9;
+    for(let n=0;n<160&&bs>=1;n++){   // thử nhiều đường đi ngẫu nhiên, lấy đường ít đụng vật cản / vùng cấm nhất
+      const th=(rand()<.5?0:Math.PI/2)+rand.range(-.2,.2),ux=Math.cos(th),uz=Math.sin(th),nx=-uz,nz=ux,c0=rand.range(-.5,.5)*A,
+        a1=rand.range(1.6,3.4)*bend,k1=6.283/rand.range(30,46),p1=rand()*6.283,a2=rand.range(.4,1.1)*bend,k2=6.283/rand.range(13,19),p2=rand()*6.283,
+        wv=rand.range(.08,.16),kw=6.283/rand.range(16,28),pw=rand()*6.283,cx=nx*c0,cz=nz*c0,
+        cv=u=>a1*Math.sin(u*k1+p1)+a2*Math.sin(u*k2+p2),dv=u=>a1*k1*Math.cos(u*k1+p1)+a2*k2*Math.cos(u*k2+p2),wf=u=>W*(1+wv*Math.sin(u*kw+pw));
+      let sc=0;
+      for(let u=-A*1.3;u<=A*1.3;u+=2){
+        const c=cv(u),w=wf(u),sl=dv(u),il=1/Math.sqrt(1+sl*sl);
+        for(const q of[-1,-.5,0,.5,1]){
+          const x=cx+ux*u+nx*c+(nx-ux*sl)*il*q*w,z=cz+uz*u+nz*c+(nz-uz*sl)*il*q*w;
+          if(Math.abs(x)>A-.3||Math.abs(z)>A-.3)continue;
+          if(hitAny({x,y:y0+.02,z,r:.45,h:.5}))sc+=1;
+          if(keep.some(k=>circleRect(x,z,1.2,k)))sc+=40;
+          if(f>0&&!sup(x,z,1.2))sc+=40;
+        }
+      }
+      sc+=rand()*.5;
+      if(sc<bs){bs=sc;best={ux,uz,nx,nz,cx,cz,cv,dv,wf}}
     }
-    if(l)Fl.lakes.push(l);
-  }
+    const {ux,uz,nx,nz,cx,cz,cv,dv,wf}=best;
+    const loc=(x,z)=>{const X=x-cx,Z=z-cz;return[X*ux+Z*uz,X*nx+Z*nz]};   // toạ độ (dọc dòng, ngang dòng)
+    // at(góc,p): điểm dọc theo bờ sông; p=1 đúng mép, p>1 ngoài bờ, p<1 trong lòng sông (góc<π: bờ này, còn lại: bờ kia)
+    const at=(a,p)=>{const side=a<Math.PI?1:-1,u=(((a%Math.PI)/Math.PI)*2-1)*A*1.15,c=cv(u),sl=dv(u),il=1/Math.sqrt(1+sl*sl),w=wf(u)*p*side;
+      return[cx+ux*u+nx*c+(nx-ux*sl)*il*w,cz+uz*u+nz*c+(nz-uz*sl)*il*w]};
+    return {cx,cz,rx:A*1.2,rz:W,y:y0,f,dmax,ice:!!T.ice,T,loc,at,
+      rho:(x,z)=>{const [u,v]=loc(x,z),sl=dv(u);return Math.abs(v-cv(u))/Math.sqrt(1+sl*sl)/wf(u)}};   // <1: trong lòng sông
+  };
+  Fl.lakes.push(mkRiver());
   for(const l of Fl.lakes){
-    const g=V(.5),pos=[],edge=.9/Math.min(l.rx,l.rz);l.g=g;
-    for(let x=l.cx-l.rx*1.4,ix=0;x<=l.cx+l.rx*1.4;x+=g,ix++)for(let z=l.cz-l.rz*1.4,iz=0;z<=l.cz+l.rz*1.4;z+=g,iz++){
-      const p=l.rho(x,z);
-      if(p<1)pos.push({x,z,p,ix,iz,h0:.1});
-      else if(p<1+edge&&(f===0||hitAny({x,y:y0-.6,z,r:.05,h:.3})))dc(x,y0+.045,z,g*.94,.05,g*.94,T.sand[(ix+iz)&1]);   // bãi cát / tuyết quanh hồ
+    const g=CELL,pos=[],edge=.9/l.rz,nC=Math.floor(A/g);l.g=g;l.cl=[];
+    for(let ci=-nC;ci<nC;ci++)for(let cj=-nC;cj<nC;cj++){
+      const x=(ci+.5)*g,z=(cj+.5)*g,p=l.rho(x,z);
+      if(p<1){
+        if(blocked(x,z))continue;   // vật cản / lỗ thang -> không có nước (thành đảo)
+        const [u,v]=l.loc(x,z);
+        pos.push({x,z,p,u,v,ix:ci,iz:cj,h0:.1});
+        if(!l.ice){Fl.cells.set(ck(ci,cj),l);l.cl.push([ci,cj])}
+      }
+      else if(p<1+edge&&(f===0||hitAny({x,y:y0-.6,z,r:.05,h:.3}))&&!hitAny({x,y:y0+.02,z,r:.05,h:.5}))dc(x,y0+.045,z,g*.94,.05,g*.94,T.sand[(ci+cj)&1]);   // bãi cát / tuyết ven sông
+    }
+    if(!l.ice&&l.cl.length){   // đáy hồ lõm xuống (raycast được để đạn để lại vết)
+      const bed=new THREE.Mesh(bedGeometry(l,Fl),new THREE.MeshLambertMaterial({vertexColors:true}));
+      bed.frustumCulled=false;S.add(bed);meshes.push(bed);l.bed=bed;
     }
     if(pos.length){
-      // nước: bớt sáng (emissive đen), đục hơn để có chiều sâu; màu chuyển dần từ nhạt ở mép sang tối đậm ở giữa hồ
-      const mesh=new THREE.InstancedMesh(UG,new THREE.MeshLambertMaterial({color:0xffffff,transparent:!T.ice,opacity:T.ice?1:.92,emissive:0x000000}),pos.length),col=new THREE.Color(),deep=new THREE.Color(),shal=new THREE.Color();
-      pos.forEach((q,i)=>{const w=T.water,dd=Math.min(1,(1-q.p)/.85);   // dd: 0 ở mép → 1 ở giữa hồ
-        q.h0=lakeH(l,q.x,q.z);
-        shal.setHex(w[3]);deep.setHex(w[2]).multiplyScalar(T.ice?.85:.45);
-        col.copy(shal).lerp(deep,Math.pow(dd,.7));
-        if((q.ix+q.iz)&1)col.multiplyScalar(.93);mesh.setColorAt(i,col)});
+      // mặt nước mỏng, trong; màu đáy hồ (cát -> xanh đậm) hiện xuyên qua nên càng sâu càng tối
+      const mesh=new THREE.InstancedMesh(UG,new THREE.MeshLambertMaterial({color:0xffffff,transparent:!T.ice,opacity:T.ice?1:.62,depthWrite:!!T.ice,emissive:0x000000}),pos.length),col=new THREE.Color(),deep=new THREE.Color(),shal=new THREE.Color();
+      pos.forEach((q,i)=>{const w=T.water;
+        q.h0=lakeH(l,q.x,q.z);const dd=T.ice?Math.min(1,(1-q.p)/.85):clamp01((q.h0-.1)/(l.dmax-.1));
+        if(T.ice){shal.setHex(w[3]);deep.setHex(w[2]).multiplyScalar(.85);col.copy(shal).lerp(deep,Math.pow(dd,.7))}
+        else{shal.setHex(w[1]);deep.setHex(w[2]).multiplyScalar(.7);col.copy(shal).lerp(deep,dd*.85)}
+        if((q.ix+q.iz)&1)col.multiplyScalar(.95);mesh.setColorAt(i,col)});
       mesh.frustumCulled=false;S.add(mesh);l.mesh=mesh;l.tiles=pos;waveLake(l,0);
     }
     // đá cuội, lau sậy, lá súng ven và trên hồ
-    const per=Math.round((l.rx+l.rz)*3.4*CFG.density);
+    const per=Math.round((l.rx+l.rz)*2.2*CFG.density);
     for(let i=0;i<per;i++){const [x,z]=l.at(rand()*6.283,1+rand.range(.04,.32)),sz=rand.range(.1,.26);
-      if(f===0||hitAny({x,y:y0-.6,z,r:.05,h:.3}))dc(x,y0+sz*.4,z,sz,sz*.8,sz,T.rock[rand.int(0,2)])}
-    for(let i=0,n=Math.round(per*.35);i<n;i++){const [cx,cz]=l.at(rand()*6.283,1+rand.range(-.05,.2));
-      if(f&&!hitAny({x:cx,y:y0-.6,z:cz,r:.05,h:.3}))continue;
+      if(inm(x,z)&&(f===0||hitAny({x,y:y0-.6,z,r:.05,h:.3}))&&!inLk(x,z)&&!hitAny({x,y:y0+.02,z,r:.05,h:.5}))dc(x,y0+sz*.4,z,sz,sz*.8,sz,T.rock[rand.int(0,2)])}
+    for(let i=0,n=Math.round(per*.35);i<n;i++){const [cx,cz]=l.at(rand()*6.283,1+rand.range(.06,.22));
+      if(!inm(cx,cz)||(f&&!hitAny({x:cx,y:y0-.6,z:cz,r:.05,h:.3})))continue;
       for(let b=0,m=rand.int(3,5);b<m;b++){const x=cx+rand.range(-.25,.25),z=cz+rand.range(-.25,.25),h=rand.range(1,1.7);
+        if(inLk(x,z)||!inm(x,z))continue;
         dc(x,y0+h/2,z,.045,h,.045,rand.pick(T.reed));if(rand()<.5)dc(x,y0+h-.12,z,.075,.24,.075,0x6b4a32)}}
-    // lá súng nổi theo mực nước tại chỗ nó nằm
-    if(!T.ice)for(let i=0,n=Math.round(l.rx*l.rz*.35*CFG.density);i<n;i++){const [x,z]=l.at(rand()*6.283,rand.range(.1,.8)),r=rand.range(.22,.32),wy=y0+lakeH(l,x,z);
-      d.cyl(x,wy+.09,z,r,.03,rand.pick(T.pad),V(.075),'y');if(rand()<.4)dc(x,wy+.135,z,.09,.07,.09,rand()<.5?0xff9fbf:0xffffff)}
+    // lá súng nổi trên mặt nước
+    if(!T.ice)for(let i=0,n=Math.round(A*l.rz*.12*CFG.density);i<n;i++){const [x,z]=l.at(rand()*6.283,rand.range(.1,.8)),r=rand.range(.22,.32),wy=y0-CFG.level;
+      if(!inLk(x,z))continue;
+      d.cyl(x,wy+.03,z,r,.03,rand.pick(T.pad),V(.075),'y');if(rand()<.4)dc(x,wy+.07,z,.09,.07,.09,rand()<.5?0xff9fbf:0xffffff)}
   }
 
   // 2) Tảng đá (kể cả vài tảng sát mép hồ)
@@ -256,14 +436,14 @@ function buildFloor(f){
     else{const v=rand.pick(variants(f+'pebbles',()=>pebbles(T,rand))),pt=spot(.5,.5);if(!pt)return;inst(v.geo,pt.x,y0,pt.z,rand.range(.9,1.4),rand()*6.283,false);placed.push({x:pt.x,z:pt.z,r:.4})}
   };
   for(let i=0,n=Math.round(T.rocks*k);i<n;i++)putRock();
-  for(const l of Fl.lakes)for(let j=0;j<3;j++){   // đá to ngay bờ hồ
+  for(const l of Fl.lakes)for(let j=0;j<7;j++){   // đá to ngay bờ sông
     const [x,z]=l.at(rand()*6.283,1.3+rand()*.15),v=rand.pick(variants(f+'boulder',()=>boulder(T,rand))),sc=rand.range(.8,1.2),hh=v.half*sc;
     if(okAt(x,z,hh+.1,hh)){inst(v.geo,x,y0-.05,z,sc,rand()*6.283,true);solidBox(x,z,hh,hh,Math.min(1.25,v.ch*sc));placed.push({x,z,r:hh*1.1})}
   }
 
   // 3) Cây
   for(let i=0,n=Math.round(T.trees*k);i<n;i++){
-    const kind=rand.pick(T.kinds),v=rand.pick(variants(f+kind,()=>kind==='pine'?pineTree(T,rand):roundTree(T,rand,kind==='cherry'?T.leafB:T.leaf)));
+    const kind=rand.pick(T.kinds),v=rand.pick(variants(f+kind,(_,vi)=>kind==='pine'?pineTree(T,rand,vi):roundTree(T,rand,kind==='cherry'?T.leafB:T.leaf,vi,kind==='cherry'),4));
     const sc=Math.min(rand.range(.85,1.3),8.3/v.h),pt=spot(v.crown*sc*.5,v.crown*sc*.7);if(!pt)continue;
     inst(v.geo,pt.x,y0-.05,pt.z,sc,rand()*6.283,true);
     solidBox(pt.x,pt.z,v.tr*sc*.85,v.tr*sc*.85,v.th*sc);   // chỉ thân cây có va chạm, tán lá đi xuyên được
@@ -276,10 +456,10 @@ function buildFloor(f){
     const pal=rand()<.5?T.leaf:T.leafB,v=rand.pick(variants(f+'bush'+(pal===T.leaf?0:1),()=>bush(T,rand,pal))),pt=spot(.55,.6);if(!pt)continue;
     inst(v.geo,pt.x,y0-.03,pt.z,rand.range(.8,1.3),rand()*6.283,true);placed.push({x:pt.x,z:pt.z,r:.5});
   }
-  for(let i=0,n=Math.round(T.logs*k);i<n;i++){
-    const v=rand.pick(variants(f+'log',()=>logMesh(T,rand))),pt=spot(v.L/2,v.L/2);if(!pt)continue;
-    const o=rand()<.5?0:Math.PI/2,hl=v.L/2*.92,hw=v.r*.9;
-    inst(v.geo,pt.x,y0-.02,pt.z,1,o,true);solidBox(pt.x,pt.z,o?hw:hl,o?hl:hw,v.r*1.9);placed.push({x:pt.x,z:pt.z,r:v.L/2});
+  for(let i=0,n=Math.max(1,Math.round(T.logs*k*.6));i<n;i++){   // mỗi "log" giờ là 1 đống gỗ nhiều khúc nên đặt ít đống hơn
+    const v=rand.pick(variants(f+'log',()=>logMesh(T,rand))),rad=Math.hypot(v.L,v.W)/2*.9,pt=spot(rad,rad);if(!pt)continue;
+    const o=rand()<.5?0:Math.PI/2,hl=v.L/2*.95,hw=v.W/2*.95;
+    inst(v.geo,pt.x,y0-.02,pt.z,1,o,true);solidBox(pt.x,pt.z,o?hw:hl,o?hl:hw,v.H*.95);placed.push({x:pt.x,z:pt.z,r:rad});
   }
   for(let i=0,n=Math.round(T.stumps*k);i<n;i++){
     const v=rand.pick(variants(f+'stump',()=>stumpMesh(T))),pt=spot(.5,.5);if(!pt)continue;
@@ -309,6 +489,7 @@ function buildFloor(f){
     const b=butterfly(rand.pick([0xffd23f,0xff7fa8,0x7fbfff,0xffffff,0xc9a7ff]));
     Fl.crit.push({...b,cx,cz,rr:rand.range(1.2,2.8),sp:rand.range(.5,1),ph:rand()*6.283,by:y0});
   }
+  carve(Fl,f,y0);   // đào hồ thật sự (sau khi mọi vật thể khác đã đặt xong)
   return Fl;
 }
 
@@ -319,14 +500,26 @@ function vis(){
   for(const Fl of FL){const a=act(Fl.f);
     for(const m of Fl.objs)m.visible=a&&Math.hypot(m.position.x-P.x,m.position.z-P.z)<CFG.viewDist;
     if(Fl.deco)Fl.deco.visible=a;
-    for(const l of Fl.lakes)if(l.mesh)l.mesh.visible=a;
+    for(const l of Fl.lakes){if(l.mesh)l.mesh.visible=a;if(l.bed)l.bed.visible=a}
     for(const c of Fl.crit)c.g.visible=a;
   }
 }
-function lakeAt(x,y,z){for(const Fl of FL)for(const l of Fl.lakes)if(!l.ice&&Math.abs(y-l.y)<.35&&l.rho(x,z)<.96)return l;return null}
+function lakeAt(x,y,z){   // đang lội trong hồ nào (chân thấp hơn mặt nước)
+  const ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
+  for(const Fl of FL){const l=Fl.cells.size&&Fl.cells.get(ck(ci,cj));
+    if(l&&y<l.y-CFG.level+.15&&y>l.y-l.dmax-.6)return l}
+  return null;
+}
+// physics.js gọi hàm này: độ cao ĐÁY HỒ tại (x,z) nếu đang ở trong hồ, ngược lại null -> người/bot/lựu đạn thật sự lún xuống đáy
+lakeGround=function(x,z,y){
+  const ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
+  for(const Fl of FL){if(!Fl.cells.size)continue;const l=Fl.cells.get(ck(ci,cj));
+    if(l&&y>l.y-l.dmax-1.2&&y<l.y+FH-1.3)return l.y-lakeH(l,x,z)}
+  return null;
+};
 function splash(x,z,l,n){
   for(let i=0;i<n;i++){const m=new THREE.Mesh(UG,M(i&1?0x9fd8ff:0xffffff)),s=.04+Math.random()*.05;
-    m.scale.set(s,s,s);m.position.set(x+(Math.random()-.5)*.5,l.y+lakeH(l,x,z)+.05,z+(Math.random()-.5)*.5);
+    m.scale.set(s,s,s);m.position.set(x+(Math.random()-.5)*.5,l.y-CFG.level+.05,z+(Math.random()-.5)*.5);
     spawnPart(m,(Math.random()-.5)*2.5,1.5+Math.random()*2,(Math.random()-.5)*2.5,.5+Math.random()*.3,false,.02)}
 }
 function bubble(x,y,z){
@@ -335,16 +528,110 @@ function bubble(x,y,z){
   spawnPart(m,(Math.random()-.5)*.3,.9+Math.random()*.6,(Math.random()-.5)*.3,.8+Math.random()*.4,false,.02);
 }
 
-// Lội nước: càng sâu càng chậm (bọc hàm move của physics.js, chỉ áp dụng cho người chơi)
+// ---- Đạn bắn xuống nước: nước tóe lên + gợn sóng + tiếng tõm ----
+function rayWater(ray,maxD){   // tia bắn cắt mặt nước ở đâu (chỉ tính khi bắn từ phía trên xuống)
+  const dy=ray.direction.y,o=ray.origin;if(dy>=-1e-5)return null;let best=null;
+  for(const Fl of FL){if(!Fl.cells.size||!act(Fl.f))continue;
+    const sy=Fl.y-CFG.level;if(o.y<=sy)continue;
+    const t=(sy-o.y)/dy;if(t<=0||t>=maxD||(best&&t>=best.dist))continue;
+    const x=o.x+ray.direction.x*t,z=o.z+ray.direction.z*t,l=Fl.cells.get(ck(Math.floor(x/CELL),Math.floor(z/CELL)));
+    if(l)best={dist:t,point:new THREE.Vector3(x,sy,z),lake:l};
+  }
+  return best;
+}
+function shotSplash(x,z,l){
+  const sy=l.y-CFG.level,pos={x,y:sy,z};
+  for(let i=0;i<18;i++){const m=new THREE.Mesh(UG,M(i%3?0x9fd8ff:0xffffff)),sz=.05+Math.random()*.07;
+    m.scale.set(sz,sz,sz);m.position.set(x+(Math.random()-.5)*.25,sy+.05,z+(Math.random()-.5)*.25);
+    spawnPart(m,(Math.random()-.5)*2.2,4+Math.random()*4.5,(Math.random()-.5)*2.2,.6+Math.random()*.4,false,.02)}
+  ripple(x,z,l,1.6);
+  snd(650,.08,'sine',.12,pos);snd(260,.16,'triangle',.1,pos);
+}
+function bulletSplash(x,y,z){   // đạn (của mình hoặc của boss) chạm mặt nước tại (x,y,z)
+  const ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
+  for(const Fl of FL){const l=Fl.cells.size&&Fl.cells.get(ck(ci,cj));
+    if(l&&y<l.y+1&&y>l.y-l.dmax-1){shotSplash(x,z,l);return true}}
+  return false;
+}
+
+// Lội / bơi (bọc hàm move của physics.js; áp dụng cho người chơi và bot - bot có mảng .parts)
+//  - nước nông: đi chậm dần theo độ sâu
+//  - đang bơi (e.sw): tốc độ ngang giảm, chiều dọc do e.swv điều khiển (nổi lên / lặn xuống), KHÔNG rơi theo trọng lực
 const _mv=move;
 move=function(e,dx,dy,dz){
-  if(e===P){const l=lakeAt(e.x,e.y,e.z);
-    if(l){const dp=lakeH(l,e.x,e.z),a=1-(1-CFG.wade)*clamp01(dp/.6),kk=a*(1-(1-CFG.deepWade)*clamp01((dp-.6)/.5));dx*=kk;dz*=kk}}
+  if(e===P||e.parts){
+    if(e.sw){
+      const now=performance.now(),dtm=Math.min(.05,Math.max(0,(now-(e._mt||now-16))/1000));e._mt=now;
+      const k=e.under?CFG.diveSpeed:CFG.swimSpeed;
+      e.vy=0;return _mv(e,dx*k,(e.swv||0)*dtm,dz*k);
+    }
+    const l=lakeAt(e.x,e.y,e.z);
+    if(l){const wd=wdep(l,e.x,e.z),a=1-(1-CFG.wade)*clamp01(wd/.6),kk=a*(1-(1-CFG.deepWade)*clamp01((wd-.6)/.5));dx*=kk;dz*=kk}
+  }
   return _mv(e,dx,dy,dz);
 };
 
+// ---- CHẾ ĐỘ BƠI + NÍN THỞ (người chơi và bot dùng chung) ----
+// Vào chỗ nước sâu >= CFG.swimOn -> tự động bơi: nổi trên mặt nước, đầu ló lên. Giữ Shift = lặn, Space = trồi lên nhanh.
+// Khi ĐẦU chìm dưới mặt nước thì cạn dần hơi thở (CFG.air giây); hết hơi thì mất máu từng nhịp cho tới khi ngoi lên.
+// Bot: cũng bơi, thỉnh thoảng tự lặn 3-15 giây; lặn quá CFG.air giây cũng bị mất máu (có thể chết đuối).
+function drown(e,isP){
+  const y=e.y+e.h-.3;
+  for(let i=0;i<4;i++)bubble(e.x+(Math.random()-.5)*.5,y,e.z+(Math.random()-.5)*.5);
+  if(isP){if(!dead)hurt(CFG.drownDmg);snd(110,.3,'sawtooth',.07)}
+  else{e.hp-=CFG.drownDmg;snd(130,.25,'sawtooth',.05,{x:e.x,y,z:e.z});if(e.hp<=0)killBot(e,new THREE.Vector3(0,1,0))}
+}
+function swimUpdate(e,isP,dt,dive,up){
+  if(e.air===undefined)e.air=CFG.air;
+  const l=lakeAt(e.x,e.y,e.z);
+  if(!l){if(e.sw){e.sw=0;e._mt=0;e.dive=false}e.under=false;e.air=Math.min(CFG.air,e.air+dt*4);e.dmT=0;return null}
+  const wd=wdep(l,e.x,e.z),sy=l.y-CFG.level;
+  if(!e.sw){if(wd>=CFG.swimOn&&e.y<=sy-.2){e.sw=1;e.swv=0;e._mt=0}}
+  else if(wd<CFG.swimOff){e.sw=0;e._mt=0;e.dive=false}
+  if(!e.sw){e.under=false;e.air=Math.min(CFG.air,e.air+dt*4);e.dmT=0;return l}
+  const off=isP?.95:e.h*.55,ty=sy-off,bed=l.y-lakeH(l,e.x,e.z);   // ty: độ cao chân khi nổi (mắt/đầu ló khỏi mặt nước)
+  let want;
+  if(dive)want=-2.8;
+  else if(up)want=Math.max(-3.6,Math.min(3.6,(ty-e.y)*8));
+  else want=Math.max(-1.8,Math.min(1.8,(ty-e.y)*3));
+  if(want<0&&e.y<=bed+.03)want=0;   // chạm đáy sông
+  e.swv=want;
+  const hy=isP&&typeof eye==='number'?e.y+eye:e.y+e.h-.1;
+  e.under=hy<sy-.03;
+  if(e.under){
+    e.air-=dt;
+    if(e.air<=0){e.air=0;e.dmT=(e.dmT||0)-dt;if(e.dmT<=0){e.dmT=CFG.drownTick;drown(e,isP)}}
+  }else{e.air=Math.min(CFG.air,e.air+dt*3);e.dmT=0}
+  return l;
+}
+// thanh hơi thở của người chơi (chỉ hiện khi đang bơi hoặc chưa hồi đủ hơi)
+const bw=document.createElement('div');
+bw.style.cssText='position:fixed;left:50%;top:calc(50% + 52px);transform:translateX(-50%);z-index:6;display:none;pointer-events:none;font:700 15px sans-serif;color:#fff;text-shadow:0 1px 3px #000;text-align:center';
+bw.innerHTML='<div id="brT">\u{1F4A7}</div><div style="width:150px;height:10px;background:rgba(0,0,0,.55);border:2px solid #fff;border-radius:6px;overflow:hidden"><div id="brF" style="height:100%;width:100%;background:#7fe0ff"></div></div>';
+(document.body||document.documentElement).appendChild(bw);
+let brShown=false,brF=null,skT=0,wasUnder=false;
+function breathUI(show){
+  if(show!==brShown){bw.style.display=show?'block':'none';brShown=show;if(show&&!brF)brF=document.getElementById('brF')}
+  if(!show)return;
+  const u=clamp01(P.air/CFG.air);brF.style.width=(u*100)+'%';
+  const low=P.air<3.5;brF.style.background=low?'#ff4d5e':'#7fe0ff';bw.style.opacity=low?(0.6+0.4*Math.abs(Math.sin(performance.now()/120))):1;
+}
+
 // ---- Chìm xuống nước: hạ camera + lớp màu nước + sương mù (không cần biết tên biến camera) ----
-let sink=0;
+let sink=0;   // (camera không cần hạ nữa: người chơi thật sự lún xuống đáy hồ)
+// ---- Gợn sóng lan trên mặt nước ----
+const RG=new THREE.RingGeometry(.84,1,28);RG.rotateX(-Math.PI/2);
+const ripples=[];
+function ripple(x,z,l,sz){
+  if(ripples.length>=24){const o=ripples.shift();S.remove(o.m);o.m.material.dispose()}
+  const m=new THREE.Mesh(RG,new THREE.MeshBasicMaterial({color:l.T.water[3],transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide}));
+  m.position.set(x,l.y-CFG.level+.02,z);m.scale.setScalar(.15);S.add(m);ripples.push({m,t:0,sz});
+}
+function tickRipples(dt){
+  for(let i=ripples.length-1;i>=0;i--){const r=ripples[i];r.t+=dt;const u=r.t/1.1;
+    if(u>=1){S.remove(r.m);r.m.material.dispose();ripples.splice(i,1);continue}
+    r.m.scale.setScalar(.15+u*r.sz);r.m.material.opacity=.6*(1-u)}
+}
 if(THREE.WebGLRenderer&&!THREE.WebGLRenderer.prototype.__natureSink){
   const _r=THREE.WebGLRenderer.prototype.render;
   THREE.WebGLRenderer.prototype.render=function(sc,cam){
@@ -376,31 +663,54 @@ function fogApply(k,T){
   else if(F.density!==undefined)F.density=fog0.d+(.11-fog0.d)*k;
 }
 
-let last=performance.now(),tm=0,cl=0,wv=0,spl=0,inW=false,lx=0,lz=0,wasUW=false,bub=0;
+let last=performance.now(),tm=0,cl=0,wv=0,spl=0,inW=false,lx=0,lz=0,wasUW=false,bub=0,rip=0,gyHook=false;
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(.1,(now-last)/1000);last=now;tm+=dt;
+  if(!gyHook&&typeof groundY==='function'){   // effects.js nạp sau nature.js nên móc vào lúc chạy: hạt (giọt nước, máu...) rơi xuống MẶT NƯỚC thay vì lơ lửng ở mặt sàn
+    gyHook=true;const _g=groundY;
+    groundY=function(x,y,z){const g=_g(x,y,z),ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
+      for(const Fl of FL){const l=Fl.cells.size&&Fl.cells.get(ck(ci,cj));
+        if(l&&g<=l.y+.001&&y<l.y+FH-1.3&&y>l.y-l.dmax-1)return l.y-CFG.level-.02}
+      return g};
+  }
+  tickRipples(dt);
+  try{   // bơi / nín thở
+    if(playing&&!dead){
+      swimUpdate(P,true,dt,keys.ShiftLeft||keys.ShiftRight,keys.Space);
+      if(wasUnder&&!P.under&&P.air<4.5)snd(520,.18,'triangle',.06);   // ngoi lên thở hắt
+      wasUnder=!!P.under;
+      breathUI(!!P.sw||P.air<CFG.air-.05);
+    }else{if(dead){P.sw=0;P.under=false;P.air=CFG.air;P._mt=0}breathUI(false)}
+    if(playing&&typeof bots!=='undefined')for(const b of bots){
+      if(!b.on||b.hp<=0){if(b.sw){b.sw=0;b.dive=false;b._mt=0}b.air=CFG.air;continue}
+      if(b.sw&&!b.boss){b.dvT=(b.dvT||0)-dt;   // bot thỉnh thoảng tự lặn
+        if(b.dvT<=0){if(b.dive){b.dive=false;b.dvT=1.5+Math.random()*4}else if(Math.random()<.55){b.dive=true;b.dvT=3+Math.random()*12}else b.dvT=2+Math.random()*3}}
+      swimUpdate(b,false,dt,b.dive,false);
+    }
+  }catch(err){}
   cl-=dt;if(cl<=0){cl=.2;vis()}
-  wv-=dt;const doW=CFG.waves&&wv<=0;if(doW)wv=1/30;
+  wv-=dt;const doW=CFG.waves&&wv<=0;if(doW)wv=1/24;
   for(const Fl of FL){if(!act(Fl.f))continue;
-    if(doW)for(const l of Fl.lakes)if(l.mesh&&!l.ice&&Math.hypot(l.cx-P.x,l.cz-P.z)<l.rx+50)waveLake(l,tm);
+    if(doW)for(const l of Fl.lakes)if(l.mesh&&!l.ice)waveLake(l,tm,P.x,P.z);
     for(const c of Fl.crit){const a=c.ph+tm*c.sp;
       c.g.position.set(c.cx+Math.cos(a)*c.rr,c.by+.6+Math.sin(tm*2+c.ph)*.25,c.cz+Math.sin(a*1.3)*c.rr*.8);
       c.g.rotation.y=Math.atan2(-Math.sin(a)*c.rr,Math.cos(a*1.3)*1.3*c.rr*.8);
       const w=Math.sin(tm*22+c.ph)*.9;c.wl.rotation.z=-w;c.wr.rotation.z=w}
   }
-  let l=null,dp=0,under=false;
+  let l=null,under=false;
   if(playing){l=lakeAt(P.x,P.y,P.z);
-    if(l){dp=lakeH(l,P.x,P.z);
-      if(!inW){inW=true;if(CFG.splash)splash(P.x,P.z,l,10);snd(260,.18,'sine',.05)}
-      spl-=dt;if(CFG.splash&&spl<=0&&Math.hypot(P.x-lx,P.z-lz)>dt*1.5){spl=.13;splash(P.x,P.z,l,4)}}
-    else inW=false}
+    if(l){
+      const mvg=Math.hypot(P.x-lx,P.z-lz)>dt*1.5;
+      if(!inW){inW=true;if(CFG.splash)splash(P.x,P.z,l,14);ripple(P.x,P.z,l,2.8);splashSnd(true)}
+      spl-=dt;if(CFG.splash&&spl<=0&&mvg){spl=.13;splash(P.x,P.z,l,4)}
+      rip-=dt;if(rip<=0){rip=mvg?.24:1.1;ripple(P.x,P.z,l,mvg?1.6:1)}
+      if(P.sw&&mvg){skT-=dt;if(skT<=0){skT=.7;wadeSnd()}}}
+    else{if(inW)splashSnd(false);inW=false}}
   else inW=false;
-  // camera chìm dần theo độ sâu (+ nhấp nhô nhẹ khi ngập sâu)
-  const deepK=clamp01((dp-.45)/.7),target=l?deepK*CFG.sinkMax+Math.sin(tm*2.1)*.035*deepK:0;
-  sink+=(target-sink)*Math.min(1,dt*6);if(sink<0)sink=0;
-  // mắt có nằm dưới mặt nước không?
-  if(l&&CFG.underwater){const eyeY=P.y+CFG.eye-sink;under=eyeY<l.y+dp-.05}
+  if(window.Nature)window.Nature.wading=!!l;
+  // mắt có nằm dưới mặt nước không? (chỗ sâu giữa hồ thì chìm hẳn)
+  if(l&&CFG.underwater){const ey=typeof eye==='number'?eye:CFG.eye;under=P.y+ey<l.y-CFG.level-.03}
   const T=l?l.T:ovT;
   uw+=((under?1:0)-uw)*Math.min(1,dt*10);
   if(T){tintOverlay(T);ov.style.opacity=uw<.01?0:uw.toFixed(2);fogApply(uw,T)}
@@ -414,5 +724,9 @@ function loop(now){
 FL.push(buildFloor(0));vis();
 for(let f=1;f<NF;f++)setTimeout(()=>{FL.push(buildFloor(f));vis()},400*f);
 requestAnimationFrame(loop);
-window.Nature={cfg:CFG,floors:FL,lakeH};
+// có nước (sông) tại (x,z) của tầng f không (m = khoảng đệm ra ngoài bờ, mét). level.js dùng để không sinh bot dưới nước.
+function isWater(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
+  if(Fl.cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL))))return true;
+  return Fl.lakes.some(l=>l.rho(x,z)<1+(m||0)/l.rz)}
+window.Nature={cfg:CFG,floors:FL,lakeH,rayWater,bulletSplash,isWater};
 })();

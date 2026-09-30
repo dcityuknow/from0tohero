@@ -14,7 +14,9 @@ function shoot(){
   const from=muzzle.getWorldPosition(new THREE.Vector3());
   let to=rc.ray.at(60,new THREE.Vector3()),col=0xffe066;
   const h=hs.find(x=>{const b=x.object.userData.bot;return !b||b.hp>0});
-  if(h){
+  const wh=window.Nature&&Nature.rayWater?Nature.rayWater(rc.ray,h?h.distance:60):null;   // đạn xuống nước trước khi chạm gì khác
+  if(wh){to=wh.point;col=0x9fd8ff;Nature.bulletSplash(wh.point.x,wh.point.y,wh.point.z)}
+  else if(h){
     to=h.point;const b=h.object.userData.bot,n=h.face.normal.clone().transformDirection(h.object.matrixWorld);
     if(b){
       const hd=h.object.userData.head;b.hp-=hd?w.hd:w.dmg;col=0xff3355;snd(180,.1,'sawtooth',.07*GV,h.point);

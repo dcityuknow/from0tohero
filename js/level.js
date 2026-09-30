@@ -1,5 +1,6 @@
 // Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong gốc: 20/25/30/35, nhân với MAPK ở world.js).
 // Thang tầng chẵn ở TÂY, tầng lẻ ở ĐÔNG. Cổng khóa ở chân thang, mở khi hạ boss của tầng đó.
+const SLAB=2.4;                         // độ dày sàn các tầng 2-4 (m). Dày hơn để đào sông sâu (đáy sông sâu tối đa SLAB-.3)
 const NF=4,FH=10,AF=f=>Math.round((20+5*f)*MAPK);
 const need=f=>50*(f+1);                 // boss xuất hiện sau khi hạ 50 / 100 / 150 / 200 bot (cấp số cộng), mỗi tầng đếm lại từ 0
 let curFl=0;const fk=[0,0,0,0],bossDone=[false,false,false,false],gates=[];let bossAlive=false;
@@ -14,7 +15,7 @@ function gridTop(m,x0,x1,z0,z1){
   const sd=new THREE.MeshLambertMaterial({color:FLOOR_C});m.material=[sd,sd,new THREE.MeshLambertMaterial({map:t}),sd,sd,sd];
 }
 function slabHole(y,S,x0,x1,z0,z1,c){
-  const B=(xa,xb,za,zb)=>{if(xb-xa>.01&&zb-za>.01){box((xa+xb)/2,y,(za+zb)/2,xb-xa,1,zb-za,c);gridTop(meshes[meshes.length-1],xa,xb,za,zb)}};
+  const B=(xa,xb,za,zb)=>{if(xb-xa>.01&&zb-za>.01){box((xa+xb)/2,y,(za+zb)/2,xb-xa,SLAB,zb-za,c);gridTop(meshes[meshes.length-1],xa,xb,za,zb)}};
   B(-S,S,-S,z0);B(-S,S,z1,S);B(-S,x0,z0,z1);B(x1,S,z0,z1);
 }
 const LAY=[null,
@@ -33,7 +34,7 @@ const LAY=[null,
 const sbox=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);   // bố cục tầng 2-4 co giãn theo MAPK
 for(let f=1;f<NF;f++){
   const y=f*FH,[a,b,c,d]=FC[f],A=AF(f),Af=AF(f-1),s=(f-1)%2;
-  slabHole(y-1,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
+  slabHole(y-SLAB,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
   box(0,y,-(A+.5),2*A+3,9,1,a);box(0,y,A+.5,2*A+3,9,1,a);box(-(A+.5),y,0,1,9,2*A+3,b);box(A+.5,y,0,1,9,2*A+3,b);
   LAY[f](y,a,b,c,d,sbox);
 }
@@ -51,7 +52,7 @@ function openGate(f){const g=gates[f];if(!g||g.open)return;g.open=true;boxes.spl
 // điểm spawn cho từng tầng: lấy mẫu lưới ở vùng giữa, bỏ điểm chạm vật cản
 const _sp=[];
 function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:Math.round(14*MAPK),c=[];
-  for(let x=-R;x<=R;x+=3)for(let z=-(A-3);z<=A-3;z+=3)if(!hit({x,y:f*FH+.02,z,r:.7,h:1.7}).length)c.push([x,z]);
+  for(let x=-R;x<=R;x+=3)for(let z=-(A-3);z<=A-3;z+=3)if(!hit({x,y:f*FH+.02,z,r:.7,h:1.7}).length&&!(window.Nature&&Nature.isWater&&Nature.isWater(f,x,z,1.2)))c.push([x,z]);
   const k=Math.max(1,Math.floor(c.length/14));return _sp[f]=c.filter((_,i)=>i%k===0)}
 function resetLevel(){
   for(const g of gates)if(g.open){g.open=false;boxes.push(g.e);meshes.push(g.m);S.add(g.m)}
