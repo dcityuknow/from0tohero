@@ -35,11 +35,55 @@ function talkTick(dt,bo){
   }
 }
 const _tp=new THREE.Vector3();
-function placeBubble(){   // gọi sau khi camera cập nhật: đặt khung chữ trên đầu boss (thu nhỏ khi ở xa)
+function placeBubble(){placeBotBubbles();   // gọi sau khi camera cập nhật: đặt khung chữ trên đầu boss (thu nhỏ khi ở xa)
   if(!playing||talkShow<=0||!boss.on||boss.hp<=0){tb.style.display='none';return}
   _tp.set(boss.x,boss.y+2.6*boss.g.scale.x+.3,boss.z);const d=_tp.distanceTo(C.position);_tp.project(C);
   if(_tp.z>1||d>45){tb.style.display='none';return}
   tb.style.display='block';
   const sc=Math.max(.6,Math.min(1.2,14/d));
   tb.style.transform='translate('+(_tp.x*.5+.5)*innerWidth+'px,'+(-_tp.y*.5+.5)*innerHeight+'px) translate(-50%,-100%) translate(0,'+(-12*sc)+'px) scale('+sc+')';   // đầu mũi nhọn chạm đúng điểm trên đầu boss
+}
+
+// ---- Bot thường nói chuyện: mỗi lần xuất hiện có 20% con được "nói được" (b.talker, xem spawnBot), 80% im lặng ----
+// Dùng chung câu thoại + bản dịch với boss. Tối đa BT_MAX khung chữ cùng lúc, chỉ hiện khi bot trong tầm BT_RANGE và không bị tường che.
+const BT_MAX=3,BT_RANGE=28,bubs=[];
+for(let i=0;i<BT_MAX;i++){
+  const e=document.createElement('div');e.className='bt';
+  e.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 12px/1.3 sans-serif;padding:4px 8px;border-radius:7px;max-width:190px;text-align:center;transform-origin:50% 100%';
+  document.body.appendChild(e);bubs.push(e);
+}
+function botTalkTick(dt){
+  if(!playing||!TALK.length)return;
+  let speaking=0;
+  for(const b of bots)if(b.talker&&!b.boss&&b.on&&b.hp>0&&b.tShow>0)speaking++;
+  for(const b of bots){
+    if(!b.talker||b.boss||!b.on||b.hp<=0)continue;
+    if(b.tShow>0){
+      b.tShow-=dt;
+      b.tVc=(b.tVc||0)-dt;if(b.tVc<=0){b.tVc=.3;b.tVis=sight(b)}   // kiểm tra bị tường che (mỗi .3s cho nhẹ)
+      continue;
+    }
+    b.tt-=dt;if(b.tt>0)continue;
+    const d=Math.hypot(P.x-b.x,P.z-b.z);
+    if(d>BT_RANGE||Math.abs(P.y-b.y)>4||speaking>=BT_MAX||b.tw){b.tt=.6+Math.random();continue}
+    const i=Math.floor(Math.random()*TALK.length),my=b.tTok;
+    b.tw=1;b.tt=99;speaking++;                                     // chờ bản dịch xong mới hiện
+    trLine(TALK[i]).then(x=>{
+      if(my!==b.tTok)return;                                      // bot đã chết / tái sinh trong lúc chờ
+      b.tw=0;b.tText=x;b.tShow=Math.min(4.5,1.8+x.length*.05);b.tt=b.tShow+3+Math.random()*6;b.tVc=0;b.tVis=true});
+  }
+}
+function placeBotBubbles(){
+  let k=0;
+  if(playing)for(const b of bots){
+    if(k>=bubs.length)break;
+    if(!b.talker||b.boss||!b.on||b.hp<=0||!(b.tShow>0)||!b.tVis)continue;
+    _tp.set(b.x,b.y+2.35,b.z);const d=_tp.distanceTo(C.position);_tp.project(C);
+    if(_tp.z>1||d>BT_RANGE+6)continue;
+    const e=bubs[k++];if(e._t!==b.tText){e.textContent=b.tText;e._t=b.tText}
+    e.style.display='block';
+    const sc=Math.max(.55,Math.min(1.1,11/d));
+    e.style.transform='translate('+(_tp.x*.5+.5)*innerWidth+'px,'+(-_tp.y*.5+.5)*innerHeight+'px) translate(-50%,-100%) translate(0,'+(-10*sc)+'px) scale('+sc+')';
+  }
+  for(;k<bubs.length;k++)bubs[k].style.display='none';
 }

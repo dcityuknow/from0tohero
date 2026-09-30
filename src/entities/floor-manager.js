@@ -4,7 +4,7 @@ function tickBoss(dt){
   if(!playing)return;
   const nf=Math.min(NF-1,Math.max(0,Math.floor((P.y+.05)/FH)));if(nf!==curFl){curFl=nf;setupFloor()}
   tickSpawn(dt);
-  const bo=boss.on&&boss.hp>0;talkTick(dt,bo);bb.style.display='block';$('bbw').style.display=bo?'block':'none';
+  const bo=boss.on&&boss.hp>0;talkTick(dt,bo);botTalkTick(dt);bb.style.display='block';$('bbw').style.display=bo?'block':'none';
   $('bbn').textContent=bo?bname(boss.fl):bossDone[curFl]?t('floorclear',curFl+1):t('floor',curFl+1,fk[curFl],need(curFl));
   if(bo)$('bbf').style.width=Math.max(0,boss.hp/boss.maxhp*100)+'%';
   for(let i=bul.length-1;i>=0;i--){const p=bul[i];let gone=false;p.life-=dt;

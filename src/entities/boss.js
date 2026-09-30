@@ -23,7 +23,8 @@ function bossAI(b,dt,dx,dz,d){
   b.vy-=22*dt;d=d||1;b.flip-=dt;if(b.flip<=0){b.dir=Math.random()<.5?1:-1;b.flip=1.5+Math.random()*2}
   const nx=dx/d,nz=dz/d;let mx,mz;
   if(d>11){mx=nx;mz=nz}else if(d<6){mx=-nx;mz=-nz}else{mx=nz*b.dir;mz=-nx*b.dir}
-  steer(b,b.x+mx*8,b.z+mz*8,6,dt);
+  const nv=botNav(b,P.x,P.z,dt);   // sông chắn giữa boss và người chơi -> đi vòng qua cầu (steering.js)
+  if(nv)steer(b,nv.x,nv.z,6,dt);else steer(b,b.x+mx*8,b.z+mz*8,6,dt);
   const L=LO[b.fl],ok=!dead&&Math.abs(P.y-b.y)<3;b.cd-=dt;b.gc-=dt;
   if(ok&&L.includes('grenade')&&b.gc<=0&&d>6&&d<30){b.gc=6;throwG(b)}
   if(b.cd<=0&&ok&&d<45&&sight(b)){

@@ -6,7 +6,8 @@ function buildBot(){
   // mỗi bộ phận = 1 mesh gộp (VB nhớ lại từng khối để vỡ mảnh); head=true để tính headshot
   const add=(par,vb,head)=>{const m=vb.mesh();m.userData.bot=b;if(head)m.userData.head=true;par.add(m);botMeshes.push(m);b.parts.push({mesh:m,vb});return m};
   const pivot=(x,y)=>{const q=new THREE.Group();q.position.set(x,y,0);b.g.add(q);return q};
-  const RED=tri(0xff4d5e,0xff6b78,0xe23a4b),PINK=tri(0xff7a88,0xff95a0,0xf0606f),DRED=tri(0xd93a4c,0xc42e40,0xe8505f),BLU=tri(0x4d9dff,0x7fbfff,0x3a7fe0),ORG=tri(0xff9a3c,0xffb56b,0xe0801f);
+  // BỘ MÀU ĐEN: RED = thân + tay áo, DRED = chân + giáp vai (đen sâu hơn), BLU = ba lô (đen xám), ORG = găng tay. PINK = đầu (giữ hồng, đổi ở đây nếu muốn đầu cũng đen)
+  const RED=tri(0x26262d,0x30303a,0x1d1d24),PINK=tri(0xff7a88,0xff95a0,0xf0606f),DRED=tri(0x15151a,0x1c1c22,0x101014),BLU=tri(0x2d3340,0x384050,0x252b36),ORG=tri(0x3a3a44,0x45454f,0x2f2f38);
   // thân: đai vàng, huy hiệu kim cương trước ngực, khóa thắt lưng, dây đeo, ba lô xanh
   const T=new VB(true);
   T.box(0,.95,0,.7,.7,.4,(i,j,k,nx,ny,nz)=>{
@@ -16,7 +17,7 @@ function buildBot(){
   T.box(0,.66,.215,.14,.1,.03,0xffd23f,.02);T.box(0,.66,.235,.05,.05,.02,0x4d9dff,.015);
   T.box(-.2,.98,.212,.07,.6,.03,0x3a3850,.02);T.box(.2,.98,.212,.07,.6,.03,0x3a3850,.02);
   T.box(0,1.32,0,.3,.06,.28,0x3a3850,.03,true);
-  T.box(0,1.0,-.28,.42,.44,.16,BLU,.045,true);T.box(0,1.15,-.29,.44,.1,.18,0x3a7fe0,.04,true);
+  T.box(0,1.0,-.28,.42,.44,.16,BLU,.045,true);T.box(0,1.15,-.29,.44,.1,.18,0x3a4256,.04,true);
   T.box(0,.88,-.375,.28,.16,.03,0xffd23f,.03,true);T.box(0,1.05,-.375,.06,.06,.02,0xff4d5e,.02);
   add(b.g,T,false);
   // đầu (to hơn ~27%): kính đen chắn mắt + logo trắng như boss, miệng có răng, má hồng, tai nghe, mũ nhiều màu, ăng-ten
@@ -61,6 +62,8 @@ function spawnBot(b){
   const SPL=fSpawns(curFl);let best=SPL[0],bd=-1;
   for(const s of SPL){const d=Math.hypot(s[0]-P.x,s[1]-P.z);if(d>bd&&Math.random()<.7){bd=d;best=s}}
   b.x=best[0];b.z=best[1];b.y=curFl*FH;b.vy=0;b.hp=b.maxhp||100;b.respawn=0;b.g.visible=true;
+  b.ai=null;b.nv=null;b.dry=false;b.hdUse=0;b.ry=undefined;   // AI + đường đi (steering.js) tạo lại mỗi lần xuất hiện
+  b.talker=!b.boss&&Math.random()<.2;b.tt=1.5+Math.random()*5;b.tShow=0;b.tw=0;b.tTok=(b.tTok||0)+1;   // 20% bot nói chuyện được (boss-talk.js)
 }
 // Bot thứ 2 trở đi dùng chung geometry với bot đầu tiên (nhẹ RAM, tạo tức thì) - cần cho việc sinh hàng chục/trăm bot
 function mkBot(){

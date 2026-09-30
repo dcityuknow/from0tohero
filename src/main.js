@@ -39,11 +39,14 @@ function frame(now){
       if(b.hp>0&&(b.y<curFl*FH-4||b.y>curFl*FH+5)){spawnBot(b);continue}
       if(b.hp<=0)continue;      // bot chết được tái sử dụng bởi bộ sinh quái (tickSpawn)
       const dx=P.x-b.x,dz=P.z-b.z,d=Math.hypot(dx,dz);let mv=0;
-      if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(d>1.4){b.vy-=22*dt;steer(b,P.x,P.z,2.6,dt);mv=1}
+      // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
+      if(!dead&&d<P.r+b.r&&Math.abs(P.y-b.y)<1.6){const o=P.r+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}
+      b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(d>1.4){b.vy-=22*dt;mv=botAI(b,dt,dx,dz,d)}
       else if(!dead&&Math.abs(P.y-b.y)<1.5)hurt(28*dt);
       b.mv+=(mv-b.mv)*Math.min(1,dt*8);{const s0=Math.sin(b.t);b.t+=dt*11*b.mv;if(b.mv>.5&&s0*Math.sin(b.t)<0&&d<14){if(b.sw)snd(280+Math.random()*140,.14,'sine',.05,b.g.position);else botStepSnd(b.g.position,b.boss)}}
       const sw=Math.sin(b.t)*.95*b.mv;b.lL.rotation.x=sw;b.lR.rotation.x=-sw;b.aL.rotation.x=-sw*.8;b.aR.rotation.x=sw*.8;
-      b.g.position.set(b.x,b.y+Math.abs(Math.sin(b.t))*.07*b.mv,b.z);b.g.rotation.y=Math.atan2(dx,dz);if(b.boss)bossPose(b);
+      b.g.position.set(b.x,b.y+Math.abs(Math.sin(b.t))*.07*b.mv,b.z);{const ty=b.hdUse?b.hd:Math.atan2(dx,dz);if(b.ry===undefined)b.ry=ty;let da=ty-b.ry;da=Math.atan2(Math.sin(da),Math.cos(da));b.ry+=da*Math.min(1,dt*10);b.g.rotation.y=b.ry}   // quay mượt: gần thì nhìn người chơi, xa / đi cầu thì nhìn theo hướng đi
+      if(b.boss)bossPose(b);
     }
     // fx
     if(fx>0){fx-=dt;if(fx<=0){tracer.visible=false;spark.visible=false;flash.visible=false}}
@@ -59,6 +62,9 @@ function frame(now){
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
   C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de);applyShake(dt);C.updateMatrixWorld();listen();placeBubble();
   $('hp').style.width=P.hp+'%';const gr=cur==='grenade';$('am').textContent=gr?gren:rel>0?'…':ammos[cur];$('mg').textContent=gr?GMAX:reserve[cur];$('gn').textContent=gren;
-  R.render(S,C);
+  {const bg=S.background;   // lượt 1: thế giới · lượt 2: súng/tay vẽ đè lên (xóa depth, tắt background để không xóa hình lượt 1)
+    C.layers.set(0);R.clear();R.render(S,C);
+    if(vm.visible){C.layers.set(1);S.background=null;R.clearDepth();R.render(S,C);S.background=bg}
+    C.layers.set(0)}
 }
 requestAnimationFrame(frame);
