@@ -1025,8 +1025,9 @@ function loop(now){
   wasUW=under;
   lx=P.x;lz=P.z;
 }
-FL.push(buildFloor(0));vis();
-for(let f=1;f<NF;f++)setTimeout(()=>{FL.push(buildFloor(f));vis()},400*f);
+const timedBuild=f=>{const t0=performance.now(),r=buildFloor(f);console.log('[Block Arena] dựng tầng '+(f+1)+': '+Math.round(performance.now()-t0)+' ms');return r};   // xem thời gian dựng từng tầng ở F12 > Console
+FL.push(timedBuild(0));vis();
+for(let f=1;f<NF;f++)setTimeout(()=>{FL.push(timedBuild(f));vis()},400*f);
 requestAnimationFrame(loop);
 // có nước (sông) tại (x,z) của tầng f không (m = khoảng đệm ra ngoài bờ, mét). level.js dùng để không sinh bot dưới nước.
 function isWater(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
