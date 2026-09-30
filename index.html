@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>Block Arena – bản test</title>
-<link rel="stylesheet" href="css/style.css">
+<title>Block Arena</title>
+<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 <div id="hud">
@@ -29,40 +29,6 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<!-- LƯU Ý: thứ tự nạp quan trọng (các file dùng chung biến toàn cục) -->
-<!-- core: renderer, cấu hình, trạng thái -->
-<script src="js/core/core.js"></script>
-<!-- world: bản đồ, tầng, vật lý, thiên nhiên -->
-<script src="js/world/world.js"></script>
-<script src="js/world/level.js"></script>
-<script src="js/world/physics.js"></script>
-<script src="js/core/config.js"></script>
-<script src="js/core/state.js"></script>
-<!-- i18n: đa ngôn ngữ -->
-<script src="js/i18n/lang-data.js"></script>
-<script src="js/i18n/i18n.js"></script>
-<!-- engine: nhập liệu, âm thanh, voxel -->
-<script src="js/engine/input.js"></script>
-<script src="js/engine/sound.js"></script>
-<script src="js/engine/voxel.js"></script>
-<!-- player: tay, vũ khí, viewmodel -->
-<script src="js/player/player.js"></script>
-<script src="js/player/weapons.js"></script>
-<script src="js/player/viewmodel.js"></script>
-<script src="js/world/nature.js"></script>
-<!-- entities: bot, boss, AI -->
-<script src="js/entities/bots.js"></script>
-<script src="js/entities/ai.js"></script>
-<!-- gameplay: chiến đấu, hiệu ứng, vật phẩm, lựu đạn -->
-<script src="js/gameplay/combat.js"></script>
-<script src="js/gameplay/effects.js"></script>
-<script src="js/ui/minimap.js"></script>
-<script src="js/gameplay/items.js"></script>
-<script src="js/gameplay/grenade.js"></script>
-<script src="js/ui/mobile.js"></script>
-<!-- vòng lặp chính + giao diện -->
-<script src="js/game.js"></script>
-<script src="js/ui/ui.js"></script>
+<script src="src/loader.js"></script>
 </body>
 </html>

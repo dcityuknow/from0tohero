@@ -1,0 +1,10 @@
+{
+  "name": "block-arena",
+  "version": "1.0.0",
+  "description": "Game bắn súng voxel góc nhìn thứ nhất (Three.js)",
+  "private": true,
+  "scripts": {
+    "start": "npx --yes serve . -l 8000",
+    "check": "node -e \"const fs=require('fs'),p=require('path');(function w(d){for(const f of fs.readdirSync(d)){const q=p.join(d,f);if(fs.statSync(q).isDirectory())w(q);else if(q.endsWith('.js'))new (require('vm').Script)(fs.readFileSync(q,'utf8'),{filename:q})}})('src');console.log('Cú pháp OK')\""
+  }
+}
