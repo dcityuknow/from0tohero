@@ -23,6 +23,7 @@ function launchG(){
 function explode(g){
   const c=new THREE.Vector3(g.x,g.y+.2,g.z),RAD=10;
   boom(c);quake(c);
+  if(window.Nature&&Nature.explosionSplash)Nature.explosionSplash(g.x,g.y,g.z);   // nổ dưới nước: cột nước + bọt lớn
   for(const b of bots){
     if(b.hp<=0||!b.on||g.foe)continue;
     const o=new THREE.Vector3(b.x,b.y+.9,b.z).sub(c),d=o.length();
