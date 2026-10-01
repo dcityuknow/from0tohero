@@ -846,7 +846,7 @@ function lakeAt(x,y,z){   // đang lội trong hồ nào (chân thấp hơn mặ
 lakeGround=function(x,z,y){
   const ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
   for(const Fl of FL){if(!Fl.cells.size)continue;const l=Fl.cells.get(ck(ci,cj));
-    if(l&&y>l.y-l.dmax-1.2&&y<l.y+FH-1.3)return l.y-lakeH(l,x,z)}
+    if(l&&y>l.y-l.dmax-1.2&&y<l.y+FH-SLT-.1)return l.y-lakeH(l,x,z)}
   // không phải lòng sông -> mặt đồi (chỉ khi chân đang gần/dưới mặt đồi; đứng trên khối cao thì để physics tự xử lý)
   for(const Fl of FL){if(!Fl.hg)continue;
     if(y>Fl.y-1.2&&y<Fl.y+FH-3){const h=Fl.hAt(x,z);return h>.005&&y<Fl.y+h+1?Fl.y+h:null}}
@@ -1028,7 +1028,7 @@ function loop(now){
     gyHook=true;const _g=groundY;
     groundY=function(x,y,z){const g=_g(x,y,z),ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
       for(const Fl of FL){const l=Fl.cells.size&&Fl.cells.get(ck(ci,cj));
-        if(l&&g<=l.y+.001&&y<l.y+FH-1.3&&y>l.y-l.dmax-1)return l.y-CFG.level-.02}
+        if(l&&g<=l.y+.001&&y<l.y+FH-SLT-.1&&y>l.y-l.dmax-1)return l.y-CFG.level-.02}
       for(const Fl of FL){if(!Fl.hg)continue;   // hạt (máu, bụi...) rơi xuống mặt đồi
         if(y>Fl.y-1.2&&y<Fl.y+FH-3){const h=Fl.y+Fl.hAt(x,z);if(h>g&&y>h-.3)return h;break}}
       return g};

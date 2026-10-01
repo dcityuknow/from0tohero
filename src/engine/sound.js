@@ -47,11 +47,12 @@ function boom(pos){try{
 }catch(e){}}
 
 // ---- Tiếng súng ngắm: nổ giòn + ục trầm + vang vọng (dùng chung reverb/dội của tiếng bom), có định hướng 3D nếu truyền pos ----
+const SNIPER_VOL=.85;   // âm lượng tiếng súng ngắm (1 = như cũ, nhỏ hơn = êm hơn)
 function sniperShot(pos){try{
   AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();
   const B=boomBus(),n=AC.currentTime;
   const d=pos?Math.hypot(pos.x-C.position.x,pos.y-C.position.y,pos.z-C.position.z):0;
-  const bus=AC.createGain();bus.gain.value=.3+1.7/(1+d/10);
+  const bus=AC.createGain();bus.gain.value=(.3+1.7/(1+d/10))*SNIPER_VOL;
   let head=bus;
   if(pos){const p=AC.createPanner();p.panningModel='HRTF';p.rolloffFactor=0;
     if(p.positionX){p.positionX.value=pos.x;p.positionY.value=pos.y;p.positionZ.value=pos.z}else p.setPosition(pos.x,pos.y,pos.z);bus.connect(p);head=p}

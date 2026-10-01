@@ -2,7 +2,8 @@
 let lk=0;
 function tickBoss(dt){
   if(!playing)return;
-  const nf=Math.min(NF-1,Math.max(0,Math.floor((P.y+.05)/FH)));if(nf!==curFl){FM.enter(nf);curFl=nf;setupFloor()}   // FM.enter: bảo đảm tầng mới đã được dựng TRƯỚC khi sinh quái (fSpawns cần cây / sông của tầng đó)
+  let nf=Math.min(NF-1,Math.max(0,Math.floor((P.y+.05)/FH)));if(nf<curFl&&P.y>=curFl*FH-SLAB)nf=curFl;   // lặn dưới đáy sông tầng trên (trong lòng tấm sàn dày SLAB) vẫn tính là tầng đó, chỉ xuống tầng dưới khi thật sự qua khỏi đáy sàn
+  if(nf!==curFl){FM.enter(nf);curFl=nf;setupFloor()}   // FM.enter: bảo đảm tầng mới đã được dựng TRƯỚC khi sinh quái (fSpawns cần cây / sông của tầng đó)
   FM.tick(dt);
   tickSpawn(dt);
   const bo=boss.on&&boss.hp>0;talkTick(dt,bo);botTalkTick(dt);bb.style.display='block';$('bbw').style.display=bo?'block':'none';

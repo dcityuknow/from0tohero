@@ -90,7 +90,7 @@ function allyFire(a,t,d){
 }
 function allyThink(a,dt){
   a.vy-=22*dt;
-  const af=Math.floor((a.y+.05)/FH),pf=Math.floor((P.y+.05)/FH),dp=Math.hypot(P.x-a.x,P.z-a.z);
+  const af=Math.min(NF-1,Math.floor((a.y+.05+SLAB-.3)/FH)),pf=curFl,dp=Math.hypot(P.x-a.x,P.z-a.z);
   let tx=P.x,tz=P.z,sp=ALLY.walk,stay=false;
   if(dead)stay=true;
   else if(af!==pf){   // khác tầng: đi tới thang rồi lên/xuống cùng người chơi

@@ -15,7 +15,24 @@ function shoot(){
   let to=rc.ray.at(60,new THREE.Vector3()),col=0xffe066;
   const h=hs.find(x=>{const b=x.object.userData.bot;return !b||b.hp>0});
   const wh=window.Nature&&Nature.rayWater?Nature.rayWater(rc.ray,h?h.distance:60):null;   // đạn xuống nước trước khi chạm gì khác
-  if(wh){to=wh.point;col=0x9fd8ff;Nature.bulletSplash(wh.point.x,wh.point.y,wh.point.z)}
+  if(cur==='sniper'){   // súng ngắm: đạn XUYÊN quái (xuyên được nhiều con trên đường đạn), chỉ dừng ở tường / mặt nước. Quái thường trúng là chết ngay 1 viên; boss vẫn trừ máu theo sát thương
+    const wall=hs.find(x=>!x.object.userData.bot),lim=wall?wall.distance:60;
+    const sw=window.Nature&&Nature.rayWater?Nature.rayWater(rc.ray,lim):null,end=sw?sw.distance:lim,seen=new Set();
+    for(const x of hs){
+      if(x.distance>end)break;
+      const b=x.object.userData.bot;if(!b||b.hp<=0||seen.has(b))continue;seen.add(b);
+      const hd=x.object.userData.head,n=x.face.normal.clone().transformDirection(x.object.matrixWorld);
+      if(b.boss)b.hp-=hd?w.hd:w.dmg;else b.hp=0;
+      col=0xff3355;snd(180,.1,'sawtooth',.07*GV,x.point);blood(x.point,n,rc.ray.direction,hd?18:11);
+      if(b.hp<=0)killBot(b,rc.ray.direction);
+    }
+    if(sw){to=sw.point;col=0x9fd8ff;Nature.bulletSplash(sw.point.x,sw.point.y,sw.point.z)}
+    else if(wall){
+      to=wall.point;const n=wall.face.normal.clone().transformDirection(wall.object.matrixWorld);
+      hole(wall.point,n,(Array.isArray(wall.object.material)?wall.object.material[0]:wall.object.material).color);
+    }
+  }
+  else if(wh){to=wh.point;col=0x9fd8ff;Nature.bulletSplash(wh.point.x,wh.point.y,wh.point.z)}
   else if(h){
     to=h.point;const b=h.object.userData.bot,n=h.face.normal.clone().transformDirection(h.object.matrixWorld);
     if(b){
