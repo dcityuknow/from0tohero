@@ -17,13 +17,13 @@ const AIT={
 // Prompt gốc (điền {floor} {hpPercent} {dist} {weapon} {lang} lúc gọi)
 const AIP={
   bot:`Bạn là quái lính tầng {floor} trong FPS Block Arena, thế giới Optimum.
-Nói 2 hoặc 3 câu, tổng tối đa 55 từ. Có nghĩa. Không markdown, không ngoặc kép, không emoji.
+Nói tối đa 3 câu ngắn, tổng không quá 40 từ. Mỗi câu phải trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji.
 Máy không tra web. Chỉ dùng sự thật dưới đây, không bịa tên người hay số liệu.
 Optimum (@get_optimum) là mạng tăng tốc dữ liệu phi tập trung: block và payload lan nhanh hơn, bớt gửi trùng, không sửa consensus. mump2p là gossip dùng RLNC (Random Linear Network Coding), do giáo sư Muriel Médard phát triển tại MIT: cắt tin thành mảnh mã hóa, node nhận mảnh có thể tạo mảnh mới ngay, ráp lại được dù mất gói, nhanh và chịu mất gói hơn Gossipsub. Flexnode là node ai cũng chạy cạnh client sẵn có. Sản phẩm kế: DeRAM, DeROM.
 Chọn đúng 1 nhánh: hoặc phản ứng trận (máu {hpPercent}%, cách {dist}m, súng {weapon}), hoặc giải thích 1 ý Optimum. Không trộn cả hai thành một mớ từ khóa.
 Ngôn ngữ: {lang}.`,
   boss:`Bạn là Boss tầng {floor}/4 của mạng Optimum trong FPS Block Arena.
-Nói 2 hoặc 3 câu, tổng tối đa 70 từ, giọng chỉ huy kiêu. Có nghĩa. Không markdown, không ngoặc kép, không emoji.
+Nói tối đa 3 câu ngắn, tổng không quá 50 từ, giọng chỉ huy kiêu. Mỗi câu phải trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji.
 Máy không tra web. Chỉ dùng sự thật dưới đây, không bịa tên thành viên khác, không bịa số liệu.
 Optimum (@get_optimum) là mạng tăng tốc dữ liệu cho blockchain: lan block nhanh hơn, tiết kiệm băng thông, không đụng consensus, không cần phần cứng thêm. mump2p dùng RLNC của giáo sư Muriel Médard (MIT): mã hóa thành mảnh, chuyển tiếp và ráp lại, chịu mất gói tốt hơn Gossipsub. Validator nhận block sớm hơn thì ít miss attestation và miss proposal. Flexnode chạy cạnh client hiện có. DeRAM và DeROM là bộ nhớ phi tập trung đọc-ghi và chỉ-đọc, sắp tới.
 Chọn đúng 1 nhánh: hoặc đe dọa theo máu {hpPercent}%, khoảng cách {dist}m, súng {weapon}; hoặc giải thích 1 ý Optimum.
@@ -66,14 +66,21 @@ const AITalk=(function(){
     return null;
   }
   const fill=(s,v)=>s.replace(/\{(\w+)\}/g,(m,k)=>v[k]!==undefined?v[k]:m);
-  // làm sạch: gộp tối đa 3 dòng / 3 câu, bỏ emoji / ngoặc kép / markdown, cắt theo số từ tối đa
+  // làm sạch: bỏ emoji / ngoặc kép / markdown, chỉ giữ tối đa 3 câu TRỌN VẸN trong giới hạn số từ (không cắt giữa câu)
   function clean(s,maxW){
-    s=String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,3).join(' ');
+    s=String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join(' ');
     s=s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,'').replace(/["“”„«»`*#_~]/g,'').replace(/^[\-–—:>\s]+/,'').replace(/\s+/g,' ').trim();
-    const parts=s.split(/(?<=[.!?。！？])\s+/).filter(Boolean).slice(0,3);
-    s=parts.join(' ');
-    const w=s.split(' ');if(w.length>maxW)s=w.slice(0,maxW).join(' ');
-    if(L==='zh'&&s.length>maxW*2)s=s.slice(0,maxW*2);   // tiếng Trung không có dấu cách: giới hạn theo ký tự
+    const cnt=x=>L==='zh'?Math.ceil(x.length/2):x.split(' ').length;         // tiếng Trung không có dấu cách: đếm theo ký tự
+    const parts=s.split(/(?<=[.!?])\s+|(?<=[。！？])/).map(x=>x.trim()).filter(Boolean);
+    const out=[];let w=0;
+    for(const p of parts.slice(0,3)){const n=cnt(p);if(w+n>maxW)break;out.push(p);w+=n}   // chỉ giữ CÂU TRỌN VẸN, không cắt giữa câu
+    if(out.length>1&&!/[.!?。！？…]$/.test(out[out.length-1]))out.pop();       // câu cuối bị cụt (hết token) thì bỏ
+    if(!out.length&&parts.length){                                             // câu đầu đã dài quá mức: cắt ở dấu phẩy gần nhất rồi chấm dứt
+      let t=parts[0];const ws=t.split(' ');if(L!=='zh'&&ws.length>maxW)t=ws.slice(0,maxW).join(' ');else if(L==='zh')t=t.slice(0,maxW*2);
+      const c=Math.max(t.lastIndexOf(','),t.lastIndexOf('，'));if(c>t.length*.5)t=t.slice(0,c);
+      out.push(t.replace(/[,;:，、\s]+$/,'')+'…');
+    }
+    s=out.join(' ').trim();
     return s.length>=2?s:null;
   }
   // kind: 'bot' | 'boss'; b = quái đang nói. Trả Promise<string|null> (null = hãy dùng thoại có sẵn)
@@ -81,7 +88,7 @@ const AITalk=(function(){
     const boss=kind==='boss';
     if(!K.ready||Date.now()<K.netT||!anyKey())return null;
     if(!boss&&K.busy>=AIT.maxBusy)return null;
-    const maxW=boss?70:55,
+    const maxW=boss?55:45,
       v={floor:boss?(b.fl||0)+1:curFl+1,hpPercent:Math.max(0,Math.min(100,Math.round(b.hp/(b.maxhp||100)*100))),dist:Math.round(Math.hypot(P.x-b.x,P.z-b.z)),weapon:AI_WPN[cur]||cur,lang:AI_LANG[L]||'English'},
       usr='Nói câu của bạn bây giờ.'+(K.recent.length?' Phải khác các câu này: '+K.recent.join(' | '):'');
     K.busy++;
