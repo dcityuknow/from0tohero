@@ -32,12 +32,14 @@
     'entities/ally.js',        // đồng minh: thu phục boss đã hạ, đi cạnh người chơi và bắn quái (nạp sau bot-throw.js)
     // Gameplay: bắn, hiệu ứng, vật phẩm, lựu đạn
     'gameplay/combat.js','gameplay/effects.js','ui/minimap.js','gameplay/items.js','gameplay/grenade.js',
+    'gameplay/engrave.js',   // khắc tên lên tường sau khi thắng boss (nạp sau items.js / viewmodel.js)
     // Occlusion culling: ẩn vật thể / quái bị tường che khuất hoàn toàn
     'engine/occlusion.js',
     // Cảm ứng điện thoại
     'ui/mobile.js',
     // Vòng lặp chính + màn hình bắt đầu (luôn cuối cùng)
-    'main.js','ui/ui.js'
+    'main.js','ui/ui.js',
+    'ui/profile.js'          // màn chọn ngôn ngữ + nhập tên (nạp sau ui.js)
   ];
   for(const m of MODULES)document.write('<script src="'+SRC+m+'"><\/script>');
 })();

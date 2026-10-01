@@ -64,3 +64,12 @@ block-arena/
   It only hides an object when all 15 sample points are blocked, never hides anything closer than 7 m, and works in small slices per frame.
   In the browser console: `OC.log()` shows how many objects are hidden, `OC.set(false)` turns it off.
 - New scenery pieces that belong to floor 1 must expose a `rebuild()` and be added to `buildSet0()` in `floors.js`, otherwise they will not come back when you return to floor 1.
+
+## Chọn ngôn ngữ + tên, khắc tên lên tường (mới)
+- `src/ui/profile.js`: màn đầu game: chọn ngôn ngữ -> nhập tên (tối đa 20 ký tự; nhận chữ Latin + chữ của ngôn ngữ đã chọn). Đọc tên qua `PROFILE.name`.
+- `src/gameplay/engrave.js`: thắng boss = 1 lượt khắc. Nhìn vào tường (trong 8 m), bấm **E**. Dưới tên có dòng nhỏ "Đã vinh danh tầng N" (ngôn ngữ của người khắc). Chỗ đã khắc không khắc chồng được. Chỉnh nhanh ở `CFG`.
+- Dùng chung giữa người chơi bằng **Firebase Realtime Database** (không cần máy chủ riêng, game gọi REST trực tiếp). Cài đặt 1 lần:
+  1. https://console.firebase.google.com -> tạo project -> **Build -> Realtime Database -> Create database**.
+  2. Tab **Rules**: dán nội dung `firebase/database.rules.json` -> **Publish** (cho phép đọc, chỉ cho tạo bảng mới có dữ liệu hợp lệ, không cho sửa / xóa).
+  3. Chép địa chỉ database (đầu tab Data, dạng `https://xxx-default-rtdb.firebaseio.com`) dán vào `CFG.db` trong `src/gameplay/engrave.js`.
+  - Để trống `CFG.db` = chỉ lưu trên máy (localStorage). Muốn xóa bảng tên không phù hợp: vào tab Data, xóa mục tương ứng.
