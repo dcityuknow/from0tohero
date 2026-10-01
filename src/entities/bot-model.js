@@ -63,7 +63,7 @@ function spawnBot(b){
   for(const s of SPL){const d=Math.hypot(s[0]-P.x,s[1]-P.z);if(d>bd&&Math.random()<.7){bd=d;best=s}}
   b.x=best[0];b.z=best[1];b.y=curFl*FH;b.vy=0;b.hp=b.maxhp||100;b.respawn=0;b.g.visible=true;
   b.ai=null;b.nv=null;b.dry=false;b.hdUse=0;b.ry=undefined;   // AI + đường đi (steering.js) tạo lại mỗi lần xuất hiện
-  b.talker=!b.boss&&Math.random()<.2;b.tt=1.5+Math.random()*5;b.tShow=0;b.tw=0;b.tTok=(b.tTok||0)+1;   // 20% bot nói chuyện được (boss-talk.js)
+  b.talker=!b.boss&&Math.random()<.3;b.tt=1.5+Math.random()*5;b.tShow=0;b.tw=0;b.tTok=(b.tTok||0)+1;   // 30% bot nói chuyện được (boss-talk.js)
 }
 // Bot thứ 2 trở đi dùng chung geometry với bot đầu tiên (nhẹ RAM, tạo tức thì) - cần cho việc sinh hàng chục/trăm bot
 function mkBot(){

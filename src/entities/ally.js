@@ -4,10 +4,19 @@
 const ALLY={max:2,scale:1.2,walk:6.2,run:11,offerT:20,range:42,blink:45};
 const AW={pistol:{cd:.5,dmg:24,sp:38,q:.35},rifle:{cd:.11,dmg:11,sp:44,q:.9},sniper:{cd:1.4,dmg:95,sp:90,q:0}};   // sát thương lên QUÁI (bot 100 máu)
 const allies=[],abul=[];let aOffer=null;
-// ---- chữ (vi + en; ngôn ngữ khác dùng tiếng Anh) ----
+// ---- chữ (đủ 11 ngôn ngữ; thiếu thì dùng tiếng Anh) ----
 const AT={
   vi:{offer:'🏆 {0} đã bị hạ! Thu phục làm đồng minh? ({1}/{2})',yes:'Thu phục',no:'Bỏ qua',got:'🤝 {0} đã theo phe bạn!',full:'Đã đủ {0} đồng minh',wipe:'💥 Toàn bộ quái thường đã bị tiêu diệt!'},
-  en:{offer:'🏆 {0} is down! Recruit as an ally? ({1}/{2})',yes:'Recruit',no:'Skip',got:'🤝 {0} joined your side!',full:'Already {0} allies',wipe:'💥 All regular enemies were wiped out!'}
+  en:{offer:'🏆 {0} is down! Recruit as an ally? ({1}/{2})',yes:'Recruit',no:'Skip',got:'🤝 {0} joined your side!',full:'Already {0} allies',wipe:'💥 All regular enemies were wiped out!'},
+  ru:{offer:'🏆 {0} повержен! Взять в союзники? ({1}/{2})',yes:'Взять',no:'Пропустить',got:'🤝 {0} теперь на вашей стороне!',full:'Союзников уже максимум: {0}',wipe:'💥 Все обычные враги уничтожены!'},
+  ng:{offer:'🏆 {0} don fall! Make you recruit am as ally? ({1}/{2})',yes:'Recruit',no:'Skip',got:'🤝 {0} don join your side!',full:'You don get {0} allies already',wipe:'💥 All the normal enemies don die!'},
+  bn:{offer:'🏆 {0} পরাজিত! মিত্র হিসেবে নেবেন? ({1}/{2})',yes:'নিন',no:'বাদ দিন',got:'🤝 {0} আপনার পক্ষে যোগ দিয়েছে!',full:'ইতিমধ্যে {0} জন মিত্র আছে',wipe:'💥 সব সাধারণ শত্রু ধ্বংস!'},
+  id:{offer:'🏆 {0} telah kalah! Rekrut jadi sekutu? ({1}/{2})',yes:'Rekrut',no:'Lewati',got:'🤝 {0} bergabung ke pihakmu!',full:'Sudah ada {0} sekutu',wipe:'💥 Semua musuh biasa telah dimusnahkan!'},
+  hi:{offer:'🏆 {0} हार गया! सहयोगी बनाएँ? ({1}/{2})',yes:'शामिल करें',no:'छोड़ें',got:'🤝 {0} आपके साथ आ गया!',full:'पहले से {0} सहयोगी हैं',wipe:'💥 सभी सामान्य दुश्मन खत्म!'},
+  zh:{offer:'🏆 {0} 已被击败!收为盟友吗?({1}/{2})',yes:'招募',no:'跳过',got:'🤝 {0} 加入了你的阵营!',full:'盟友已满 {0} 名',wipe:'💥 所有普通敌人已被消灭!'},
+  fil:{offer:'🏆 Natalo na si {0}! Gawing kaalyado? ({1}/{2})',yes:'Kunin',no:'Laktawan',got:'🤝 Sumama na si {0} sa panig mo!',full:'May {0} kaalyado na',wipe:'💥 Nawasak na ang lahat ng karaniwang kalaban!'},
+  uk:{offer:'🏆 {0} переможено! Взяти в союзники? ({1}/{2})',yes:'Взяти',no:'Пропустити',got:'🤝 {0} тепер на вашому боці!',full:'Уже {0} союзників',wipe:'💥 Усіх звичайних ворогів знищено!'},
+  ko:{offer:'🏆 {0} 처치! 동료로 영입할까요? ({1}/{2})',yes:'영입',no:'건너뛰기',got:'🤝 {0}이(가) 당신 편에 합류했습니다!',full:'동료가 이미 {0}명입니다',wipe:'💥 모든 일반 적이 전멸했습니다!'}
 };
 const atr=(k,...a)=>{let s=(AT[L]&&AT[L][k])||AT.en[k];a.forEach((v,i)=>s=s.replace('{'+i+'}',v));return s};
 // ---- khung hỏi thu phục (phím Y / N, hoặc bấm nút trên cảm ứng) ----

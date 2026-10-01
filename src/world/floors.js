@@ -55,7 +55,7 @@ const FM=(function(){
   const el=document.createElement('div');
   el.style.cssText='position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:6;display:none;pointer-events:none;background:rgba(255,255,255,.96);color:#2b2a3a;border:3px solid #7fbfff;border-radius:14px;padding:8px 16px;font:700 16px "Trebuchet MS",Verdana,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.25)';
   document.body.appendChild(el);
-  const FT={vi:'⏳ Đang tải tầng {0}…',en:'⏳ Loading floor {0}…'};
+  const FT={vi:'⏳ Đang tải tầng {0}…',en:'⏳ Loading floor {0}…',ru:'⏳ Загрузка этажа {0}…',ng:'⏳ Dey load floor {0}…',bn:'⏳ তলা {0} লোড হচ্ছে…',id:'⏳ Memuat lantai {0}…',hi:'⏳ मंज़िल {0} लोड हो रही है…',zh:'⏳ 正在加载第 {0} 层…',fil:'⏳ Nilo-load ang palapag {0}…',uk:'⏳ Завантаження поверху {0}…',ko:'⏳ {0}층 불러오는 중…'};
   const ftxt=f=>((typeof L!=='undefined'&&FT[L])||FT.en).replace('{0}',f+1);
 
   // nạp trước tầng f (không chặn khung hình hiện tại: vẽ chữ trước, dựng sau)

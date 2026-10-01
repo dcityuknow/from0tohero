@@ -1,4 +1,5 @@
-// Boss nói chuyện: đọc câu từ assets/data/talking.txt (mỗi dòng 1 câu), cứ vài giây nói 1 câu ngẫu nhiên
+// Boss + bot nói chuyện. Câu thoại do AI (Groq, xem ai-talk.js) nghĩ ra theo tình huống và theo ngôn ngữ đang chọn.
+// Hết key / bị giới hạn / mất mạng -> tự dùng câu có sẵn trong assets/data/talking.txt (mỗi dòng 1 câu, tự dịch sang ngôn ngữ người chơi).
 let TALK=['Ngươi chết chắc rồi!','Đừng hòng chạy thoát!','Chỉ có thế thôi sao?','Ta sẽ nghiền nát ngươi!'];   // dùng tạm nếu không đọc được talking.txt
 fetch('assets/data/talking.txt',{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).then(x=>{
   const l=x.replace(/^\uFEFF/,'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean);if(l.length)TALK=l}).catch(()=>{});
@@ -7,7 +8,7 @@ tb.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-eve
 tb.className='bt';   // mũi nhọn tam giác dưới khung chữ, chĩa xuống đầu boss
 {const st=document.createElement('style');st.textContent='.bt::after{content:"";position:absolute;left:50%;top:100%;margin-left:-11px;border:11px solid transparent;border-top:12px solid #000;border-bottom:0}';document.head.appendChild(st)}
 document.body.appendChild(tb);
-// Dịch câu của boss sang ngôn ngữ người chơi đã chọn (talking.txt viết bằng ngôn ngữ nào cũng được, tự nhận diện nguồn).
+// Dịch câu có sẵn sang ngôn ngữ người chơi đã chọn (chỉ dùng khi AI không khả dụng).
 // Bản dịch được lưu lại (bộ nhớ + localStorage) nên mỗi câu chỉ dịch 1 lần / ngôn ngữ. Không dịch được (mất mạng...) -> nói nguyên văn.
 const TRL={vi:'vi',en:'en',ru:'ru',ng:'en',bn:'bn',id:'id',hi:'hi',zh:'zh-CN',fil:'tl',uk:'uk',ko:'ko'},TRM={};let trBad=0;
 async function trLine(s){
@@ -23,6 +24,8 @@ async function trLine(s){
   if(!out){trBad=Date.now()+60000;return s}
   TRM[k]=out;try{localStorage.setItem('ba_tr_'+k,out)}catch(e){}return out;
 }
+// Lấy 1 câu thoại: ưu tiên AI; AI không khả dụng (hết key / limit / lỗi mạng) thì dùng câu có sẵn fb (đã dịch)
+const lineFor=(kind,b,fb)=>AITalk.line(kind,b).then(a=>a||trLine(fb)).catch(()=>trLine(fb));
 let talkT=0,talkShow=0,lastTalk=-1,talkTok=0;
 function talkTick(dt,bo){
   if(!bo){talkShow=0;talkT=1.5;talkTok++;return}
@@ -30,8 +33,8 @@ function talkTick(dt,bo){
   talkT-=dt;
   if(talkT<=0&&TALK.length){
     let i;do i=Math.floor(Math.random()*TALK.length);while(TALK.length>1&&i===lastTalk);lastTalk=i;
-    talkT=99;const my=talkTok;                           // chờ bản dịch xong mới hiện
-    trLine(TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(5,2+x.length*.06);talkT=talkShow+2+Math.random()*3});
+    talkT=99;const my=talkTok;                           // chờ câu thoại xong mới hiện
+    lineFor('boss',boss,TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(5,2+x.length*.06);talkT=talkShow+2+Math.random()*3});
   }
 }
 const _tp=new THREE.Vector3();
@@ -44,8 +47,8 @@ function placeBubble(){placeBotBubbles();   // gọi sau khi camera cập nhật
   tb.style.transform='translate('+(_tp.x*.5+.5)*innerWidth+'px,'+(-_tp.y*.5+.5)*innerHeight+'px) translate(-50%,-100%) translate(0,'+(-12*sc)+'px) scale('+sc+')';   // đầu mũi nhọn chạm đúng điểm trên đầu boss
 }
 
-// ---- Bot thường nói chuyện: mỗi lần xuất hiện có 20% con được "nói được" (b.talker, xem spawnBot), 80% im lặng ----
-// Dùng chung câu thoại + bản dịch với boss. Tối đa BT_MAX khung chữ cùng lúc, chỉ hiện khi bot trong tầm BT_RANGE và không bị tường che.
+// ---- Bot thường nói chuyện: mỗi lần xuất hiện có 30% con được "nói được" (b.talker, xem spawnBot), 70% im lặng ----
+// Câu thoại do AI nghĩ (dự phòng: câu có sẵn). Tối đa BT_MAX khung chữ cùng lúc, chỉ hiện khi bot trong tầm BT_RANGE và không bị tường che.
 const BT_MAX=3,BT_RANGE=28,bubs=[];
 for(let i=0;i<BT_MAX;i++){
   const e=document.createElement('div');e.className='bt';
@@ -67,8 +70,8 @@ function botTalkTick(dt){
     const d=Math.hypot(P.x-b.x,P.z-b.z);
     if(d>BT_RANGE||Math.abs(P.y-b.y)>4||speaking>=BT_MAX||b.tw){b.tt=.6+Math.random();continue}
     const i=Math.floor(Math.random()*TALK.length),my=b.tTok;
-    b.tw=1;b.tt=99;speaking++;                                     // chờ bản dịch xong mới hiện
-    trLine(TALK[i]).then(x=>{
+    b.tw=1;b.tt=99;speaking++;                                     // chờ câu thoại xong mới hiện
+    lineFor('bot',b,TALK[i]).then(x=>{
       if(my!==b.tTok)return;                                      // bot đã chết / tái sinh trong lúc chờ
       b.tw=0;b.tText=x;b.tShow=Math.min(4.5,1.8+x.length*.05);b.tt=b.tShow+3+Math.random()*6;b.tVc=0;b.tVis=true});
   }
