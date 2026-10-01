@@ -4,9 +4,23 @@ function hurt(n){P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;setTimeout((
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
 function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
+// ---- Đồng hồ FPS ở góc trái dưới màn hình: xanh = mượt, vàng = trung bình, đỏ = giật lag. Chỉnh ngưỡng ở FPSC ----
+const FPSC={good:50,mid:30,every:.5};   // >= good: xanh · >= mid: vàng · thấp hơn: đỏ · every: giây giữa 2 lần cập nhật số
+const fpsEl=document.createElement('div');fpsEl.id='fps';fpsEl.className='pill';
+fpsEl.style.cssText='position:absolute;left:16px;bottom:calc(64px + env(safe-area-inset-bottom,0px));background:rgba(20,20,30,.62);font-size:15px;padding:4px 10px;min-width:74px;text-align:center';
+$('hud').appendChild(fpsEl);
+{const st=document.createElement('style');st.textContent='body.touch #fps{left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px));font-size:12px;padding:3px 8px}';document.head.appendChild(st)}
+let fpsN=0,fpsT=0,fpsLast=performance.now();
+function fpsTick(now){
+  fpsN++;const el=(now-fpsLast)/1000;
+  if(el<FPSC.every)return;
+  const f=fpsN/el;fpsN=0;fpsLast=now;
+  fpsEl.textContent='FPS '+Math.round(f);
+  fpsEl.style.color=f>=FPSC.good?'#3dff7a':f>=FPSC.mid?'#ffd23f':'#ff4d5e';
+}
 let last=performance.now();
 function frame(now){
-  requestAnimationFrame(frame);
+  requestAnimationFrame(frame);fpsTick(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(playing){
     cd-=dt;slideCd-=dt;gcd-=dt;tickThrow(dt);tickG(dt);tickRocks(dt);tickPickups(dt);
