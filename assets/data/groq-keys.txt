@@ -1,0 +1,7 @@
+# Mỗi dòng 1 API key Groq (gsk_...). Dòng bắt đầu bằng # và dòng trống bị bỏ qua.
+# Key nào hết hạn mức thì game tự chuyển sang key kế tiếp; hết sạch key thì dùng thoại có sẵn (talking.txt).
+# Dán key của bạn xuống dưới, ví dụ:
+# gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+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
+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
+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
