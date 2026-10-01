@@ -35,7 +35,7 @@ const FM=(function(){
   }
 
   // ---- bộ đồ trang trí của tầng 1 (nhà, chòi, tượng, bàn trà): dựng lại bằng chính các hàm build() của chúng ----
-  function buildSet0(){cap('set0',()=>{House.rebuild();Pavilion.rebuild();Statues.build();TeaSets.build()});set0On=true}
+  function buildSet0(){cap('set0',()=>{House.rebuild();Pavilion.rebuild();Statues.build();TeaSets.build();Bath.build()});set0On=true}
   function dropSet0(){drop('set0');set0On=false;if(window.OccSrc)delete window.OccSrc.house}
 
   const has=f=>!!(window.Nature&&Nature.has(f));

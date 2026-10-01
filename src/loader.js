@@ -23,6 +23,7 @@
     'world/floors.js',   // nạp / dỡ tầng theo yêu cầu - phải nạp TRƯỚC house.js (đánh dấu mốc để biết nhà / chòi / tượng / bàn trà là của tầng 1)
     'world/house.js','world/pavilion.js','world/statues.js',   // chòi Nhật (nạp sau house.js để mở rộng HouseZone) · nhà rubik (thay khối dài) - phải nạp trước nature.js để cây/đá né nhà
     'world/teaset.js',   // 2 bộ bàn trà kiểu Nhật (thay 2 khối xanh) - phải nạp trước nature.js để cây/đá né (TeaKeeps)
+    'world/bath.js',     // 2 hồ tắm đá có thác nước (thay 2 khối mint ở góc) - phải nạp trước nature.js để cây/đá né (BathKeeps)
     'world/nature.js',
     // Kẻ địch: mô hình bot/boss, di chuyển, boss, bộ sinh quái, thoại boss, quản lý tầng
     'entities/bot-model.js','entities/boss-model.js','entities/steering.js','entities/boss.js',
