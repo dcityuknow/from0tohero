@@ -9,25 +9,46 @@ const AIT={
   url:'https://api.groq.com/openai/v1/chat/completions',
   models:['openai/gpt-oss-20b','openai/gpt-oss-120b','llama-3.1-8b-instant'],   // thử lần lượt: model nào bị gỡ / không tồn tại thì tự qua model kế
   temp:0.8,
+  infoRate:.25,    // tỉ lệ câu nói về Optimum (còn lại là phản ứng trận đánh): 0 = không bao giờ, 1 = luôn luôn
   timeout:12000,    // ms chờ 1 yêu cầu
   maxBusy:3,       // số yêu cầu của bot thường chạy cùng lúc (boss luôn được ưu tiên, không bị chặn)
   limitWait:65,    // giây nghỉ 1 key khi bị 429 mà server không báo thời gian chờ
   netWait:15       // giây tạm dùng thoại có sẵn sau khi lỗi mạng
 };
 // Prompt gốc (điền {floor} {hpPercent} {dist} {weapon} {lang} lúc gọi)
+// Mỗi lần nói, code tự CHỌN nhánh rồi chỉ gửi đúng phần đó cho AI (không gửi cả hai, vì AI sẽ luôn chọn nhánh dễ là giải thích Optimum):
+//   combat = phản ứng trận đánh (máu / khoảng cách / súng) · info = giải thích 1 ý về Optimum (tỉ lệ = AIT.infoRate)
 const AIP={
-  bot:`Bạn là quái lính tầng {floor} trong FPS Block Arena, thế giới Optimum.
+  bot:{
+    head:`Bạn là quái lính tầng {floor} trong FPS Block Arena, thế giới Optimum. Người chơi là kẻ địch đang bắn bạn.
 Nói tối đa 3 câu ngắn, tổng không quá 40 từ. Mỗi câu phải trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji.
-Máy không tra web. Chỉ dùng sự thật dưới đây, không bịa tên người hay số liệu.
+`,
+    combat:`Tình huống ngay lúc này: máu của bạn còn {hpPercent}%, người chơi cách bạn {dist}m, người chơi đang cầm {weapon}.
+Hãy nói như lính đang giữa trận đánh, PHẢN ỨNG TRỰC TIẾP với tình huống đó:
+- Máu dưới 30%: hoảng sợ, van xin hoặc liều mạng. Máu 30-70%: đau, hằn học. Máu trên 70%: tự tin, khiêu khích.
+- Dưới 8m: người chơi ở sát bên, cuống cuồng. Trên 25m: còn xa, chế giễu hoặc gọi đồng đội.
+- Nhắc tới khẩu súng {weapon} của người chơi (sợ, khinh thường hoặc né đạn).
+KHÔNG giải thích về Optimum hay công nghệ. Thỉnh thoảng được chêm 1 từ như lag, packet nếu hợp ngữ cảnh.
+`,
+    info:`Lần này hãy nói cho người chơi nghe đúng 1 ý về Optimum, như lính đang tự hào khoe. Máy không tra web: chỉ dùng sự thật dưới đây, không bịa tên người hay số liệu.
 Optimum (@get_optimum) là mạng tăng tốc dữ liệu phi tập trung: block và payload lan nhanh hơn, bớt gửi trùng, không sửa consensus. mump2p là gossip dùng RLNC (Random Linear Network Coding), do giáo sư Muriel Médard phát triển tại MIT: cắt tin thành mảnh mã hóa, node nhận mảnh có thể tạo mảnh mới ngay, ráp lại được dù mất gói, nhanh và chịu mất gói hơn Gossipsub. Flexnode là node ai cũng chạy cạnh client sẵn có. Sản phẩm kế: DeRAM, DeROM.
-Chọn đúng 1 nhánh: hoặc phản ứng trận (máu {hpPercent}%, cách {dist}m, súng {weapon}), hoặc giải thích 1 ý Optimum. Không trộn cả hai thành một mớ từ khóa.
-Ngôn ngữ: {lang}.`,
-  boss:`Bạn là Boss tầng {floor}/4 của mạng Optimum trong FPS Block Arena.
-Nói tối đa 3 câu ngắn, tổng không quá 50 từ, giọng chỉ huy kiêu. Mỗi câu phải trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji.
-Máy không tra web. Chỉ dùng sự thật dưới đây, không bịa tên thành viên khác, không bịa số liệu.
+`
+  },
+  boss:{
+    head:`Bạn là Boss tầng {floor}/4 của mạng Optimum trong FPS Block Arena. Người chơi là kẻ địch đang đánh bạn.
+Nói tối đa 3 câu ngắn, tổng không quá 50 từ, giọng chỉ huy kiêu ngạo. Mỗi câu phải trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji.
+`,
+    combat:`Tình huống ngay lúc này: máu của bạn còn {hpPercent}%, người chơi cách bạn {dist}m, người chơi đang cầm {weapon}.
+Hãy đe dọa và khiêu khích như boss giữa trận, PHẢN ỨNG TRỰC TIẾP với tình huống đó:
+- Máu trên 70%: khinh thường. Máu 30-70%: bắt đầu gắt, bị chọc giận. Máu dưới 30%: nghiến răng, dọa trả thù, không chịu thua.
+- Người chơi ở xa: chế giễu sự chậm chạp. Ở gần: đe dọa trực tiếp.
+- Bình phẩm khẩu súng {weapon} của người chơi.
+KHÔNG giải thích về Optimum hay công nghệ. Thỉnh thoảng được chêm 1 từ như block, validator, flexnode nếu thật hợp ý câu.
+`,
+    info:`Lần này hãy khoe với người chơi đúng 1 ý về Optimum bằng giọng chỉ huy kiêu ngạo. Máy không tra web: chỉ dùng sự thật dưới đây, không bịa tên thành viên khác, không bịa số liệu.
 Optimum (@get_optimum) là mạng tăng tốc dữ liệu cho blockchain: lan block nhanh hơn, tiết kiệm băng thông, không đụng consensus, không cần phần cứng thêm. mump2p dùng RLNC của giáo sư Muriel Médard (MIT): mã hóa thành mảnh, chuyển tiếp và ráp lại, chịu mất gói tốt hơn Gossipsub. Validator nhận block sớm hơn thì ít miss attestation và miss proposal. Flexnode chạy cạnh client hiện có. DeRAM và DeROM là bộ nhớ phi tập trung đọc-ghi và chỉ-đọc, sắp tới.
-Chọn đúng 1 nhánh: hoặc đe dọa theo máu {hpPercent}%, khoảng cách {dist}m, súng {weapon}; hoặc giải thích 1 ý Optimum.
-Ngôn ngữ: {lang}.`
+`
+  }
 };
 // Tên ngôn ngữ gửi cho AI (khớp với mã trong i18n.js)
 const AI_LANG={vi:'Vietnamese',en:'English',ru:'Russian',ng:'Nigerian Pidgin English',bn:'Bengali',id:'Indonesian',hi:'Hindi',zh:'Simplified Chinese',fil:'Filipino (Tagalog)',uk:'Ukrainian',ko:'Korean'};
@@ -93,7 +114,8 @@ const AITalk=(function(){
       usr='Nói câu của bạn bây giờ.'+(K.recent.length?' Phải khác các câu này: '+K.recent.join(' | '):'');
     K.busy++;
     try{
-      const out=clean(await groq(fill(AIP[kind],v),usr,boss?'medium':'low'),maxW);
+      const P=AIP[kind],sys=fill(P.head+(Math.random()<AIT.infoRate?P.info:P.combat)+'Ngôn ngữ: {lang}.',v);   // chọn nhánh bằng code
+      const out=clean(await groq(sys,usr,boss?'medium':'low'),maxW);
       if(out){K.recent.push(out);if(K.recent.length>6)K.recent.shift()}
       return out;
     }catch(x){return null}
