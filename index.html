@@ -7,6 +7,51 @@
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
+<!-- MÀN HÌNH LOADING: hiện ngay lập tức, che toàn bộ game cho tới khi tải xong (điều khiển bởi window.BOOT, xem src/loader.js) -->
+<div id="boot" role="status" aria-live="polite">
+  <div id="boot-t">Loading...</div>
+  <svg id="boot-s" viewBox="0 0 200 100" aria-hidden="true">
+    <defs><filter id="bg" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+    <path id="boot-tr" d="M100,30 C112,30 122,16 148,16 C172,16 186,32 186,50 C186,68 172,84 148,84 C122,84 112,70 100,70 C88,70 78,84 52,84 C28,84 14,68 14,50 C14,32 28,16 52,16 C78,16 88,30 100,30 Z" fill="none" stroke="#2b2e36" stroke-width="13" stroke-linejoin="round"/>
+    <path id="boot-gl" d="M100,30 C112,30 122,16 148,16 C172,16 186,32 186,50 C186,68 172,84 148,84 C122,84 112,70 100,70 C88,70 78,84 52,84 C28,84 14,68 14,50 C14,32 28,16 52,16 C78,16 88,30 100,30 Z" pathLength="100" fill="none" stroke="#fff6e0" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" filter="url(#bg)" opacity=".75" stroke-dasharray="0 100"/>
+    <path id="boot-pr" d="M100,30 C112,30 122,16 148,16 C172,16 186,32 186,50 C186,68 172,84 148,84 C122,84 112,70 100,70 C88,70 78,84 52,84 C28,84 14,68 14,50 C14,32 28,16 52,16 C78,16 88,30 100,30 Z" pathLength="100" fill="none" stroke="#f7f4ec" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0 100"/>
+    <circle id="boot-hd" r="9" fill="#fff" filter="url(#bg)"/>
+    <circle id="boot-hd2" r="4.5" fill="#fff"/>
+  </svg>
+</div>
+<style>
+#boot{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(24px,7vh,56px);background:#181a20;transition:opacity .5s ease,visibility .5s}
+#boot.out{opacity:0;visibility:hidden;pointer-events:none}
+#boot-t{font:800 clamp(34px,7vw,64px)/1 "Trebuchet MS","Segoe UI",Verdana,sans-serif;letter-spacing:.01em;color:#9a9ea9}
+#boot-s{width:min(62vw,340px);height:auto;overflow:visible}
+#boot-hd,#boot-hd2{opacity:0}
+@media (prefers-reduced-motion:reduce){#boot{transition:none}}
+</style>
+<script>
+// BOOT: điều khiển vầng sáng chạy quanh vòng. BOOT.set(0..1) = tiến độ tải · BOOT.done() = chạy nốt vòng rồi mở game
+window.BOOT=(function(){
+  const $=id=>document.getElementById(id),pr=$('boot-pr'),gl=$('boot-gl'),hd=$('boot-hd'),hd2=$('boot-hd2'),tr=$('boot-tr'),root=$('boot');
+  if(/^vi/i.test(navigator.language||''))$('boot-t').textContent='Đang tải...';
+  const len=tr.getTotalLength();
+  let target=0,shown=0,fin=false,t0=performance.now(),last=t0,cb=null,gone=false;
+  function paint(p){
+    const d=Math.max(.001,p*100)+' 100';pr.setAttribute('stroke-dasharray',d);gl.setAttribute('stroke-dasharray',d);
+    const pt=tr.getPointAtLength(len*p);hd.setAttribute('cx',pt.x);hd.setAttribute('cy',pt.y);hd2.setAttribute('cx',pt.x);hd2.setAttribute('cy',pt.y);
+    hd.style.opacity=hd2.style.opacity=p>0&&p<1?1:0;
+  }
+  function loop(now){
+    if(gone)return;
+    const dt=Math.min(.1,(now-last)/1000);last=now;
+    // tiến mượt về mục tiêu; khi đã tải xong thì chạy nốt vòng với tốc độ cố định (~0.6s)
+    if(fin)shown=Math.min(1,shown+dt*1.7);else shown+=(Math.min(target,.98)-shown)*Math.min(1,dt*5);
+    paint(shown);
+    if(fin&&shown>=1){gone=true;paint(1);setTimeout(()=>{root.classList.add('out');setTimeout(()=>{root.remove();if(cb)cb()},520)},350);return}
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  return {set:p=>{if(p>target)target=p},done:f=>{cb=f;fin=true}};
+})();
+</script>
 <div id="hud">
   <canvas id="mm" width="150" height="150"></canvas>
   <div id="score" class="pill"><span id="kl"></span> <span id="k">0</span></div>
