@@ -1,6 +1,6 @@
 // Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong gốc: 20/25/30/35, nhân với MAPK ở world.js).
 // Thang tầng chẵn ở TÂY, tầng lẻ ở ĐÔNG. Cổng khóa ở chân thang, mở khi hạ boss của tầng đó.
-const SLAB=2.4;                         // độ dày sàn các tầng 2-4 (m). Dày hơn để đào sông sâu (đáy sông sâu tối đa SLAB-.3)
+// SLAB (độ dày sàn các tầng 2-4, m) được khai báo ở world.js. Dày để đào sông sâu (đáy sông sâu tối đa SLAB-.3)
 const NF=4,AF=f=>Math.round((20+5*f)*MAPK);
 const need=f=>50*(f+1);                 // boss xuất hiện sau khi hạ 50 / 100 / 150 / 200 bot (cấp số cộng), mỗi tầng đếm lại từ 0
 let curFl=0;const fk=[0,0,0,0],bossDone=[false,false,false,false],gates=[];let bossAlive=false;
@@ -35,7 +35,8 @@ const sbox=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);   // bố c�
 for(let f=1;f<NF;f++){
   const y=f*FH,[a,b,c,d]=FC[f],A=AF(f),Af=AF(f-1),s=(f-1)%2;
   slabHole(y-SLAB,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-22,Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
-  box(0,y,-(A+.5),2*A+3,FH-1,1,a);box(0,y,A+.5,2*A+3,FH-1,1,a);box(-(A+.5),y,0,1,FH-1,2*A+3,b);box(A+.5,y,0,1,FH-1,2*A+3,b);
+  const WH=f<NF-1?FH-SLAB:FH-1;   // tường bao: tầng 2-3 cao tới đáy sàn tầng trên (không thò vào lòng sông tầng trên); tầng cao nhất không có trần nên giữ FH-1
+  box(0,y,-(A+.5),2*A+3,WH,1,a);box(0,y,A+.5,2*A+3,WH,1,a);box(-(A+.5),y,0,1,WH,2*A+3,b);box(A+.5,y,0,1,WH,2*A+3,b);
   LAY[f](y,a,b,c,d,sbox);
 }
 // tầng cao nhất KHÔNG có trần: để hở ra bầu trời (world/sky.js dựng vòm trời + mây)

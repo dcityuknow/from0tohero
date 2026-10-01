@@ -3,6 +3,8 @@
 const MAPK=1.5;
 // FH = chiều cao mỗi tầng (m). Tăng lên thì trần cao hơn; thang ở level.js tự chia lại số bậc; sương + mây nhỏ dưới trần ở sky.js tự theo (mỗi bậc cao .5m).
 const FH=16;
+// SLAB = độ dày sàn các tầng 2-4 (m). Khai báo ở đây (không phải level.js) để tường bao tầng 1 ngay bên dưới biết mà hạ thấp: tường không được cao quá đáy sàn tầng trên, nếu không sẽ thò vào lòng sông của tầng trên.
+const SLAB=2.4;
 // ---- Map ----
 const boxes=[],meshes=[];
 function box(x,y,z,w,h,d,col){
@@ -15,7 +17,8 @@ const floor=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF0+2,2*HALF0+2),new THRE
 floor.rotation.x=-Math.PI/2;S.add(floor);meshes.push(floor);
 const grid=new THREE.GridHelper(2*HALF0+2,HALF0+1,0x6b6d78,0x6b6d78);grid.position.y=.02;S.add(grid);
 const PK=0xff9fbf,BL=0x9ccfff,MT=0xbff0d4,YL=0xffe8a3;
-box(0,0,-(HALF0+.5),2*HALF0+3,FH-1,1,PK);box(0,0,HALF0+.5,2*HALF0+3,FH-1,1,PK);box(-(HALF0+.5),0,0,1,FH-1,2*HALF0+3,BL);box(HALF0+.5,0,0,1,FH-1,2*HALF0+3,BL);
+const WH0=FH-SLAB;   // tường bao tầng 1 cao tới đúng đáy sàn tầng 2
+box(0,0,-(HALF0+.5),2*HALF0+3,WH0,1,PK);box(0,0,HALF0+.5,2*HALF0+3,WH0,1,PK);box(-(HALF0+.5),0,0,1,WH0,2*HALF0+3,BL);box(HALF0+.5,0,0,1,WH0,2*HALF0+3,BL);
 // khối chắn: bố cục gốc, nhân MAPK theo chiều ngang (vị trí + kích thước), giữ nguyên chiều cao
 const bk=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);
 // (2 khối xanh bk(±8,0,-6,2,3.5,2,BL) đã đổi thành 2 bộ bàn trà kiểu Nhật: xem world/teaset.js)
