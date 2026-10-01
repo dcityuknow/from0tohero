@@ -4,7 +4,7 @@ let TALK=['Ngươi chết chắc rồi!','Đừng hòng chạy thoát!','Chỉ c
 fetch('assets/data/talking.txt',{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).then(x=>{
   const l=x.replace(/^\uFEFF/,'').split(/\r?\n/).map(v=>v.trim()).filter(Boolean);if(l.length)TALK=l}).catch(()=>{});
 const tb=document.createElement('div');
-tb.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 14px/1.3 sans-serif;padding:6px 10px;border-radius:8px;max-width:260px;text-align:center;transform-origin:50% 100%';
+tb.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 14px/1.35 sans-serif;padding:7px 12px;border-radius:8px;max-width:340px;text-align:center;transform-origin:50% 100%';
 tb.className='bt';   // mũi nhọn tam giác dưới khung chữ, chĩa xuống đầu boss
 {const st=document.createElement('style');st.textContent='.bt::after{content:"";position:absolute;left:50%;top:100%;margin-left:-11px;border:11px solid transparent;border-top:12px solid #000;border-bottom:0}';document.head.appendChild(st)}
 document.body.appendChild(tb);
@@ -34,7 +34,7 @@ function talkTick(dt,bo){
   if(talkT<=0&&TALK.length){
     let i;do i=Math.floor(Math.random()*TALK.length);while(TALK.length>1&&i===lastTalk);lastTalk=i;
     talkT=99;const my=talkTok;                           // chờ câu thoại xong mới hiện
-    lineFor('boss',boss,TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(5,2+x.length*.06);talkT=talkShow+2+Math.random()*3});
+    lineFor('boss',boss,TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(32,4+x.length*.1);talkT=talkShow+3+Math.random()*4});
   }
 }
 const _tp=new THREE.Vector3();
@@ -49,10 +49,10 @@ function placeBubble(){placeBotBubbles();   // gọi sau khi camera cập nhật
 
 // ---- Bot thường nói chuyện: mỗi lần xuất hiện có 30% con được "nói được" (b.talker, xem spawnBot), 70% im lặng ----
 // Câu thoại do AI nghĩ (dự phòng: câu có sẵn). Tối đa BT_MAX khung chữ cùng lúc, chỉ hiện khi bot trong tầm BT_RANGE và không bị tường che.
-const BT_MAX=3,BT_RANGE=28,bubs=[];
+const BT_MAX=8,BT_RANGE=28,bubs=[];
 for(let i=0;i<BT_MAX;i++){
   const e=document.createElement('div');e.className='bt';
-  e.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 12px/1.3 sans-serif;padding:4px 8px;border-radius:7px;max-width:190px;text-align:center;transform-origin:50% 100%';
+  e.style.cssText='position:fixed;left:0;top:0;z-index:3;display:none;pointer-events:none;background:#000;color:#fff;font:700 12px/1.35 sans-serif;padding:5px 9px;border-radius:7px;max-width:250px;text-align:center;transform-origin:50% 100%';
   document.body.appendChild(e);bubs.push(e);
 }
 function botTalkTick(dt){
@@ -73,7 +73,7 @@ function botTalkTick(dt){
     b.tw=1;b.tt=99;speaking++;                                     // chờ câu thoại xong mới hiện
     lineFor('bot',b,TALK[i]).then(x=>{
       if(my!==b.tTok)return;                                      // bot đã chết / tái sinh trong lúc chờ
-      b.tw=0;b.tText=x;b.tShow=Math.min(4.5,1.8+x.length*.05);b.tt=b.tShow+3+Math.random()*6;b.tVc=0;b.tVis=true});
+      b.tw=0;b.tText=x;b.tShow=Math.min(24,4+x.length*.09);b.tt=9+Math.random()*2;b.tVc=0;b.tVis=true}).catch(()=>{if(my===b.tTok){b.tw=0;b.tt=3}});   // tt chỉ đếm lùi SAU khi khung chữ tắt -> nghỉ ~10s rồi nói tiếp, cho tới khi bot chết
   }
 }
 function placeBotBubbles(){

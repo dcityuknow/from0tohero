@@ -8,27 +8,25 @@ const AIT={
   keys:[],                                          // dán key trực tiếp: ['gsk_xxx','gsk_yyy']
   url:'https://api.groq.com/openai/v1/chat/completions',
   models:['openai/gpt-oss-20b','openai/gpt-oss-120b','llama-3.1-8b-instant'],   // thử lần lượt: model nào bị gỡ / không tồn tại thì tự qua model kế
-  temp:1,
-  timeout:7000,    // ms chờ 1 yêu cầu
+  temp:0.8,
+  timeout:12000,    // ms chờ 1 yêu cầu
   maxBusy:3,       // số yêu cầu của bot thường chạy cùng lúc (boss luôn được ưu tiên, không bị chặn)
   limitWait:65,    // giây nghỉ 1 key khi bị 429 mà server không báo thời gian chờ
   netWait:15       // giây tạm dùng thoại có sẵn sau khi lỗi mạng
 };
 // Prompt gốc (điền {floor} {hpPercent} {dist} {weapon} {lang} lúc gọi)
 const AIP={
-  bot:`Bạn là quái lính mạng tầng {floor} trong FPS Block Arena, thế giới Optimum.
-Nói đúng 1 câu, tối đa 16 từ.
-Giọng: lính node sợ hãi / gấp / tức, nói chuyện như packet đang drop.
-Bối cảnh: máu {hpPercent}%, cách người chơi {dist}m, người chơi cầm {weapon}.
-Chỉ được nói về: gossip rác, packet loss, bandwidth, latency, miss slot, reconstruct.
-Cấm: giải thích, markdown, ngoặc kép, emoji, tên người chơi, hỏi lại.
+  bot:`Bạn là quái lính tầng {floor} trong FPS Block Arena, thế giới Optimum.
+Nói 2 hoặc 3 câu, tổng tối đa 55 từ. Có nghĩa. Không markdown, không ngoặc kép, không emoji.
+Máy không tra web. Chỉ dùng sự thật dưới đây, không bịa tên người hay số liệu.
+Optimum (@get_optimum) là mạng tăng tốc dữ liệu phi tập trung: block và payload lan nhanh hơn, bớt gửi trùng, không sửa consensus. mump2p là gossip dùng RLNC (Random Linear Network Coding), do giáo sư Muriel Médard phát triển tại MIT: cắt tin thành mảnh mã hóa, node nhận mảnh có thể tạo mảnh mới ngay, ráp lại được dù mất gói, nhanh và chịu mất gói hơn Gossipsub. Flexnode là node ai cũng chạy cạnh client sẵn có. Sản phẩm kế: DeRAM, DeROM.
+Chọn đúng 1 nhánh: hoặc phản ứng trận (máu {hpPercent}%, cách {dist}m, súng {weapon}), hoặc giải thích 1 ý Optimum. Không trộn cả hai thành một mớ từ khóa.
 Ngôn ngữ: {lang}.`,
   boss:`Bạn là Boss tầng {floor}/4 của mạng Optimum trong FPS Block Arena.
-Nói đúng 1 câu, tối đa 22 từ.
-Giọng: chỉ huy hạ tầng, kiêu, đe dọa, khoe tốc độ.
-Bối cảnh: máu {hpPercent}%, cách người chơi {dist}m, người chơi cầm {weapon}.
-Phải đụng ít nhất 1 từ khóa: RLNC, mump2p, Gossipsub, flexnode, validator, block, blob.
-Cấm: giải thích, markdown, ngoặc kép, emoji, độc thoại dài.
+Nói 2 hoặc 3 câu, tổng tối đa 70 từ, giọng chỉ huy kiêu. Có nghĩa. Không markdown, không ngoặc kép, không emoji.
+Máy không tra web. Chỉ dùng sự thật dưới đây, không bịa tên thành viên khác, không bịa số liệu.
+Optimum (@get_optimum) là mạng tăng tốc dữ liệu cho blockchain: lan block nhanh hơn, tiết kiệm băng thông, không đụng consensus, không cần phần cứng thêm. mump2p dùng RLNC của giáo sư Muriel Médard (MIT): mã hóa thành mảnh, chuyển tiếp và ráp lại, chịu mất gói tốt hơn Gossipsub. Validator nhận block sớm hơn thì ít miss attestation và miss proposal. Flexnode chạy cạnh client hiện có. DeRAM và DeROM là bộ nhớ phi tập trung đọc-ghi và chỉ-đọc, sắp tới.
+Chọn đúng 1 nhánh: hoặc đe dọa theo máu {hpPercent}%, khoảng cách {dist}m, súng {weapon}; hoặc giải thích 1 ý Optimum.
 Ngôn ngữ: {lang}.`
 };
 // Tên ngôn ngữ gửi cho AI (khớp với mã trong i18n.js)
@@ -48,11 +46,11 @@ const AITalk=(function(){
   const anyKey=()=>K.list.some(e=>!e.dead&&e.until<=Date.now());
 
   // gọi Groq: thử lần lượt các key / model; trả về chuỗi thô hoặc null
-  async function groq(sys,usr){
+  async function groq(sys,usr,effort){
     for(let tries=0;tries<K.list.length*AIT.models.length+2;tries++){
       const e=pickKey(),model=AIT.models[K.mi];if(!e||!model)return null;
-      const body={model,temperature:AIT.temp,max_completion_tokens:300,messages:[{role:'system',content:sys},{role:'user',content:usr}]};
-      if(model.includes('gpt-oss'))body.reasoning_effort='low';   // model suy luận: để mức thấp cho nhanh, đỡ tốn token
+      const body={model,temperature:AIT.temp,max_completion_tokens:700,messages:[{role:'system',content:sys},{role:'user',content:usr}]};
+      if(model.includes('gpt-oss'))body.reasoning_effort=effort||'low';   // model suy luận: bot để thấp cho nhanh, boss dùng medium cho câu có nghĩa hơn
       const ac=new AbortController(),to=setTimeout(()=>ac.abort(),AIT.timeout);let r;
       try{r=await fetch(AIT.url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+e.k},body:JSON.stringify(body)})}
       catch(x){K.netT=Date.now()+AIT.netWait*1000;return null}
@@ -68,10 +66,12 @@ const AITalk=(function(){
     return null;
   }
   const fill=(s,v)=>s.replace(/\{(\w+)\}/g,(m,k)=>v[k]!==undefined?v[k]:m);
-  // làm sạch: 1 dòng, bỏ emoji / ngoặc kép / markdown, cắt theo số từ tối đa
+  // làm sạch: gộp tối đa 3 dòng / 3 câu, bỏ emoji / ngoặc kép / markdown, cắt theo số từ tối đa
   function clean(s,maxW){
-    s=String(s||'').split(/\r?\n/).map(x=>x.trim()).find(Boolean)||'';
+    s=String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(0,3).join(' ');
     s=s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,'').replace(/["“”„«»`*#_~]/g,'').replace(/^[\-–—:>\s]+/,'').replace(/\s+/g,' ').trim();
+    const parts=s.split(/(?<=[.!?。！？])\s+/).filter(Boolean).slice(0,3);
+    s=parts.join(' ');
     const w=s.split(' ');if(w.length>maxW)s=w.slice(0,maxW).join(' ');
     if(L==='zh'&&s.length>maxW*2)s=s.slice(0,maxW*2);   // tiếng Trung không có dấu cách: giới hạn theo ký tự
     return s.length>=2?s:null;
@@ -81,12 +81,12 @@ const AITalk=(function(){
     const boss=kind==='boss';
     if(!K.ready||Date.now()<K.netT||!anyKey())return null;
     if(!boss&&K.busy>=AIT.maxBusy)return null;
-    const maxW=boss?22:16,
+    const maxW=boss?70:55,
       v={floor:boss?(b.fl||0)+1:curFl+1,hpPercent:Math.max(0,Math.min(100,Math.round(b.hp/(b.maxhp||100)*100))),dist:Math.round(Math.hypot(P.x-b.x,P.z-b.z)),weapon:AI_WPN[cur]||cur,lang:AI_LANG[L]||'English'},
       usr='Nói câu của bạn bây giờ.'+(K.recent.length?' Phải khác các câu này: '+K.recent.join(' | '):'');
     K.busy++;
     try{
-      const out=clean(await groq(fill(AIP[kind],v),usr),maxW);
+      const out=clean(await groq(fill(AIP[kind],v),usr,boss?'medium':'low'),maxW);
       if(out){K.recent.push(out);if(K.recent.length>6)K.recent.shift()}
       return out;
     }catch(x){return null}
