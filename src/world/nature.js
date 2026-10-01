@@ -3,6 +3,7 @@
 // Mỗi tầng 1 chủ đề: 1 đồng cỏ · 2 rừng anh đào · 3 mùa thu · 4 tuyết.
 // Chỉnh nhanh ở CFG bên dưới: quality (càng cao càng nhiều mảnh nhỏ), density (số lượng cây/đá/hoa).
 (function(){
+if(window.FM)FM.close('set0');   // nhà / chòi / tượng / bàn trà đã dựng xong: ghi nhận để dỡ / dựng lại khi rời / quay lại tầng 1
 const MOBILE=('ontouchstart' in window)||navigator.maxTouchPoints>0;
 const CFG={
   quality:1,     // 1 = mặc định · 1.5 = mảnh nhỏ hơn, đẹp hơn, nặng hơn · 0.6 = mảnh to, nhẹ máy
@@ -773,10 +774,10 @@ const FL=[];
 const act=f=>P.y>f*FH-6&&P.y<(f+1)*FH-3;   // tầng đang gần người chơi
 function vis(){
   for(const Fl of FL){const a=act(Fl.f);
-    for(const m of Fl.objs)m.visible=a&&Math.hypot(m.position.x-P.x,m.position.z-P.z)<CFG.viewDist;
+    for(const m of Fl.objs){const b=a&&Math.hypot(m.position.x-P.x,m.position.z-P.z)<CFG.viewDist;m._vb=b;m.visible=b&&!m._oc}   // _oc: bị tường / nhà che khuất (engine/occlusion.js)
     if(Fl.deco)Fl.deco.visible=a;
     for(const m of Fl.terr)m.visible=a;
-    for(const m of Fl.detail)m.visible=a&&Math.hypot(m.userData.cx-P.x,m.userData.cz-P.z)<CFG.viewDist+14;   // cỏ/hoa/đá vụn: chỉ vẽ khối ở gần
+    for(const m of Fl.detail){const b=a&&Math.hypot(m.userData.cx-P.x,m.userData.cz-P.z)<CFG.viewDist+14;m._vb=b;m.visible=b&&!m._oc}   // cỏ/hoa/đá vụn: chỉ vẽ khối ở gần
     for(const l of Fl.lakes){if(l.mesh)l.mesh.visible=a;if(l.bed)l.bed.visible=a}
     for(const c of Fl.crit)c.g.visible=a;
     if(Fl.fish)for(const q of Fl.fish)q.g.visible=a&&Math.hypot(q.x-P.x,q.z-P.z)<CFG.viewDist;
@@ -1028,8 +1029,18 @@ function loop(now){
   lx=P.x;lz=P.z;
 }
 const timedBuild=f=>{const t0=performance.now(),r=buildFloor(f);console.log('[Block Arena] dựng tầng '+(f+1)+': '+Math.round(performance.now()-t0)+' ms');return r};   // xem thời gian dựng từng tầng ở F12 > Console
-FL.push(timedBuild(0));vis();
-for(let f=1;f<NF;f++)setTimeout(()=>{FL.push(timedBuild(f));vis()},400*f);
+// NẠP LƯỜI: chỉ dựng tầng được yêu cầu (floors.js quyết định). FM.cap ghi lại mọi mesh / va chạm do lần dựng này thêm vào để dỡ sạch được.
+function loadFloor(f){
+  if(FL.some(q=>q.f===f))return;
+  const Fl=FM.cap('N'+f,()=>timedBuild(f));
+  FL.push(Fl);vis();
+}
+function unloadFloor(f){
+  const i=FL.findIndex(q=>q.f===f);if(i<0)return;
+  FL.splice(i,1);FM.drop('N'+f);
+  console.log('[Block Arena] dỡ tầng '+(f+1));
+}
+loadFloor(0);
 requestAnimationFrame(loop);
 // có nước (sông) tại (x,z) của tầng f không (m = khoảng đệm ra ngoài bờ, mét). level.js dùng để không sinh bot dưới nước.
 function isWater(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
@@ -1040,5 +1051,5 @@ function wetAt(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
   const w=Fl.cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL)))||Fl.lakes.some(l=>!l.ice&&l.rho(x,z)<1+(m||0)/l.rz);
   if(w)for(const B of Fl.bridges){const q=B.along?x:z,ww=B.along?z:x;if(Math.abs(q-B.q)<1.55&&ww>B.wa&&ww<B.wb)return false}
   return w}
-window.Nature={cfg:CFG,floors:FL,stones:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.stones||[]},lakeH,rayWater,bulletSplash,explosionSplash,isWater,wetAt,bridges:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.bridges||[]},heightAt:(f,x,z)=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.hAt?Fl.hAt(x,z):0}};
+window.Nature={cfg:CFG,floors:FL,load:loadFloor,unload:unloadFloor,has:f=>FL.some(q=>q.f===f),stones:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.stones||[]},lakeH,rayWater,bulletSplash,explosionSplash,isWater,wetAt,bridges:f=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.bridges||[]},heightAt:(f,x,z)=>{const Fl=FL.find(q=>q.f===f);return Fl&&Fl.hAt?Fl.hAt(x,z):0}};
 })();

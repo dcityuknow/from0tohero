@@ -183,5 +183,5 @@ window.PavilionKeep={x0:PX-HX-2,x1:PX+HX+3.5,z0:PZ-4.5,z1:PZ+6.5};
 // (giữ lại cho code khác nếu có dùng)
 const _hz=window.HouseZone||(()=>false);
 window.HouseZone=(x,z)=>_hz(x,z)||(x>PX-HX-2&&x<PX+HX+3.2&&z>PZ-4.8&&z<PZ+6.0);
-window.Pavilion={build};
+window.Pavilion={build,rebuild:()=>build(PX,PZ)};
 })();

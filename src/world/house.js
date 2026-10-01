@@ -193,6 +193,9 @@ function buildHouse(hx,hz){
   cb(-6.5,-1.25,FL,WT,2.5,2.75);cb(1.25,6.5,FL,WT,2.5,2.75);cb(-1.25,1.25,2.75,WT,2.5,2.75); // tường trước (chừa cửa)
   cb(-6.5,6.5,FL,WT,-3.25,-3.0);                         // tường sau
   cb(-6.5,-6.25,FL,WT,-3.25,2.75);cb(6.25,6.5,FL,WT,-3.25,2.75); // hai hông
+  // các tường nhà làm vật che khuất cho occlusion culling (engine/occlusion.js đọc window.OccSrc)
+  (window.OccSrc=window.OccSrc||{}).house=[[-6.5,-1.25,FL,WT,2.5,2.75],[1.25,6.5,FL,WT,2.5,2.75],[-1.25,1.25,2.75,WT,2.5,2.75],[-6.5,6.5,FL,WT,-3.25,-3.0],[-6.5,-6.25,FL,WT,-3.25,2.75],[6.25,6.5,FL,WT,-3.25,2.75]]
+    .map(([x0,x1,y0,y1,z0,z1])=>({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1}));
   cb(-6.75,6.75,WT,RY,-3.5,3.0);                         // dầm / trần
   cb(-8.5,8.5,RY,RY+.5,RZ-4.75,RZ+4.75);                 // mép mái
   cb(-1,1,FL+.125,1.375,-1.75,-.75);                     // bàn
@@ -203,5 +206,5 @@ function buildHouse(hx,hz){
 }
 buildHouse(HX,HZ);
 window.HouseZone=(x,z)=>x>HX-8.8&&x<HX+8.8&&z>HZ-5.4&&z<HZ+6.2;
-window.House={build:buildHouse};
+window.House={build:buildHouse,rebuild:()=>buildHouse(HX,HZ)};
 })();

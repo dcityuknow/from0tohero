@@ -51,10 +51,12 @@ for(let f=0;f<NF-1;f++){
 function openGate(f){const g=gates[f];if(!g||g.open)return;g.open=true;boxes.splice(boxes.indexOf(g.e),1);meshes.splice(meshes.indexOf(g.m),1);S.remove(g.m)}
 // điểm spawn cho từng tầng: lấy mẫu lưới ở vùng giữa, bỏ điểm chạm vật cản
 const _sp=[];
-function fSpawns(f){if(_sp[f])return _sp[f];if(window.Nature&&Nature.ensure)Nature.ensure(f);const A=AF(f),R=f?A-11:Math.round(14*MAPK),c=[];
+function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:Math.round(14*MAPK),c=[];
   for(let x=-R;x<=R;x+=3)for(let z=-(A-3);z<=A-3;z+=3)if(!hit({x,y:f*FH+.02,z,r:.7,h:1.7}).length&&!(window.Nature&&Nature.isWater&&Nature.isWater(f,x,z,1.2)))c.push([x,z]);
   const k=Math.max(1,Math.floor(c.length/14));return _sp[f]=c.filter((_,i)=>i%k===0)}
 function resetLevel(){
   for(const g of gates)if(g.open){g.open=false;boxes.push(g.e);meshes.push(g.m);S.add(g.m)}
-  bul.forEach(p=>S.remove(p.m));bul.length=0;fk.fill(0);bossDone.fill(false);bossAlive=false;curFl=0;setupFloor();
+  bul.forEach(p=>S.remove(p.m));bul.length=0;fk.fill(0);bossDone.fill(false);bossAlive=false;curFl=0;
+  if(window.FM)FM.reset();   // floors.js: dỡ các tầng 2-4, giữ tầng 1
+  setupFloor();
 }

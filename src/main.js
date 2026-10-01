@@ -62,7 +62,7 @@ function frame(now){
   const tf=sc?20:75;if(Math.abs(C.fov-tf)>.1){C.fov+=(tf-C.fov)*Math.min(1,dt*16);C.updateProjectionMatrix()}
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
-  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de);applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();
+  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de);applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);
   $('hp').style.width=P.hp+'%';const gr=cur==='grenade';$('am').textContent=gr?gren:rel>0?'…':ammos[cur];$('mg').textContent=gr?GMAX:reserve[cur];$('gn').textContent=gren;
   {const bg=S.background;   // lượt 1: thế giới · lượt 2: súng/tay vẽ đè lên (xóa depth, tắt background để không xóa hình lượt 1)
     C.layers.set(0);R.clear();R.render(S,C);

@@ -20,6 +20,7 @@
     // Người chơi (góc nhìn thứ nhất): tay, vũ khí, viewmodel
     'player/player.js','player/weapons.js','player/viewmodel.js',
     // Thiên nhiên (phải nạp SAU viewmodel, TRƯỚC bot)
+    'world/floors.js',   // nạp / dỡ tầng theo yêu cầu - phải nạp TRƯỚC house.js (đánh dấu mốc để biết nhà / chòi / tượng / bàn trà là của tầng 1)
     'world/house.js','world/pavilion.js','world/statues.js',   // chòi Nhật (nạp sau house.js để mở rộng HouseZone) · nhà rubik (thay khối dài) - phải nạp trước nature.js để cây/đá né nhà
     'world/teaset.js',   // 2 bộ bàn trà kiểu Nhật (thay 2 khối xanh) - phải nạp trước nature.js để cây/đá né (TeaKeeps)
     'world/nature.js',
@@ -30,6 +31,8 @@
     'entities/ally.js',        // đồng minh: thu phục boss đã hạ, đi cạnh người chơi và bắn quái (nạp sau bot-throw.js)
     // Gameplay: bắn, hiệu ứng, vật phẩm, lựu đạn
     'gameplay/combat.js','gameplay/effects.js','ui/minimap.js','gameplay/items.js','gameplay/grenade.js',
+    // Occlusion culling: ẩn vật thể / quái bị tường che khuất hoàn toàn
+    'engine/occlusion.js',
     // Cảm ứng điện thoại
     'ui/mobile.js',
     // Vòng lặp chính + màn hình bắt đầu (luôn cuối cùng)
