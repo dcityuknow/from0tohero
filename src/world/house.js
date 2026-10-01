@@ -1,12 +1,20 @@
-// Nhà rubik "CMC Infinity Residence" - PHONG CÁCH NHÀ NHẬT TRUYỀN THỐNG (rừng tre)
-// Mái ngói đá phiến tối nhiều tầng + viền đá, tường ván gỗ nâu đậm, cột đỏ nâu, cửa giấy shoji,
-// nền móng đá + bậc thang, hiên (engawa) có lan can, đèn lồng, cờ noren trắng chấm đỏ.
+// Nhà rubik "CMC Infinity Residence" - NHÀ NHẬT TRUYỀN THỐNG 2 TẦNG (rừng tre)
+// Tầng 1: hiên (engawa) + phòng trà, bếp, kotatsu, tansu, kệ sách, bình phong...  Cầu thang gỗ trong nhà lên tầng 2.
+// Tầng 2: có ban công lan can quanh nhà, phòng làm việc (2 màn hình), giường futon, sofa, kệ sách...
+// Mái ngói đá phiến 2 tầng (mái dưới + mái trên cong góc), đèn lồng / đèn treo phát sáng vàng (có quầng sáng + vài PointLight).
 // Nạp SAU voxel.js, TRƯỚC nature.js để cây / đá / sông tự né nhà (xem keepOuts trong nature.js).
 (function(){
 const HX=0,HZ=15.5;                 // tâm nhà (x,z) trên sàn tầng 1
 const F=3.5;                        // (giữ tên cũ) mặt tiền ở z=+ cục bộ
-const FL=.875, WT=3.375, RY=3.625;  // mặt sàn hiên · đỉnh tường · chân mái
-const RZ=-.25;                      // tâm z của mái (lệch về phía sau, hiên phía trước)
+const FL=.875, WT=3.375, RY=3.625;  // TẦNG 1: mặt sàn hiên · đỉnh tường · chân mái dưới
+const RZ=-.25;                      // tâm z của mái dưới
+const GF=FL+.125;                   // mặt chiếu tatami tầng 1 (=1.0)
+const FL2=4.75, WT2=7.25, RY2=7.5;  // TẦNG 2: mặt sàn · đỉnh tường · chân mái trên
+const RZ2=-.375;                    // tâm z của mái trên
+// giếng cầu thang (khoét qua trần tầng 1, mái dưới và sàn tầng 2)
+const H={x0:-6,x1:-2.25,z0:-2.75,z1:-1.5};
+const inH=(x,z)=>x>H.x0&&x<H.x1&&z>H.z0&&z<H.z1;
+const GLOW_LIGHTS=true;             // true = thêm vài PointLight vàng trong nhà (tắt nếu thấy nặng)
 
 // ---------- BẢNG MÀU ----------
 const PLANK=[0x4a2e1e,0x3f2618,0x553522,0x38220f];
@@ -15,10 +23,16 @@ const STONE=[0x5a5a5a,0x6a6a6a,0x4c4c4c,0x777777,0x3e3e3e];
 const ROOF=[0x2b2b33,0x22222a,0x1c1c22];
 const TRIM=[0x8a8a8a,0x767676,0x9a9a9a];
 const PAPER=0xe8dcb8;
+const WOODC=[0x8a5a34,0x7d5030,0x946238];
+const WD=(i,j,k)=>WOODC[(i*3+j+k*5)%3];
+const GLOW=0xffd25a, GLOW2=0xffe58a, GLOW3=0xfff1b0;     // màu "phát sáng"
+const BK=[0x8a2f2f,0x2f5a8a,0x2f7a4f,0xc9a227,0x6a3a8a,0x3a3a3a,0xd9d2c0,0xb5651d];
+const LEAF=(i,j,k)=>[0x3d7a3f,0x4f8a4a,0x6aa85d][(i+j*2+k)%3];
 
 const mix=(a,b,t)=>{const r=((a>>16)&255)*(1-t)+((b>>16)&255)*t,g=((a>>8)&255)*(1-t)+((b>>8)&255)*t,l=(a&255)*(1-t)+(b&255)*t;return((r|0)<<16)|((g|0)<<8)|(l|0)};
 const GRN=(a,b,c)=>(i,j,k)=>[a,b,c][(i+j*2+k)%3];
 const isP=(x,ps)=>ps.some(p=>Math.abs(x-p)<.13);
+const cf=c=>typeof c==='function'?c:()=>c;
 
 // ---------- LOGO (giữ nguyên) ----------
 function logo(v,cx,cy,cz,LW,isBack=false){
@@ -60,52 +74,125 @@ function text(v,str,cx,cy,cz,cs,hex){
     for(let r=0;r<7;r++)for(let b=0;b<5;b++)if(g[r][b]==='#')v.box(x0+(a*6+b+.5)*cs,cy+(3-r)*cs,cz,cs,cs,.02,hex,cs)}
 }
 
+// ---------- QUẦNG SÁNG CHO ĐÈN ----------
+let glowTexCache=null;
+function glowTex(){
+  if(glowTexCache)return glowTexCache;
+  const cv=document.createElement('canvas');cv.width=cv.height=64;
+  const g=cv.getContext('2d'),gr=g.createRadialGradient(32,32,2,32,32,32);
+  gr.addColorStop(0,'rgba(255,236,160,.95)');gr.addColorStop(.35,'rgba(255,205,95,.40)');gr.addColorStop(1,'rgba(255,180,60,0)');
+  g.fillStyle=gr;g.fillRect(0,0,64,64);
+  return glowTexCache=new THREE.CanvasTexture(cv);
+}
+const prevObjs=[];   // sprite / light của lần dựng trước (để rebuild không bị nhân đôi)
+
 function buildHouse(hx,hz){
+  for(const o of prevObjs){try{S.remove(o)}catch(e){}const k=meshes.indexOf(o);if(k>=0)meshes.splice(k,1)}
+  prevObjs.length=0;
+
   const v=new VB();
+  const lamps=[];                       // đèn phát sáng: {x,y,z,s,light}
   // hộp voxel theo toạ độ min/max
   const fb=(x0,x1,y0,y1,z0,z1,c,s=.25)=>v.box((x0+x1)/2,(y0+y1)/2,(z0+z1)/2,x1-x0,y1-y0,z1-z0,c,s);
   // hộp voxel có hàm màu theo toạ độ thật (x,y,z) + chỉ số (i,j,k); trả -1 = trống
   const fp=(x0,x1,y0,y1,z0,z1,s,fn)=>fb(x0,x1,y0,y1,z0,z1,
     (i,j,k)=>fn(x0+(i+.5)*s,y0+(j+.5)*s,z0+(k+.5)*s,i,j,k),s);
+  const ell=(x,y,z,rx,ry,rz,c,s=.05)=>v.ell(x,y,z,rx,ry,rz,cf(c),s);
+  const tips=(hw,hd,rzc,y)=>{for(const sx of[-1,1])for(const sz of[-1,1]){
+    const xa=sx>0?hw-.25:-hw-.25,zc=rzc+sz*hd;
+    fb(xa,xa+.5,y,y+.5,zc-.25,zc+.25,(i,j,k)=>TRIM[(i+j+k)%3],.125);}};
+
+  // ---------- ĐÈN TREO PHÁT SÁNG ----------
+  // đèn lồng tròn (chochin): treo từ yTop xuống bằng sợi xích ngắn
+  const chochin=(x,yTop,z,r=.26,len=.25,light=false)=>{
+    const bh=r*1.25,yc=yTop-len-bh;
+    fb(x-.025,x+.025,yTop-len,yTop,z-.025,z+.025,DARK,.025);
+    fb(x-.1,x+.1,yc+bh-.05,yc+bh,z-.1,z+.1,DARK,.05);
+    fb(x-.1,x+.1,yc-bh,yc-bh+.05,z-.1,z+.1,DARK,.05);
+    ell(x,yc,z,r,bh,r,(i,j,k)=>(j%4===0)?0xb5651d:(((i+k)&1)?GLOW:GLOW2),.05);
+    fb(x-.02,x+.02,yc-bh-.2,yc-bh,z-.02,z+.02,0xc0202a,.02);
+    lamps.push({x,y:yc,z,s:r*8.5,light});
+  };
+  // đèn vuông (khung gỗ + giấy sáng)
+  const pendant=(x,yTop,z,w=.3,h=.5,len=.25,light=false)=>{
+    const yb=yTop-len-h,n=Math.round(w*2/.1)-1,m=Math.round(h/.1)-1;
+    fb(x-.025,x+.025,yb+h+.05,yTop,z-.025,z+.025,DARK,.025);
+    fb(x-w-.05,x+w+.05,yb+h,yb+h+.05,z-w-.05,z+w+.05,DARK,.05);
+    fb(x-w,x+w,yb,yb+h,z-w,z+w,(i,j,k)=>(((i===0||i===n)&&(k===0||k===n))||j===0||j===m)?0x5a3418:GLOW2,.1);
+    lamps.push({x,y:yb+h/2,z,s:w*7,light});
+  };
+  // đèn đứng (andon): khung gỗ + giấy sáng
+  const andon=(x,z,y0,hgt=.8,w=.25,light=false)=>{
+    const n=Math.round(w*2/.05)-1,m=Math.round(hgt/.05)-1;
+    fb(x-w,x+w,y0,y0+hgt,z-w,z+w,(i,j,k)=>(((i===0||i===n)&&(k===0||k===n))||j===0||j===m)?0x4a2e1a:GLOW2,.05);
+    fb(x-w-.05,x+w+.05,y0+hgt,y0+hgt+.05,z-w-.05,z+w+.05,0x3a2412,.05);
+    lamps.push({x,y:y0+hgt/2,z,s:w*7+.4,light});
+  };
+  const cushion=(x,z,y,col,s=.34)=>{
+    fb(x-s,x+s,y,y+.125,z-s,z+s,col,.125);
+    fb(x-s+.125,x+s-.125,y+.125,y+.1875,z-s+.125,z+s-.125,mix(col,0xffffff,.18),.0625);
+  };
+  const teapot=(x,y,z)=>{
+    ell(x,y+.09,z,.1,.08,.1,0x3a5a4a,.025);
+    fb(x-.03,x+.03,y+.17,y+.2,z-.03,z+.03,0x2a4a3a,.03);
+    fb(x+.09,x+.15,y+.09,y+.15,z-.015,z+.015,0x3a5a4a,.03);
+    fb(x-.15,x-.09,y+.06,y+.15,z-.015,z+.015,0x2a4a3a,.03);
+  };
+  const cup=(x,y,z)=>fb(x-.04,x+.04,y,y+.06,z-.04,z+.04,0xe9e4d4,.02);
+  const shelfFn=(nj,nk)=>(i,j,k)=>(k===0||k===nk-1||j===nj-1||j%5===0)?0x6b4a2e:BK[(k*5+((j/5)|0)*3+i)%8];
+  const monitor=(cx,z,y)=>{
+    fb(cx-.2,cx+.2,y,y+.05,z-.2,z+.05,0x2a2a30,.05);
+    fb(cx-.05,cx+.05,y,y+.15,z-.1,z,0x2a2a30,.05);
+    fb(cx-.45,cx+.45,y+.15,y+.7,z-.05,z,0x1a1a20,.05);
+    fb(cx-.4,cx+.4,y+.2,y+.65,z,z+.025,(i,j,k)=>(j%3===1)?(((i*5+j*3)%7<4)?0x7fd0ff:0x2a4a6a):0x14243a,.025);
+  };
+  const potPlant=(x,y,z,sc=1)=>{
+    fb(x-.2*sc,x+.2*sc,y,y+.35*sc,z-.2*sc,z+.2*sc,0x9a5b3a,.05);
+    ell(x,y+.55*sc,z,.28*sc,.2*sc,.28*sc,LEAF,.05);
+    ell(x-.1*sc,y+.8*sc,z+.05*sc,.2*sc,.18*sc,.2*sc,LEAF,.05);
+    ell(x+.12*sc,y+.75*sc,z-.05*sc,.18*sc,.16*sc,.18*sc,LEAF,.05);
+  };
+  // rào / lan can đỏ nâu (b = mặt sàn)
+  const railX=(x0,x1,z0,z1,b)=>{const n=Math.round((x1-x0)/.125);
+    fp(x0,x1,b,b+1.0,z0,z1,.125,(x,y,z,i,j)=>(i%8<2||i===n-1||j>=6||j===3)?(j>=6?RED2:RED):-1)};
+  const railZ=(x0,x1,z0,z1,b)=>{const n=Math.round((z1-z0)/.125);
+    fp(x0,x1,b,b+1.0,z0,z1,.125,(x,y,z,i,j,k)=>(k%8<2||k===n-1||j>=6||j===3)?(j>=6?RED2:RED):-1)};
 
   // ================= NỀN MÓNG ĐÁ + BẬC THANG =================
   fb(-7.5,7.5,0,.75,-3.75,4.5,(i,j,k)=>{
     const c=STONE[(i*3+j*5+k*7+((i*k)>>2))%5];
-    return j===2?mix(c,0x999999,.25):c;               // hàng trên cùng sáng hơn
+    return j===2?mix(c,0x999999,.25):c;
   },.25);
-  fb(-1.75,1.75,0,.25,4.5,5.5,(i,j,k)=>STONE[(i*3+k*5)%5],.25);   // bậc 1
-  fb(-1.5,1.5,0,.5,4.5,5.0,(i,j,k)=>STONE[(i*5+j+k*3)%5],.25);    // bậc 2
+  fb(-1.75,1.75,0,.25,4.5,5.5,(i,j,k)=>STONE[(i*3+k*5)%5],.25);
+  fb(-1.5,1.5,0,.5,4.5,5.0,(i,j,k)=>STONE[(i*5+j+k*3)%5],.25);
 
-  // ================= SÀN HIÊN + CHIẾU TATAMI =================
+  // ================= TẦNG 1: SÀN HIÊN + CHIẾU TATAMI =================
   fb(-7,7,.75,FL,-3.5,4.0,(i,j,k)=>(k&1)?0x6b4a2e:0x5e402a,.125);
-  fb(-6.25,6.25,FL,FL+.125,-3.0,2.5,(i,j,k)=>{
-    if(i%14===0||k%28===0)return 0x3a3a22;              // viền chiếu
+  fb(-6.25,6.25,FL,GF,-3.0,2.5,(i,j,k)=>{
+    if(i%14===0||k%28===0)return 0x3a3a22;
     return (((i/14)|0)+((k/28)|0))&1?0x9c9a62:0xa8a670;
   },.125);
 
-  // ================= TƯỜNG VÁN GỖ + CỘT ĐỎ + CỬA GIẤY =================
+  // ================= TẦNG 1: TƯỜNG VÁN GỖ + CỘT ĐỎ + CỬA GIẤY =================
   const PF=[-6.375,-2.625,-1.375,1.375,2.625,6.375];
-  // mặt trước
   fp(-6.5,6.5,FL,WT,2.5,2.75,.25,(x,y,z,i,j)=>{
     if(isP(x,PF))return POST;
     if(y>WT-.3)return 0x3a2012;
     const ax=Math.abs(x);
-    if(x>-1.25&&x<1.25&&y<2.75){                        // cửa trượt: nửa trái đóng, nửa phải mở
+    if(x>-1.25&&x<1.25&&y<2.75){
       if(x>0)return -1;
       return(i%4===0||j%4===0)?DARK:PAPER;
     }
-    if(ax>2.75&&ax<5.5&&y>1.375&&y<2.875)               // cửa sổ giấy
+    if(ax>2.75&&ax<5.5&&y>1.375&&y<2.875)
       return(i%3===0||j%3===0)?DARK:PAPER;
     return PLANK[(i+((j*3)>>1))&3];
   });
-  // mặt sau
   const PB=[-6.375,-4.375,-2.375,-.375,1.625,3.625,5.625,6.375];
   fp(-6.5,6.5,FL,WT,-3.25,-3.0,.25,(x,y,z,i,j)=>{
     if(isP(x,PB))return POST;
     if(y>WT-.3)return 0x3a2012;
     return PLANK[(i+((j*3)>>1))&3];
   });
-  // hai bên hông
   const PS=[-3.125,-1.125,.875,2.625];
   for(const [x0,x1] of [[-6.5,-6.25],[6.25,6.5]])
     fp(x0,x1,FL,WT,-3.25,2.75,.25,(x,y,z,i,j,k)=>{
@@ -115,36 +202,115 @@ function buildHouse(hx,hz){
       return PLANK[(k+((j*3)>>1))&3];
     });
 
-  // ================= DẦM + TRẦN =================
-  fb(-6.75,6.75,WT,RY,-3.5,3.0,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.25);
+  // ================= TRẦN TẦNG 1 (có khoét giếng thang) + XÀ NGANG =================
+  fp(-6.75,6.75,WT,RY,-3.5,3.0,.25,(x,y,z,i,j,k)=>inH(x,z)?-1:((i+k)&1?0x4d2313:0x431d10));
+  for(const bx of[-1,1,3,5])fb(bx-.125,bx+.125,WT-.125,WT,-3.0,2.5,0x3a1c10,.125);   // xà lộ ra ở trần
 
-  // ================= MÁI NGÓI NHIỀU TẦNG (hip) =================
-  for(let n=0;n<=6;n++){
+  // ================= MÁI DƯỚI (2 tầng ngói) =================
+  for(let n=0;n<=1;n++){
     const hw=8.5-.5*n,hd=4.75-.5*n,nx=Math.round(hw*8),nz=Math.round(hd*8),y0=RY+.5*n;
-    fb(-hw,hw,y0,y0+.5,RZ-hd,RZ+hd,(i,j,k)=>{
-      if(n===0&&(i===0||i===nx-1||k===0||k===nz-1))return TRIM[(i+k)%3];   // viền đá mép mái
-      if((i<3||i>=nx-3)&&(k<3||k>=nz-3))return TRIM[(i+k)%3];              // đường đá ở bốn góc mái
+    fp(-hw,hw,y0,y0+.5,RZ-hd,RZ+hd,.25,(x,y,z,i,j,k)=>{
+      if(inH(x,z))return -1;
+      if(n===0&&(i===0||i===nx-1||k===0||k===nz-1))return TRIM[(i+k)%3];
+      if((i<3||i>=nx-3)&&(k<3||k>=nz-3))return TRIM[(i+k)%3];
+      return ROOF[(i+k+j*2)%3];
+    });
+  }
+  tips(8.5,4.75,RZ,RY+.125);
+
+  // ================= SÀN BAN CÔNG / SÀN TẦNG 2 (khoét giếng thang) =================
+  fp(-7.25,7.25,RY+1.0,FL2,-3.75,3.25,.125,(x,y,z,i,j,k)=>{
+    if(inH(x,z))return -1;
+    if(x>-5.75&&x<5.75&&z>-2.5&&z<1.75){            // trong nhà: chiếu tatami
+      const u=(x+5.75)/1.75,w=(z+2.5)/.875,fu=u-Math.floor(u),fw=w-Math.floor(w);
+      if(fu<.07||fw<.14)return 0x3a3a22;
+      return ((Math.floor(u)+Math.floor(w))&1)?0x9c9a62:0xa8a670;
+    }
+    return (k&1)?0x6b4a2e:0x5e402a;                  // ngoài ban công: ván gỗ
+  });
+
+  // ================= CẦU THANG GỖ (trong nhà, bên trái, đi lên về phía +x) =================
+  for(let n=0;n<15;n++){
+    const x0=H.x0+.25*n,top=GF+.25*(n+1);
+    fb(x0,x0+.25,GF,top,H.z0,H.z1,(i,j,k)=>j===n?0x9a6a3c:0x5b3a22,.25);
+    fb(x0,x0+.25,top+.55,top+.65,-1.55,-1.45,RED2,.05);                       // tay vịn
+    if(n%3===0)fb(x0+.1,x0+.15,top,top+.55,-1.55,-1.45,RED,.05);              // trụ tay vịn
+  }
+  railX(-5.75,-2.5,-1.625,-1.5,FL2);                                         // lan can quanh giếng thang tầng 2
+
+  // ================= TẦNG 2: TƯỜNG VÁN + CỬA GIẤY =================
+  const PF2=[-5.875,-2.625,-1.375,1.375,2.625,5.875];
+  fp(-6,6,FL2,WT2,1.75,2.0,.25,(x,y,z,i,j)=>{
+    if(isP(x,PF2))return POST;
+    if(y>WT2-.3)return 0x3a2012;
+    const ax=Math.abs(x);
+    if(x>-1.25&&x<1.25&&y<FL2+1.875){
+      if(x>0)return -1;
+      return(i%4===0||j%4===0)?DARK:PAPER;
+    }
+    if(ax>2.75&&ax<5.5&&y>FL2+.5&&y<FL2+2.0)return(i%3===0||j%3===0)?DARK:PAPER;
+    return PLANK[(i+((j*3)>>1))&3];
+  });
+  const PB2=[-5.875,-3.875,-1.875,.125,2.125,4.125,5.875];
+  fp(-6,6,FL2,WT2,-2.75,-2.5,.25,(x,y,z,i,j)=>{
+    if(isP(x,PB2))return POST;
+    if(y>WT2-.3)return 0x3a2012;
+    if(x>2.5&&x<4.75&&y>FL2+.75&&y<FL2+2.0)return(i%3===0||j%3===0)?DARK:PAPER;
+    return PLANK[(i+((j*3)>>1))&3];
+  });
+  const PS2=[-2.625,-.625,1.375];
+  for(const [x0,x1] of [[-6,-5.75],[5.75,6]])
+    fp(x0,x1,FL2,WT2,-2.75,2.0,.25,(x,y,z,i,j,k)=>{
+      if(isP(z,PS2))return POST;
+      if(y>WT2-.3)return 0x3a2012;
+      if(z>-1.0&&z<1.0&&y>FL2+.5&&y<FL2+2.0)return(k%3===0||j%3===0)?DARK:PAPER;
+      return PLANK[(k+((j*3)>>1))&3];
+    });
+  fb(-6.25,6.25,WT2,RY2,-3.0,2.25,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.25);     // trần tầng 2
+  for(const bx of[-3,-1,1,3,5])fb(bx-.125,bx+.125,WT2-.125,WT2,-2.5,1.75,0x3a1c10,.125);
+
+  // ================= MÁI TRÊN NHIỀU TẦNG (hip) =================
+  for(let n=0;n<=5;n++){
+    const hw=8-.5*n,hd=4.25-.5*n,nx=Math.round(hw*8),nz=Math.round(hd*8),y0=RY2+.5*n;
+    fb(-hw,hw,y0,y0+.5,RZ2-hd,RZ2+hd,(i,j,k)=>{
+      if(n===0&&(i===0||i===nx-1||k===0||k===nz-1))return TRIM[(i+k)%3];
+      if((i<3||i>=nx-3)&&(k<3||k>=nz-3))return TRIM[(i+k)%3];
       return ROOF[(i+k+j*2)%3];
     },.25);
   }
-  fb(-5.5,5.5,RY+3.5,RY+3.75,RZ-.75,RZ+.75,(i,j,k)=>TRIM[(i+k)%3],.25);       // nóc đá
-  // đầu mái cong vút ở bốn góc
-  for(const sx of[-1,1])for(const [z0,z1] of [[4.25,4.75],[-5.25,-4.75]]){
-    const xa=sx>0?8.25:-8.75,xb=sx>0?8.75:-8.25;
-    fb(xa,xb,RY+.125,RY+.625,z0,z1,(i,j,k)=>TRIM[(i+j+k)%3],.125);
-  }
+  fb(-5,5,RY2+3.0,RY2+3.25,RZ2-.75,RZ2+.75,(i,j,k)=>TRIM[(i+k)%3],.25);       // nóc đá
+  for(const sx of[-1,1])fb(sx*5-.25,sx*5+.25,RY2+3.25,RY2+3.75,RZ2-.25,RZ2+.25,(i,j,k)=>TRIM[(i+j+k)%3],.125);   // đầu nóc
+  tips(8,4.25,RZ2,RY2+.125);
 
-  // ================= HIÊN: CỘT ĐỠ MÁI + LAN CAN ĐỎ NÂU =================
+  // ================= HIÊN TẦNG 1: CỘT ĐỠ MÁI + LAN CAN =================
   for(const x of[-6.875,-3.375,-1.875,1.875,3.375,6.875])
     fb(x-.125,x+.125,FL,RY,3.75,4.0,(i,j,k)=>(j&1)?POST:0x7a3520,.125);
-  const railX=(x0,x1,z0,z1)=>{const n=Math.round((x1-x0)/.125);
-    fp(x0,x1,FL,FL+1.0,z0,z1,.125,(x,y,z,i,j)=>(i%8<2||i===n-1||j>=6||j===3)?(j>=6?RED2:RED):-1)};
-  const railZ=(x0,x1,z0,z1)=>{const n=Math.round((z1-z0)/.125);
-    fp(x0,x1,FL,FL+1.0,z0,z1,.125,(x,y,z,i,j,k)=>(k%8<2||k===n-1||j>=6||j===3)?(j>=6?RED2:RED):-1)};
-  railX(-7,-1.75,3.875,4.0);railX(1.75,7,3.875,4.0);         // mặt trước chừa lối lên bậc
-  railZ(6.875,7,2.75,4.0);railZ(-7,-6.875,2.75,4.0);         // hai đầu hiên
+  railX(-7,-1.75,3.875,4.0,FL);railX(1.75,7,3.875,4.0,FL);
+  railZ(6.875,7,2.75,4.0,FL);railZ(-7,-6.875,2.75,4.0,FL);
 
-  // ================= NOREN (cờ trắng chấm đỏ) + ĐÈN LỒNG =================
+  // ================= BAN CÔNG TẦNG 2: CỘT + LAN CAN + ĐỒ DÙNG =================
+  for(const x of[-7.125,-3.375,-1.875,1.875,3.375,7.125])
+    fb(x-.125,x+.125,FL2,RY2,3.0,3.25,(i,j,k)=>(j&1)?POST:0x7a3520,.125);
+  for(const x of[-7.125,7.125])fb(x-.125,x+.125,FL2,RY2,-3.75,-3.5,(i,j,k)=>(j&1)?POST:0x7a3520,.125);
+  railX(-7.25,7.25,3.125,3.25,FL2);
+  railX(-7.25,7.25,-3.75,-3.625,FL2);
+  railZ(7.125,7.25,-3.75,3.25,FL2);railZ(-7.25,-7.125,-3.75,3.25,FL2);
+  // ghế dài bên trái
+  fb(-6.0,-3.75,FL2+.4,FL2+.5,2.1,2.6,0xb98a56,.05);
+  fb(-6.0,-3.75,FL2+.5,FL2+.95,2.1,2.2,0xa87a48,.05);
+  for(const x of[-5.95,-3.85])for(const z of[2.15,2.5])fb(x,x+.1,FL2,FL2+.4,z,z+.1,0x6b4a2e,.05);
+  // bàn trà nhỏ bên phải + 2 đệm
+  fb(3.5,4.75,FL2+.35,FL2+.45,2.3,3.0,0x6b4a2e,.05);
+  for(const x of[3.55,4.6])for(const z of[2.35,2.85])fb(x,x+.1,FL2,FL2+.35,z,z+.1,0x4a2e1a,.05);
+  teapot(4.1,FL2+.45,2.65);cup(3.8,FL2+.45,2.55);cup(4.4,FL2+.45,2.75);
+  cushion(3.1,2.65,FL2,0x8a2a2a);cushion(5.15,2.65,FL2,0x2a5a8a);
+  // chậu cây ở góc ban công
+  potPlant(-6.8,FL2,2.8,1.2);potPlant(6.8,FL2,2.8,1.2);potPlant(-6.8,FL2,-3.3,1.2);potPlant(6.8,FL2,-3.3,1.2);
+  // đèn lồng treo dưới mái trên (ban công)
+  chochin(-4.5,RY2,3.0,.26,.5);chochin(0,RY2,3.0,.3,.5);chochin(4.5,RY2,3.0,.26,.5);
+  chochin(-6.8,RY2,-.5,.24,.5);chochin(6.8,RY2,-.5,.24,.5);
+
+  // ================= NOREN + ĐÈN LỒNG HIÊN TẦNG 1 =================
   for(const sx of[-1,1]){
     const x0=sx>0?1.6:-2.4,x1=sx>0?2.4:-1.6,cx=sx>0?2.0:-2.0;
     fp(x0,x1,1.4,3.3,2.8,2.9,.1,(x,y)=>{
@@ -152,30 +318,193 @@ function buildHouse(hx,hz){
       if(Math.hypot(x-cx,y-2.5)<.24)return 0xc0202a;
       return 0xf2f0ea;
     });
-    const lx=sx*3.0;
-    fb(lx-.15,lx+.15,2.65,3.05,3.45,3.75,(i,j,k)=>(j===0||j===3)?DARK:0xffc860,.1);
-    fb(lx-.025,lx+.025,3.05,RY,3.575,3.625,DARK,.05);
+    chochin(sx*3.0,RY,3.6,.28,.3);
+    chochin(sx*5.4,RY,3.6,.24,.3);
   }
 
-  // ================= BIỂN HIỆU: LOGO + POWERED BY RLNC (trước nhà, bên trái) =================
+  // ================= BIỂN HIỆU: LOGO + POWERED BY RLNC =================
   fb(-6.8,-6.6,0,2.75,5.1,5.3,PLANK[1],.1);fb(-4.4,-4.2,0,2.75,5.1,5.3,PLANK[1],.1);
   fp(-6.8,-4.2,.85,2.75,5.15,5.25,.1,(x,y,z,i,j)=>(i<2||i>=24||j<2||j>=17)?POST:0x2b1c12);
   logo(v,-5.5,2.1,5.35,2.2,false);
   text(v,'POWERED',-5.5,1.38,5.261,.05,0xffffff);
   text(v,'BY RLNC',-5.5,1.03,5.261,.05,0xffffff);
-  // biển logo mặt sau
   fp(-1.8,1.8,1.3,3.2,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=34||j<2||j>=17)?POST:0x2b1c12);
   logo(v,0,2.25,-3.25-.18,3.0,true);
 
-  // ================= NỘI THẤT NHỎ (nhìn thấy qua cửa mở) =================
-  fb(-1.0,1.0,1.25,1.375,-1.75,-.75,0x5a3a20,.125);                                   // bàn thấp
-  for(const x of[-1.0,.875])for(const z of[-1.75,-.875])fb(x,x+.125,1.0,1.25,z,z+.125,0x3a2412,.125);
-  fb(-.125,.125,1.375,1.625,-1.375,-1.125,0xffd070,.125);                             // đèn bàn
-  fb(-2.0,-1.25,1.0,1.125,-1.5,-.75,0x8a2a2a,.125);fb(1.25,2.0,1.0,1.125,-1.5,-.75,0x8a2a2a,.125); // đệm ngồi
+  // ====================================================================
+  // ================= NỘI THẤT TẦNG 1 (mặt chiếu y = 1.0) ==============
+  // ====================================================================
+  // --- thảm giữa phòng ---
+  fp(-2.25,2.25,GF,GF+.0625,-2.5,.5,.0625,(x,y,z,i,j,k)=>{
+    const a=Math.min(x+2.25,2.25-x,z+2.5,.5-z);
+    if(a<.06)return 0x2a1a10;
+    if(a<.14)return 0xc9a227;
+    if(a<.3)return 0x6a1f1f;
+    return (((i>>3)+(k>>3))&1)?0x8a2f2f:0x7a2626;
+  });
+  // --- bàn trà thấp + đệm ngồi + bộ ấm chén + đèn bàn ---
+  fp(-1.25,1.25,1.25,1.375,-1.75,-.75,.125,(x,y,z,i,j,k)=>(i===0||i===19||k===0||k===7)?0x3a2412:0x7a4a2a);
+  for(const x of[-1.2,1.075])for(const z of[-1.7,-.875])fb(x,x+.125,GF,1.25,z,z+.125,0x3a2412,.125);
+  cushion(-1.95,-1.1,GF,0x8a2a2a);cushion(1.95,-1.1,GF,0x8a2a2a);
+  cushion(0,.05,GF,0x2a4a7a);cushion(0,-2.4,GF,0x2a4a7a);
+  fb(-.55,.15,1.375,1.4,-1.5,-1.0,0x2a2018,.025);                       // khay
+  teapot(-.25,1.4,-1.25);cup(.0,1.4,-1.38);cup(.0,1.4,-1.12);
+  fb(.45,.8,1.375,1.425,-1.4,-1.1,0xf2efe6,.05);                         // đĩa bánh
+  ell(.55,1.46,-1.25,.06,.04,.06,0xf4b6c8,.02);ell(.68,1.46,-1.25,.06,.04,.06,0xc8e0a8,.02);
+  andon(1.0,-1.55,1.375,.3,.125,true);                                   // đèn bàn nhỏ phát sáng
+  // --- kotatsu bên phải: chăn đỏ, mặt bàn, cam, laptop, 4 đệm ---
+  fb(2.625,4.875,GF,1.375,-.625,1.625,(i,j,k)=>j===0?0x6a1f1f:((((i>>1)+(k>>1))&1)?0x9c2f2f:0xb04141),.125);
+  fb(2.75,4.75,1.375,1.5,-.5,1.5,(i,j,k)=>(i===0||i===15||k===0||k===15)?0x6b4a2e:0xb98a56,.125);
+  fb(3.15,3.65,1.5,1.53,.05,.35,0xd9d2c0,.05);
+  ell(3.4,1.58,.2,.17,.07,.17,0xd9d2c0,.03);
+  ell(3.34,1.66,.17,.06,.06,.06,0xff8a1f,.02);ell(3.46,1.66,.22,.06,.06,.06,0xff8a1f,.02);ell(3.4,1.7,.2,.06,.06,.06,0xff9a2f,.02);
+  fb(3.95,4.45,1.5,1.55,.55,.95,0x8a8d95,.05);                           // laptop (đế)
+  fb(3.95,4.45,1.55,1.95,.5,.55,0x1a1a20,.05);                           // màn hình
+  fb(3.975,4.425,1.6,1.9,.55,.575,(i,j,k)=>(j%3===1)?0x7fd0ff:0x14243a,.025);
+  cushion(3.75,-1.1,GF,0x2a5a4a);cushion(3.75,2.0,GF,0x2a5a4a);cushion(5.4,.5,GF,0x6a3a8a);cushion(2.05,.5,GF,0x6a3a8a);
+  andon(3.2,1.2,1.5,.3,.125,false);
+  // --- bếp dọc tường sau bên phải ---
+  fp(2.5,6.0,GF,2.0,-3.0,-2.25,.125,(x,y,z,i,j,k)=>(i%7===0||j===0||j===7)?0x3a2412:WD(i,j,k));
+  fp(2.5,6.0,2.0,2.125,-3.0,-2.125,.125,(x,y,z)=>(x>3.0&&x<4.0&&z>-2.9&&z<-2.3)?0x6c7a86:0xd8d4c8);   // mặt đá + chậu rửa
+  fb(3.45,3.55,2.125,2.5,-2.85,-2.75,0xb8c0c8,.05);fb(3.45,3.55,2.45,2.5,-2.85,-2.55,0xb8c0c8,.05);  // vòi nước
+  fb(4.8,5.8,2.125,2.225,-2.9,-2.3,0x1e1e22,.1);                         // bếp
+  fb(4.95,5.15,2.225,2.25,-2.7,-2.5,0x8a2a1a,.025);fb(5.45,5.65,2.225,2.25,-2.7,-2.5,0x8a2a1a,.025);
+  ell(5.05,2.4,-2.6,.2,.17,.2,0x707880,.05);fb(4.95,5.15,2.55,2.6,-2.7,-2.5,0x5a6068,.05);            // nồi + nắp
+  ell(5.55,2.38,-2.6,.16,.15,.16,0x2f6a58,.04);fb(5.7,5.85,2.35,2.45,-2.62,-2.58,0x2f6a58,.04);       // ấm
+  ell(5.05,2.75,-2.6,.07,.05,.07,0xf4f6f8,.03);ell(5.1,2.9,-2.58,.06,.05,.06,0xf4f6f8,.03);ell(5.0,3.02,-2.62,.05,.04,.05,0xf4f6f8,.03);   // hơi nước
+  fb(2.5,6.0,2.75,2.875,-3.0,-2.625,WD,.125);                            // kệ treo
+  for(let i=0;i<7;i++)fb(2.75+i*.45-.1,2.75+i*.45+.1,2.875,3.125,-2.9,-2.7,[0xc9a227,0x8a2f2f,0xd9d2c0,0x2f7a4f,0x2f5a8a,0xb5651d,0xd9d2c0][i],.05);   // lọ gia vị
+  // --- tansu (tủ ngăn kéo) + mèo thần tài + tranh núi Phú Sĩ ---
+  fp(-6.25,-5.5,GF,2.375,-1.25,.5,.125,(x,y,z,i,j,k)=>{
+    if(j%3===0&&j>0)return 0x2a1a10;
+    if(j%3===1&&(k%7===3||k%7===4))return 0xb08a3a;
+    return WD(i,j,k);
+  });
+  ell(-5.85,2.52,-.4,.12,.15,.1,0xf4f0e6,.03);ell(-5.85,2.72,-.4,.1,.09,.09,0xf4f0e6,.03);
+  fb(-5.95,-5.9,2.78,2.86,-.5,-.46,0xf4f0e6,.02);fb(-5.8,-5.75,2.78,2.86,-.34,-.3,0xf4f0e6,.02);
+  fb(-5.78,-5.72,2.6,2.66,-.5,-.3,0xc0202a,.02);fb(-5.72,-5.68,2.62,2.74,-.52,-.46,0xf4f0e6,.02);
+  fb(-5.76,-5.72,2.5,2.58,-.52,-.46,0xe0b030,.02);
+  fp(-6.25,-6.2,2.55,3.2,-1.0,.2,.05,(x,y,z,i,j,k)=>{
+    if(j===0||j===12||k===0||k===23)return DARK;
+    const my=2.6+Math.max(0,.4-Math.abs(z+.4)*.6);
+    if(y<my)return y>my-.08?0xffffff:0x4a6a8a;
+    if(Math.hypot(z+.15,y-3.05)<.1)return 0xc0202a;
+    return 0xcfe3f0;
+  });
+  // --- kệ sách tường trái phía trước ---
+  fp(-6.25,-5.75,GF,2.75,.75,2.25,.125,shelfFn(14,12));
+  // --- bình phong 3 cánh (byobu) ---
+  for(let p=0;p<3;p++){
+    const bx=-4.9+p*.75,bz=(p&1)?-.75:-.95;
+    fp(bx,bx+.75,GF,2.5,bz,bz+.0625,.0625,(x,y,z,i,j)=>{
+      if(i<1||i>10||j<1||j>22)return 0x3a2412;
+      const hh=.6+.25*Math.sin((x+p)*5);
+      if(y-GF<hh)return (y-GF)>hh-.06?0xe8f0f0:0x3f5a46;
+      if(Math.hypot(x-(bx+.4),y-2.1)<.14)return 0xc0202a;
+      return 0xd9b25a;
+    });
+  }
+  // --- bonsai trên bệ ---
+  fb(-5.4,-4.6,1.45,1.5,1.65,2.45,WD,.05);
+  for(const x of[-5.4,-4.65])for(const z of[1.65,2.4])fb(x,x+.05,GF,1.45,z,z+.05,0x4a2e1a,.05);
+  fb(-5.2,-4.8,1.5,1.62,1.85,2.25,0x5a6a7a,.04);
+  fb(-5.02,-4.98,1.62,1.9,2.03,2.07,0x5a3a22,.02);fb(-5.0,-4.9,1.78,1.9,2.03,2.07,0x5a3a22,.02);
+  ell(-5.0,2.0,2.05,.18,.1,.16,LEAF,.03);ell(-4.88,2.1,2.05,.12,.08,.12,LEAF,.03);ell(-5.08,2.12,2.0,.1,.07,.1,LEAF,.03);
+  ell(-4.95,2.18,2.08,.04,.03,.04,0xf08cbc,.02);ell(-5.1,2.05,2.12,.04,.03,.04,0xf08cbc,.02);
+  // --- tranh thư pháp + bàn hoa (tokonoma nhỏ) ---
+  fp(-3.9,-3.1,1.7,2.9,2.4,2.5,.05,(x,y,z,i,j,k)=>{
+    if(i<2||i>=14||j<2||j>=22)return 0x2a1a10;
+    const dx=x+3.5,dy=y-2.3;
+    if((Math.abs(dx)<.12&&Math.abs(dy)<.42&&((i+j*3)%5<2))||(Math.hypot(dx-.03,dy+.5)<.1))return 0x1a1a1a;
+    return 0xe8dcb8;
+  });
+  fb(-3.9,-3.1,1.4,1.45,1.9,2.4,WD,.05);
+  for(const x of[-3.88,-3.17])for(const z of[1.92,2.33])fb(x,x+.05,GF,1.4,z,z+.05,0x4a2e1a,.05);
+  ell(-3.5,1.58,2.15,.07,.13,.07,0x1f4f7a,.025);
+  fb(-3.52,-3.48,1.7,1.95,2.13,2.17,0x3f7a3f,.02);fb(-3.44,-3.4,1.7,1.9,2.15,2.19,0x3f7a3f,.02);
+  ell(-3.5,1.98,2.15,.07,.05,.07,0xe060a0,.025);ell(-3.42,1.93,2.17,.06,.05,.06,0xf08cbc,.025);
+  // --- đèn đứng cạnh cửa ---
+  andon(-2.2,2.1,GF,.8,.25,false);
+  // --- kệ giày + guốc ở lối vào ---
+  fp(1.4,2.4,GF,1.5,2.125,2.5,.125,(x,y,z,i,j,k)=>(j%3===0||i===0||i===7)?WD(i,j,k):-1);
+  fb(1.5,1.7,1.125,1.2,2.25,2.45,0x2a2a30,.025);fb(1.8,2.0,1.125,1.2,2.25,2.45,0x2a2a30,.025);
+  fb(1.5,1.7,1.375,1.45,2.25,2.45,0xb5651d,.025);fb(1.8,2.0,1.375,1.45,2.25,2.45,0xb5651d,.025);
+  // --- tủ thấp bên phải gần cửa + bình hoa ---
+  fp(5.5,6.25,GF,1.75,1.25,2.375,.125,(x,y,z,i,j,k)=>(j===0||j===5||k%4===0)?0x3a2412:WD(i,j,k));
+  ell(5.9,1.95,1.8,.09,.17,.09,0xd9d2c0,.03);
+  fb(5.88,5.92,2.05,2.5,1.78,1.82,0x3f7a3f,.02);ell(5.9,2.55,1.8,.1,.07,.1,0xf08cbc,.03);ell(5.95,2.45,1.85,.07,.05,.07,0xffd25a,.025);
+  // --- ĐÈN TREO TẦNG 1 ---
+  chochin(0,WT,-1.25,.3,.25,true);                // trên bàn trà
+  chochin(3.75,WT,.5,.28,.25,true);               // trên kotatsu
+  chochin(-3.6,WT,1.2,.26,.25);
+  pendant(4.2,WT,-2.0,.25,.45,.25);               // trên bếp
+  pendant(0,WT,1.5,.22,.4,.25);                   // gần cửa
+  chochin(-.5,WT,-2.4,.22,.25);
 
-  // ================= ĐÈN ĐÁ (ishidoro) + CÂY CỎ =================
+  // ====================================================================
+  // ================= NỘI THẤT TẦNG 2 (mặt sàn y = 4.75) ===============
+  // ====================================================================
+  // --- thảm giữa ---
+  fp(-2.0,2.5,FL2,FL2+.0625,-.9,1.1,.0625,(x,y,z,i,j,k)=>{
+    const a=Math.min(x+2.0,2.5-x,z+.9,1.1-z);
+    if(a<.06)return 0x1a2230;
+    if(a<.14)return 0xd9d2c0;
+    if(a<.3)return 0x2c4a6e;
+    return (((i>>3)+(k>>3))&1)?0x35577f:0x2f4f78;
+  });
+  // --- bàn thấp + đệm + trà ---
+  fp(-.5,1.0,FL2+.375,FL2+.5,-.4,.6,.125,(x,y,z,i,j,k)=>(i===0||i===11||k===0||k===7)?0x3a2412:0xb98a56);
+  for(const x of[-.45,.875])for(const z of[-.35,.475])fb(x,x+.125,FL2,FL2+.375,z,z+.125,0x4a2e1a,.125);
+  cushion(-.85,.1,FL2,0x8a2a2a);cushion(1.6,.1,FL2,0x8a2a2a);cushion(.25,1.0,FL2,0x2a5a4a);
+  teapot(.1,FL2+.5,.1);cup(.4,FL2+.5,.0);cup(.4,FL2+.5,.25);
+  fb(.6,.9,FL2+.5,FL2+.525,-.2,.2,0xf2efe6,.025);ell(.75,FL2+.56,0,.07,.05,.07,0xf4b6c8,.02);
+  // --- bàn làm việc: 2 màn hình, bàn phím, chuột, đèn bàn, cốc ---
+  fb(-1.5,2.0,FL2+.75,FL2+.875,-2.5,-1.75,0x946238,.125);
+  fb(-1.5,-1.375,FL2,FL2+.75,-2.5,-1.75,0x6b4a2e,.125);fb(1.875,2.0,FL2,FL2+.75,-2.5,-1.75,0x6b4a2e,.125);
+  fb(1.0,1.875,FL2,FL2+.75,-2.5,-1.75,(i,j,k)=>(j===3||j===0)?0x3a2412:WD(i,j,k),.125);
+  monitor(-.55,-2.2,FL2+.875);monitor(.65,-2.2,FL2+.875);
+  fb(-.45,.35,FL2+.875,FL2+.9,-2.05,-1.85,0x2a2a30,.025);                 // bàn phím
+  fb(.5,.6,FL2+.875,FL2+.9,-2.0,-1.9,0xdddddd,.025);                      // chuột
+  fb(1.0,1.1,FL2+.875,FL2+.975,-2.3,-2.2,0xc0392b,.025);                  // cốc
+  fb(1.5,1.7,FL2+.875,FL2+.9,-2.4,-2.2,0x2a2a30,.025);
+  fb(1.575,1.625,FL2+.9,FL2+1.3,-2.325,-2.275,0x2a2a30,.025);
+  fb(1.45,1.75,FL2+1.3,FL2+1.4,-2.45,-2.15,GLOW3,.05);                    // đèn bàn sáng
+  lamps.push({x:1.6,y:FL2+1.3,z:-2.3,s:1.3,light:false});
+  // ghế xoay
+  fb(0,.5,FL2+.45,FL2+.55,-1.3,-.8,0x2a3a55,.05);fb(0,.5,FL2+.55,FL2+1.1,-1.3,-1.2,0x2a3a55,.05);
+  fb(.2,.3,FL2+.1,FL2+.45,-1.1,-1.0,0x2a2a30,.05);
+  fb(.05,.45,FL2,FL2+.05,-1.05,-1.0,0x2a2a30,.05);fb(.23,.28,FL2,FL2+.05,-1.25,-.85,0x2a2a30,.05);
+  // --- giường futon + gối + chăn + tủ đầu giường + đèn ngủ ---
+  fb(3.0,5.5,FL2,FL2+.25,-2.5,-.5,WD,.125);
+  fb(3.05,5.45,FL2+.25,FL2+.45,-2.45,-.55,0xf0ece0,.05);
+  fb(3.6,4.9,FL2+.45,FL2+.6,-2.4,-1.9,0xffffff,.05);
+  fb(3.05,5.45,FL2+.45,FL2+.55,-1.85,-.55,(i,j,k)=>((i>>2)&1)?0x2f7a8a:0xe8f0f0,.05);
+  fb(2.35,2.95,FL2,FL2+.45,-2.45,-1.85,WD,.05);
+  fb(2.35,2.95,FL2+.45,FL2+.5,-2.45,-1.85,0x6b4a2e,.05);
+  andon(2.65,-2.15,FL2+.5,.3,.125,true);
+  // --- kệ sách tường trái ---
+  fp(-5.75,-5.25,FL2,FL2+2.0,-.75,1.5,.125,shelfFn(16,18));
+  // --- sofa thấp + logo Infinity trên tường ---
+  fb(-5.2,-3.2,FL2+.1,FL2+.4,.8,1.7,0x3a4a5a,.1);
+  fb(-5.2,-3.2,FL2+.4,FL2+.9,1.55,1.7,0x34445a,.05);
+  fb(-5.2,-5.0,FL2+.4,FL2+.65,.8,1.55,0x2f3f54,.05);fb(-3.4,-3.2,FL2+.4,FL2+.65,.8,1.55,0x2f3f54,.05);
+  for(const x of[-5.15,-3.25])for(const z of[.85,1.6])fb(x,x+.05,FL2,FL2+.1,z,z+.05,0x2a1a10,.05);
+  cushion(-4.6,1.15,FL2+.4,0xc9a227,.2);cushion(-3.8,1.15,FL2+.4,0x8a2f2f,.2);
+  logo(v,-4.1,6.2,1.62,1.8,true);
+  // --- tủ thấp + cây cạnh cửa sổ phải ---
+  fp(5.25,5.75,FL2,FL2+.5,-.25,1.0,.125,(x,y,z,i,j,k)=>(j===0||k%5===0)?0x3a2412:WD(i,j,k));
+  potPlant(5.5,FL2+.5,.4,.8);
+  potPlant(-4.8,FL2,-.4,1.1);
+  // --- ĐÈN TREO TẦNG 2 ---
+  chochin(.25,WT2,.1,.3,.25,true);
+  pendant(-4.0,WT2,.9,.25,.45,.25);
+  chochin(4.2,WT2,-1.3,.28,.25);
+  pendant(.4,WT2,-2.0,.2,.35,.25);
+
+  // ================= ĐÈN ĐÁ (ishidoro) + CÂY CỎ NGOÀI VƯỜN =================
   fb(4.7,5.3,0,.2,5.3,5.9,0x666666,.1);fb(4.9,5.1,.2,.8,5.5,5.7,0x777777,.1);
-  fb(4.8,5.2,.8,1.1,5.4,5.8,0xffd070,.1);fb(4.65,5.35,1.1,1.3,5.25,5.95,0x555555,.1);
+  fb(4.8,5.2,.8,1.1,5.4,5.8,GLOW2,.1);fb(4.65,5.35,1.1,1.3,5.25,5.95,0x555555,.1);
+  lamps.push({x:5.0,y:.95,z:5.6,s:1.4,light:false});
   const G=GRN(0x4f8a4a,0x6aa85d,0x3d7a3f),L=GRN(0x8a6fc9,0xa88be0,0x7658b5),P=GRN(0xe060a0,0xf08cbc,0xc84c88);
   v.ell(-8.1,.3,3.6,.6,.35,.5,G,.1);v.ell(-8.3,.22,2.6,.45,.22,.4,L,.1);
   v.ell(8.1,.3,3.8,.6,.35,.5,G,.1);v.ell(8.3,.22,2.7,.45,.22,.4,P,.1);
@@ -184,23 +513,79 @@ function buildHouse(hx,hz){
 
   const m=v.mesh();m.position.set(hx,0,hz);S.add(m);meshes.push(m);
 
+  // ================= QUẦNG SÁNG + ÁNH SÁNG VÀNG =================
+  try{
+    if(typeof THREE!=='undefined'){
+      const tex=glowTex();
+      for(const l of lamps){
+        const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));
+        sp.scale.set(l.s,l.s,1);sp.position.set(hx+l.x,l.y,hz+l.z);S.add(sp);prevObjs.push(sp);
+        if(GLOW_LIGHTS&&l.light){
+          const pl=new THREE.PointLight(0xffc860,1.0,9,2);
+          pl.position.set(hx+l.x,l.y-.1,hz+l.z);S.add(pl);prevObjs.push(pl);
+        }
+      }
+    }
+  }catch(e){}
+
   // ================= VA CHẠM =================
-  const cb=(x0,x1,y0,y1,z0,z1)=>boxes.push({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1});
+  const cb=(x0,x1,y0,y1,z0,z1)=>{if(x1<=x0||y1<=y0||z1<=z0)return;boxes.push({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1})};
+  const cbHole=(x0,x1,y0,y1,z0,z1)=>{          // hộp va chạm có khoét giếng thang
+    if(x1<=H.x0||x0>=H.x1||z1<=H.z0||z0>=H.z1)return cb(x0,x1,y0,y1,z0,z1);
+    cb(x0,H.x0,y0,y1,z0,z1);cb(H.x1,x1,y0,y1,z0,z1);
+    cb(Math.max(x0,H.x0),Math.min(x1,H.x1),y0,y1,z0,H.z0);cb(Math.max(x0,H.x0),Math.min(x1,H.x1),y0,y1,H.z1,z1);
+  };
   cb(-7.5,7.5,0,.75,-3.75,4.5);                          // móng đá
-  cb(-1.75,1.75,0,.25,4.5,5.5);cb(-1.5,1.5,0,.5,4.5,5.0); // bậc thang
+  cb(-1.75,1.75,0,.25,4.5,5.5);cb(-1.5,1.5,0,.5,4.5,5.0); // bậc thang ngoài
   cb(-7,7,0,FL,-3.5,4.0);                                // sàn hiên
-  cb(-6.25,6.25,0,FL+.125,-3.0,2.5);                     // chiếu tatami
-  cb(-6.5,-1.25,FL,WT,2.5,2.75);cb(1.25,6.5,FL,WT,2.5,2.75);cb(-1.25,1.25,2.75,WT,2.5,2.75); // tường trước (chừa cửa)
-  cb(-6.5,6.5,FL,WT,-3.25,-3.0);                         // tường sau
-  cb(-6.5,-6.25,FL,WT,-3.25,2.75);cb(6.25,6.5,FL,WT,-3.25,2.75); // hai hông
+  cb(-6.25,6.25,0,GF,-3.0,2.5);                          // chiếu tatami
+  // tường tầng 1
+  cb(-6.5,-1.25,FL,WT,2.5,2.75);cb(1.25,6.5,FL,WT,2.5,2.75);cb(-1.25,1.25,2.75,WT,2.5,2.75);
+  cb(-6.5,6.5,FL,WT,-3.25,-3.0);
+  cb(-6.5,-6.25,FL,WT,-3.25,2.75);cb(6.25,6.5,FL,WT,-3.25,2.75);
+  // tường tầng 2
+  cb(-6,-1.25,FL2,WT2,1.75,2.0);cb(1.25,6,FL2,WT2,1.75,2.0);cb(-1.25,1.25,FL2+1.875,WT2,1.75,2.0);
+  cb(-6,6,FL2,WT2,-2.75,-2.5);
+  cb(-6,-5.75,FL2,WT2,-2.75,2.0);cb(5.75,6,FL2,WT2,-2.75,2.0);
   // các tường nhà làm vật che khuất cho occlusion culling (engine/occlusion.js đọc window.OccSrc)
-  (window.OccSrc=window.OccSrc||{}).house=[[-6.5,-1.25,FL,WT,2.5,2.75],[1.25,6.5,FL,WT,2.5,2.75],[-1.25,1.25,2.75,WT,2.5,2.75],[-6.5,6.5,FL,WT,-3.25,-3.0],[-6.5,-6.25,FL,WT,-3.25,2.75],[6.25,6.5,FL,WT,-3.25,2.75]]
+  (window.OccSrc=window.OccSrc||{}).house=[
+    [-6.5,-1.25,FL,WT,2.5,2.75],[1.25,6.5,FL,WT,2.5,2.75],[-1.25,1.25,2.75,WT,2.5,2.75],[-6.5,6.5,FL,WT,-3.25,-3.0],[-6.5,-6.25,FL,WT,-3.25,2.75],[6.25,6.5,FL,WT,-3.25,2.75],
+    [-6,-1.25,FL2,WT2,1.75,2.0],[1.25,6,FL2,WT2,1.75,2.0],[-1.25,1.25,FL2+1.875,WT2,1.75,2.0],[-6,6,FL2,WT2,-2.75,-2.5],[-6,-5.75,FL2,WT2,-2.75,2.0],[5.75,6,FL2,WT2,-2.75,2.0]]
     .map(([x0,x1,y0,y1,z0,z1])=>({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1}));
-  cb(-6.75,6.75,WT,RY,-3.5,3.0);                         // dầm / trần
-  cb(-8.5,8.5,RY,RY+.5,RZ-4.75,RZ+4.75);                 // mép mái
-  cb(-1,1,FL+.125,1.375,-1.75,-.75);                     // bàn
-  cb(-7,-1.75,FL,FL+1,3.875,4.0);cb(1.75,7,FL,FL+1,3.875,4.0);   // lan can trước
-  cb(6.875,7,FL,FL+1,2.75,4.0);cb(-7,-6.875,FL,FL+1,2.75,4.0);   // lan can hông
+  // trần tầng 1 + mái dưới + sàn tầng 2 (khoét giếng thang)
+  cbHole(-6.75,6.75,WT,RY,-3.5,3.0);
+  cbHole(-8.5,8.5,RY,RY+.5,RZ-4.75,RZ+4.75);
+  cbHole(-8,8,RY+.5,RY+1.0,RZ-4.25,RZ+4.25);
+  cbHole(-7.25,7.25,RY+1.0,FL2,-3.75,3.25);
+  cb(-6.25,6.25,WT2,RY2,-3.0,2.25);                      // trần tầng 2
+  cb(-8,8,RY2,RY2+.5,RZ2-4.25,RZ2+4.25);                 // mép mái trên
+  // cầu thang
+  for(let n=0;n<15;n++)cb(H.x0+.25*n,H.x0+.25*(n+1),GF,GF+.25*(n+1),H.z0,H.z1);
+  // lan can hiên tầng 1
+  cb(-7,-1.75,FL,FL+1,3.875,4.0);cb(1.75,7,FL,FL+1,3.875,4.0);
+  cb(6.875,7,FL,FL+1,2.75,4.0);cb(-7,-6.875,FL,FL+1,2.75,4.0);
+  // lan can ban công tầng 2 + giếng thang
+  cb(-7.25,7.25,FL2,FL2+1,3.125,3.25);cb(-7.25,7.25,FL2,FL2+1,-3.75,-3.625);
+  cb(7.125,7.25,FL2,FL2+1,-3.75,3.25);cb(-7.25,-7.125,FL2,FL2+1,-3.75,3.25);
+  cb(-5.75,-2.5,FL2,FL2+1,-1.625,-1.5);
+  // nội thất tầng 1
+  cb(-1.25,1.25,GF,1.375,-1.75,-.75);                    // bàn trà
+  cb(2.625,4.875,GF,1.5,-.625,1.625);                    // kotatsu
+  cb(2.5,6.0,GF,2.125,-3.0,-2.125);                      // bếp
+  cb(-6.25,-5.5,GF,2.375,-1.25,.5);                      // tansu
+  cb(-6.25,-5.75,GF,2.75,.75,2.25);                      // kệ sách
+  cb(5.5,6.25,GF,1.75,1.25,2.375);                       // tủ thấp
+  cb(1.4,2.4,GF,1.5,2.125,2.5);                          // kệ giày
+  cb(-5.4,-4.6,GF,1.5,1.65,2.45);                        // bệ bonsai
+  // nội thất tầng 2
+  cb(-1.5,2.0,FL2,FL2+.9,-2.5,-1.75);                    // bàn làm việc
+  cb(3.0,5.5,FL2,FL2+.55,-2.5,-.5);                      // giường
+  cb(2.35,2.95,FL2,FL2+.5,-2.45,-1.85);                  // tủ đầu giường
+  cb(-5.75,-5.25,FL2,FL2+2.0,-.75,1.5);                  // kệ sách
+  cb(-.5,1.0,FL2,FL2+.5,-.4,.6);                         // bàn thấp
+  cb(-5.2,-3.2,FL2,FL2+.9,.8,1.75);                      // sofa
+  cb(5.25,5.75,FL2,FL2+.5,-.25,1.0);                     // tủ thấp
+  // đồ ngoài
   cb(-6.8,-4.2,0,2.75,5.1,5.3);                          // biển hiệu
   cb(4.65,5.35,0,1.3,5.25,5.95);                         // đèn đá
 }
