@@ -8,7 +8,7 @@
 // Nạp SAU items.js / viewmodel.js (dùng showMsg, UG, M, spawnPart). boss.js gọi Engrave.grant(tầng) khi hạ boss; main.js gọi Engrave.reset() khi chơi lại.
 (function(){
 const CFG={
-  db:'',          // <<< DÁN ĐỊA CHỈ FIREBASE REALTIME DATABASE VÀO ĐÂY, vd 'https://ten-du-an-default-rtdb.firebaseio.com'
+  db:'https://from0tohero-default-rtdb.asia-southeast1.firebasedatabase.app',  
   path:'engravings',
   reach:8,        // tầm nhìn tối đa tới tường (m)
   hM:1.7,         // chiều cao bảng tên (m), gồm cả dòng chữ nhỏ
