@@ -3,7 +3,7 @@ let deadT=0,stepD=0,pg=true;   // deadT: 0->1 hoạt ảnh ngã xuống khi hế
 function hurt(n){P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;setTimeout(()=>$('hurt').style.opacity=0,120);
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
-function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
+function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
 // ---- Đồng hồ FPS ở góc trái dưới màn hình: xanh = mượt, vàng = trung bình, đỏ = giật lag. Chỉnh ngưỡng ở FPSC ----
 const FPSC={good:50,mid:30,every:.5};   // >= good: xanh · >= mid: vàng · thấp hơn: đỏ · every: giây giữa 2 lần cập nhật số
 const fpsEl=document.createElement('div');fpsEl.id='fps';fpsEl.className='pill';
@@ -39,6 +39,7 @@ function frame(now){
     P.vy-=22*dt;
     const px0=P.x,pz0=P.z,vy0=P.vy;
     move(P,vx*dt,P.vy*dt,vz*dt);
+    {const fd=fallDmg(P);if(fd>0)playerFall(fd)}   // rơi từ trên cao xuống thì mất máu (gameplay/fall.js)
     // tiếng bước chân theo quãng đường thực đi (lội nước thì tiếng bì bõm); rơi xuống đất có tiếng thịch
     {const wd=window.Nature&&Nature.wading;
       if(P.ground&&slideT<=0){stepD+=Math.hypot(P.x-px0,P.z-pz0);if(stepD>=(wd?1.4:1.9)){stepD=0;if(wd)wadeSnd();else stepSnd()}}
@@ -51,13 +52,14 @@ function frame(now){
     for(const b of bots){
       if(b.ally)continue;      // đồng minh do ally.js điều khiển
       if(!b.on){b.g.visible=false;continue}
-      if(b.hp>0&&(b.y<curFl*FH-4||b.y>curFl*FH+5)){spawnBot(b);continue}
+      if(b.hp>0&&(b.y<curFl*FH-4||b.y>curFl*FH+12)){spawnBot(b);continue}   // +12: bot được phép leo lên mặt tường thành (cao 7m)
       if(b.hp<=0)continue;      // bot chết được tái sử dụng bởi bộ sinh quái (tickSpawn)
       const dx=P.x-b.x,dz=P.z-b.z,d=Math.hypot(dx,dz);let mv=0;
       // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
       if(!dead&&d<P.r+b.r&&Math.abs(P.y-b.y)<1.6){const o=P.r+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}
       b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
       else if(!dead&&Math.abs(P.y-b.y)<1.5)hurt(28*dt);
+      if(fallBot(b))continue;   // bot / boss rơi từ trên cao cũng mất máu
       b.mv+=(mv-b.mv)*Math.min(1,dt*8);{const s0=Math.sin(b.t);b.t+=dt*11*b.mv;if(b.mv>.5&&s0*Math.sin(b.t)<0&&d<14){if(b.sw)snd(280+Math.random()*140,.14,'sine',.05,b.g.position);else botStepSnd(b.g.position,b.boss)}}
       const sw=Math.sin(b.t)*.95*b.mv;b.lL.rotation.x=sw;b.lR.rotation.x=-sw;b.aL.rotation.x=-sw*.8;b.aR.rotation.x=sw*.8;
       b.g.position.set(b.x,b.y+Math.abs(Math.sin(b.t))*.07*b.mv,b.z);{const ty=b.hdUse?b.hd:Math.atan2(dx,dz);if(b.ry===undefined)b.ry=ty;let da=ty-b.ry;da=Math.atan2(Math.sin(da),Math.cos(da));b.ry+=da*Math.min(1,dt*10);b.g.rotation.y=b.ry}   // quay mượt: gần thì nhìn người chơi, xa / đi cầu thì nhìn theo hướng đi
