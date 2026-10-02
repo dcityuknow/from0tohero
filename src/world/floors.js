@@ -27,11 +27,13 @@ const FM=(function(){
     const R=rec[key];if(!R)return;delete rec[key];
     const keep=UGs();
     for(const o of R.sc){
-      o.traverse(c=>{const g=c.geometry;if(g&&!keep.includes(g))g.dispose()});
+      o.traverse(c=>{const g=c.geometry;if(g&&!keep.includes(g))g.dispose();
+        if(c.isInstancedMesh&&c.dispose)c.dispose();   // giải phóng buffer instance (mặt hồ)
+        const mt=c.material;if(mt)for(const q of(Array.isArray(mt)?mt:[mt]))if(q.map&&q.map._own)q.map.dispose()});   // texture nhân bản riêng của tầng (không đụng texture dùng chung)
       o.parent=null;o.dispatchEvent({type:'removed'});
     }
     S.children=S.children.filter(o=>!R.sc.has(o));
-    compact(meshes,R.m);compact(boxes,R.b);
+    compact(meshes,R.m);compact(boxes,R.b);if(window.BXG)BXG.dirty();   // boxes bị sửa tại chỗ -> lưới va chạm (physics.js) phải dựng lại
   }
 
   // ---- bộ đồ trang trí của tầng 1 (nhà, chòi, tượng, bàn trà): dựng lại bằng chính các hàm build() của chúng ----

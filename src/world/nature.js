@@ -46,6 +46,7 @@ const CFG={
 const SLT=typeof SLAB==='number'?SLAB:1;   // độ dày sàn tầng 2-4 (level.js)
 const V=s=>s/CFG.quality;
 const TV=s=>s/(CFG.quality*CFG.treeDetail);   // như V nhưng riêng cho cây
+const WC=2;   // cỡ ô của bản đồ 'gần nước' (m)
 const CELL=.5,ck=(ci,cj)=>(ci+600)*2048+(cj+600);   // lưới ô của hồ căn theo tọa độ thế giới (ô .5m)
 const clamp01=x=>x<0?0:x>1?1:x;
 const smooth=t=>t*t*(3-2*t);
@@ -301,7 +302,7 @@ function carve(Fl,f,y0){   // cắt lỗ trên sàn ở chỗ có hồ
   }
   // tầng 2-4: sàn là các tấm dày 1m (level.js). Tấm nào có hồ -> dựng lại mặt trên có lỗ + cho va chạm bỏ qua ô hồ
   const cl=[];for(const l of Fl.lakes)if(l.cl)for(const c of l.cl)cl.push(c);
-  const tx=gridTex().clone();tx.needsUpdate=true;tx.repeat.set(.5,.5);
+  const tx=gridTex().clone();tx.needsUpdate=true;tx.repeat.set(.5,.5);tx._own=true;   // _own: floors.js giải phóng texture này khi dỡ tầng
   const topMat=new THREE.MeshLambertMaterial({map:tx});
   for(const b of boxes){
     if(Math.abs(b.y1-y0)>1e-6||Math.abs(b.y0-(y0-SLT))>1e-6)continue;
@@ -635,7 +636,8 @@ function buildFloor(f){
   const HS=.5,NH=Math.round(2*A/HS)+1,HG=new Float32Array(NH*NH),hz=(x,z)=>HG[Math.round((z+A)/HS)*NH+Math.round((x+A)/HS)];
   if(CFG.terrain&&CFG.hill>0){
     const rv=Fl.lakes[0],ph=[0,1,2,3].map(()=>rand()*6.283),
-      ob=boxes.filter(b=>b.y0>=y0-.05&&b.y0<y0+FH-3),
+      ob=boxes.filter(b=>b.y0>=y0-.05&&b.y0<y0+FH-3&&!b.gw),   // b.gw: các lát tường thành nhấp nhô (greatwall.js) - địa hình ở đó do GreatWall.ridge tạo
+     
       dR=(x,z,b)=>Math.hypot(Math.max(b.x0-x,0,x-b.x1),Math.max(b.z0-z,0,z-b.z1));
     for(let j=0;j<NH;j++)for(let i=0;i<NH;i++){
       const x=-A+i*HS,z=-A+j*HS;
@@ -646,6 +648,12 @@ function buildFloor(f){
       if(m<=0){HG[j*NH+i]=0;continue}
       const n=.5*Math.sin(x*.11+ph[0])*Math.sin(z*.10+ph[1])+.3*Math.sin(x*.19+z*.15+ph[2])+.2*Math.sin(x*.31-z*.26+ph[3]);   // sóng dài -> đồi rộng
       HG[j*NH+i]=CFG.hill*smooth(clamp01((n+.1)/1.0))*m;
+    }
+    if(window.GreatWall&&GreatWall.ridge&&GreatWall.floor===f){   // gò đất dưới chân Vạn Lý Trường Thành (world/greatwall.js): tường cao như nhau so với mặt đất nên nhấp nhô theo gò; xa sông thì giữ nguyên, gần sông thì hạ dần
+      for(let j=0;j<NH;j++)for(let i=0;i<NH;i++){
+        const x=-A+i*HS,z=-A+j*HS,r=GreatWall.ridge(x,z);
+        if(r>0)HG[j*NH+i]+=r*clamp01(((rv.rho(x,z)-1)*rv.rz-1.5)/3);
+      }
     }
     hAt=(x,z)=>{let u=(x+A)/HS,v=(z+A)/HS;const mx=NH-1.001;u=u<0?0:u>mx?mx:u;v=v<0?0:v>mx?mx:v;
       const i=u|0,j=v|0,fu=u-i,fv=v-j,a=HG[j*NH+i],b=HG[j*NH+i+1],c=HG[(j+1)*NH+i],e=HG[(j+1)*NH+i+1];
@@ -819,6 +827,12 @@ function buildFloor(f){
     if(f===0&&typeof grid!=='undefined'&&grid)grid.visible=false;   // bỏ lưới caro xám của tầng 1
   }
   carve(Fl,f,y0);   // đào hồ thật sự (sau khi mọi vật thể khác đã đặt xong)
+  // bản đồ thô (ô 2m) đánh dấu chỗ GẦN nước (<= ~3m quanh mép hồ). wetAt() gọi rất nhiều lần mỗi khung (AI bot), ở ô không đánh dấu thì trả lời ngay mà khỏi tính rho
+  {const NW=Math.ceil(2*A/WC)+1,wc=new Uint8Array(NW*NW);
+    for(const l of Fl.lakes){if(l.ice)continue;
+      for(let j=0;j<NW;j++)for(let i=0;i<NW;i++){if(wc[j*NW+i])continue;
+        if(l.rho(-A+(i+.5)*WC,-A+(j+.5)*WC)<1+3/l.rz)wc[j*NW+i]=1}}
+    Fl.wc=wc;Fl.wn=NW;Fl.wA=A}
   return Fl;
 }
 
@@ -1101,6 +1115,7 @@ function isWater(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
   return Fl.lakes.some(l=>l.rho(x,z)<1+(m||0)/l.rz)}
 // Có nước SÔNG (không tính băng) tại (x,z) không - trừ mặt cầu (đi trên cầu không phải là lội nước). Bot dùng để né sông / tìm cầu.
 function wetAt(f,x,z,m){const Fl=FL.find(q=>q.f===f);if(!Fl)return false;
+  if(Fl.wc&&(m||0)<=1.5){const i=Math.floor((x+Fl.wA)/WC),j=Math.floor((z+Fl.wA)/WC);if(i>=0&&j>=0&&i<Fl.wn&&j<Fl.wn&&!Fl.wc[j*Fl.wn+i])return false}   // xa nước (>3m) -> chắc chắn khô, khỏi tính
   const w=Fl.cells.has(ck(Math.floor(x/CELL),Math.floor(z/CELL)))||Fl.lakes.some(l=>!l.ice&&l.rho(x,z)<1+(m||0)/l.rz);
   if(w)for(const B of Fl.bridges){const q=B.along?x:z,ww=B.along?z:x;if(Math.abs(q-B.q)<1.55&&ww>B.wa&&ww<B.wb)return false}
   return w}

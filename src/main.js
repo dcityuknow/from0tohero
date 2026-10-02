@@ -1,6 +1,7 @@
 // Vòng lặp chính, nhận sát thương, chơi lại
 let deadT=0,stepD=0,pg=true;   // deadT: 0->1 hoạt ảnh ngã xuống khi hết máu
-function hurt(n){P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;setTimeout(()=>$('hurt').style.opacity=0,120);
+let hurtT=0;   // thời gian còn lại của vệt đỏ khi trúng đòn (thay cho setTimeout mỗi lần trúng: bot cận chiến gọi hurt() mỗi khung)
+function hurt(n){P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;hurtT=.12;
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
 function restart(){P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(spawnBot);resetLevel()}
@@ -18,10 +19,12 @@ function fpsTick(now){
   fpsEl.textContent='FPS '+Math.round(f);
   fpsEl.style.color=f>=FPSC.good?'#3dff7a':f>=FPSC.mid?'#ffd23f':'#ff4d5e';
 }
+const H={hp:-1,am:null,mg:null,gn:null,eHp:$('hp'),eAm:$('am'),eMg:$('mg'),eGn:$('gn')};   // bản sao giá trị HUD đã hiển thị
 let last=performance.now();
 function frame(now){
   requestAnimationFrame(frame);fpsTick(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(hurtT>0){hurtT-=dt;if(hurtT<=0)$('hurt').style.opacity=0}
   if(playing){
     cd-=dt;slideCd-=dt;gcd-=dt;tickThrow(dt);tickG(dt);tickRocks(dt);tickPickups(dt);
     if(rel>0){rel-=dt;if(rel<=0){const n=Math.min(W[cur].mag-ammos[cur],reserve[cur]);ammos[cur]+=n;reserve[cur]-=n}}
@@ -79,7 +82,12 @@ function frame(now){
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
   C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de);applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);
-  $('hp').style.width=P.hp+'%';const gr=cur==='grenade';$('am').textContent=gr?gren:rel>0?'…':ammos[cur];$('mg').textContent=gr?GMAX:reserve[cur];$('gn').textContent=gren;
+  {const gr=cur==='grenade';   // chỉ ghi vào DOM khi giá trị thật sự đổi (tránh dựng lại chữ / layout mỗi khung)
+    if(P.hp!==H.hp){H.hp=P.hp;H.eHp.style.width=P.hp+'%'}
+    const am=gr?gren:rel>0?'…':ammos[cur],mg=gr?GMAX:reserve[cur];
+    if(am!==H.am){H.am=am;H.eAm.textContent=am}
+    if(mg!==H.mg){H.mg=mg;H.eMg.textContent=mg}
+    if(gren!==H.gn){H.gn=gren;H.eGn.textContent=gren}}
   {const bg=S.background;   // lượt 1: thế giới · lượt 2: súng/tay vẽ đè lên (xóa depth, tắt background để không xóa hình lượt 1)
     C.layers.set(0);R.clear();R.render(S,C);
     if(vm.visible){C.layers.set(1);S.background=null;R.clearDepth();R.render(S,C);S.background=bg}

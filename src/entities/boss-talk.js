@@ -34,7 +34,7 @@ function talkTick(dt,bo){
   if(talkT<=0&&TALK.length){
     let i;do i=Math.floor(Math.random()*TALK.length);while(TALK.length>1&&i===lastTalk);lastTalk=i;
     talkT=99;const my=talkTok;                           // chờ câu thoại xong mới hiện
-    lineFor('boss',boss,TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(32,4+x.length*.1);talkT=talkShow+3+Math.random()*4});
+    lineFor('boss',boss,TALK[i]).then(x=>{if(my!==talkTok)return;tb.textContent=x;talkShow=Math.min(32,4+x.length*.1);talkT=talkShow+3+Math.random()*4}).catch(()=>{if(my===talkTok)talkT=3});   // lỗi -> thử lại sau 3s (trước đây boss im lặng mãi)
   }
 }
 const _tp=new THREE.Vector3();

@@ -5,6 +5,8 @@
 // - Dùng chung giữa người chơi qua FIREBASE REALTIME DATABASE (REST, không cần máy chủ): dán địa chỉ database vào CFG.db. Để trống = chỉ lưu localStorage (chỉ thấy trên máy này).
 //   Hướng dẫn tạo database + quy tắc bảo mật: README.md và firebase/database.rules.json.
 // - Hai người khắc cùng chỗ cùng lúc: bảng ghi lên Firebase TRƯỚC (theo giờ của Firebase) được giữ, bảng sau bị ẩn và người đó được trả lại lượt.
+// Hiệu năng: chỉ dựng bảng trong bán kính RB quanh người chơi (dựng dần, vài bảng mỗi khung) và giải phóng bảng ở xa (RK); đồng bộ Firebase chỉ tải phần MỚI
+// (tải đầy đủ lại mỗi CFG.fullEvery lần để thấy bảng bị xóa); bảng ghi lỗi mạng được giữ lại và gửi lại tới khi thành công (không mất lượt).
 // Nạp SAU items.js / viewmodel.js (dùng showMsg, UG, M, spawnPart). boss.js gọi Engrave.grant(tầng) khi hạ boss; main.js gọi Engrave.reset() khi chơi lại.
 (function(){
 const CFG={
@@ -18,7 +20,10 @@ const CFG={
   gap:.35,        // khoảng cách tối thiểu giữa 2 bảng tên (m)
   poll:15,        // giây giữa 2 lần tải lại danh sách từ Firebase
   limit:1500,     // chỉ tải tối đa chừng này bảng (mới nhất)
-  key:'ba_engr',maxLocal:300
+  fullEvery:10,   // cứ chừng này lần tải thì có 1 lần tải đầy đủ (các lần khác chỉ tải bảng mới)
+  RB:46,RK:60,    // bán kính dựng / giữ bảng quanh người chơi (m); fog của game ~55m nên xa hơn cũng không thấy
+  perFrame:2,     // số bảng dựng tối đa mỗi khung (mỗi bảng = 1 canvas chữ)
+  key:'ba_engr',pend:'ba_engr_pend',maxLocal:300
 };
 const PPM=CFG.pxH/CFG.hM;
 const FONT='"Trebuchet MS","Segoe UI","Noto Sans","Noto Sans Bengali","Noto Sans Devanagari","Noto Sans SC","Microsoft YaHei","Malgun Gothic",Arial,sans-serif';
@@ -48,6 +53,7 @@ const honor=(l,f)=>(HT[l]||HT.en).split('{0}').join(f+1);
 // u = vị trí dọc tường (trục x của bảng, nhìn từ trong ra) · v = độ cao so với sàn tầng · w,h = cỡ bảng (m) · l = ngôn ngữ người khắc · ts = giờ ghi (Firebase)
 // raw = mọi bảng tải về · list = các bảng được chấp nhận (bảng đến sau mà chồng lên bảng đến trước thì bị ẩn)
 let raw=[],list=[],tokens=0,dirty=true,shown=-1,warnedLocal=false;
+const pending=new Set();   // bảng của mình chưa ghi lên Firebase được (lỗi mạng): giữ hiện ở máy mình và gửi lại tới khi xong
 const mine=new Set();   // id các bảng của mình đã ghi lên Firebase (để trả lại lượt nếu bị người khác giành chỗ trước)
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const cleanName=n=>Array.from(String(n||'').normalize('NFC').replace(/[^\p{L}\p{M}\p{Nd} _.'\-]/gu,'').replace(/\s+/g,' ').trim()).slice(0,20).join('');
@@ -65,21 +71,42 @@ function recompute(){   // thứ tự giờ ghi (rồi tới id) giống nhau �
   for(const e of sorted){const g=bk[e.f*4+e.s]||(bk[e.f*4+e.s]=[]);if(g.some(x=>hit(x,e)))rej.add(e.id);else{g.push(e);acc.push(e)}}
   list=acc;dirty=true;
   for(const id of mine)if(rej.has(id)){mine.delete(id);tokens++;showMsg(et('taken'))}   // chỗ đã bị người ghi trước giành mất: trả lại lượt
+  for(const r of pending)if(rej.has(r.id)){pending.delete(r);savePend();tokens++;showMsg(et('taken'))}
 }
 const lsGet=()=>{try{return JSON.parse(localStorage.getItem(CFG.key)||'[]')}catch(e){return[]}};
 const lsSet=()=>{try{localStorage.setItem(CFG.key,JSON.stringify(raw.slice(-CFG.maxLocal)))}catch(e){}};
-raw=lsGet().map(okRec).filter(Boolean);recompute();
+const savePend=()=>{try{localStorage.setItem(CFG.pend,JSON.stringify([...pending]))}catch(e){}};
+if(CFG.db){try{for(const x of JSON.parse(localStorage.getItem(CFG.pend)||'[]')){const e=okRec(x);if(e){e.id=String(x.id||'');e.ts=+x.ts||Date.now();pending.add(e)}}}catch(e){}}
+raw=lsGet().map(okRec).filter(Boolean);for(const r of pending)if(!raw.some(x=>x.id===r.id))raw.push(r);recompute();
 
 // ---------- Firebase Realtime Database (REST) ----------
 const url=(q='')=>CFG.db.replace(/\/+$/,'')+'/'+CFG.path+'.json'+q;
+const srv=new Map();let lastKey='',syncN=0,syncBusy=false,flushing=false;
 async function sync(){
-  if(!CFG.db||document.hidden)return;
+  if(!CFG.db||document.hidden||syncBusy)return;syncBusy=true;
   try{
-    const r=await fetch(url('?orderBy=%22$key%22&limitToLast='+CFG.limit),{cache:'no-store'});if(!r.ok)throw 0;
-    const o=await r.json();
-    raw=(o&&typeof o==='object')?Object.entries(o).map(([k,v])=>okRec({...v,id:k})).filter(Boolean):[];
-    recompute();
-  }catch(e){}
+    const full=!lastKey||(++syncN%CFG.fullEvery===0),ob='?orderBy=%22$key%22';
+    const r=await fetch(url(full?ob+'&limitToLast='+CFG.limit:ob+'&startAt=%22'+encodeURIComponent(lastKey)+'%22'),{cache:'no-store'});if(!r.ok)throw 0;
+    const o=await r.json();let changed=false;
+    const ent=(o&&typeof o==='object')?Object.entries(o):[];
+    if(full){
+      const nm=new Map();for(const [k,v] of ent){const e=okRec({...v,id:k});if(e)nm.set(k,e)}
+      if(nm.size!==srv.size)changed=true;else for(const k of nm.keys())if(!srv.has(k)){changed=true;break}
+      srv.clear();for(const [k,e] of nm)srv.set(k,e);
+    }else for(const [k,v] of ent){if(srv.has(k))continue;const e=okRec({...v,id:k});if(e){srv.set(k,e);changed=true}}
+    for(const [k] of ent)if(k>lastKey)lastKey=k;
+    if(changed||!raw.length&&srv.size){raw=[...srv.values(),...pending];recompute()}   // không có gì mới thì khỏi tính lại / dựng lại bảng
+  }catch(e){}finally{syncBusy=false}
+  flushPending();
+}
+// gửi lại các bảng chưa lên được Firebase (mỗi lần tải danh sách, và ngay sau khi khắc)
+async function flushPending(){
+  if(!CFG.db||flushing||!pending.size)return;flushing=true;let ok=false;
+  try{for(const rec of[...pending]){
+    const key=await post(rec);if(!key)break;
+    pending.delete(rec);savePend();mine.add(key);ok=true}
+  }finally{flushing=false}
+  if(ok)sync();
 }
 async function post(rec){   // trả về khóa Firebase của bảng mới, hoặc null nếu lỗi / chưa cấu hình
   if(!CFG.db)return null;
@@ -153,12 +180,25 @@ const LX=[[1,0,0],[-1,0,0],[0,0,-1],[0,0,1]],NRM=[[0,0,1],[0,0,-1],[1,0,0],[-1,0
 function wpos(f,s,u,v){const A=AF(f),y=f*FH+v;return s===0?[u,y,-A+OFF]:s===1?[-u,y,A-OFF]:s===2?[-A+OFF,y,-u]:[A-OFF,y,u]}
 const place=(m,f,s,u,v)=>{const p=wpos(f,s,u,v);m.position.set(p[0],p[1],p[2]);m.rotation.y=ROT[s]};
 
-// các bảng của tầng đang đứng (chỉ dựng mesh cho tầng này, rời tầng thì giải phóng GPU)
+// các bảng của tầng đang đứng: chỉ dựng bảng ở gần (CFG.RB), giữ tới CFG.RK; rời tầng / bảng xa thì giải phóng GPU. Khóa bảng = nội dung (không đổi khi id local -> id Firebase)
 const grp=new THREE.Group();S.add(grp);
-function rebuild(f){
-  for(const m of grp.children.slice()){grp.remove(m);m.geometry.dispose();m.material.map.dispose();m.material.dispose()}
-  shown=f;
-  for(const e of list){if(e.f!==f)continue;const m=plate(e.name,e.w,e.h,honor(e.l,e.f));place(m,e.f,e.s,e.u,e.v);grp.add(m)}
+const plates=new Map(),sigOf=e=>e.f+'|'+e.s+'|'+e.u+'|'+e.v+'|'+e.w+'|'+e.h+'|'+e.l+'|'+e.name;
+let pmT=0,bq=[];
+function dropPlate(k,p){grp.remove(p.m);p.m.geometry.dispose();p.m.material.map.dispose();p.m.material.dispose();plates.delete(k)}
+function maintain(dt){
+  if(shown!==curFl){for(const [k,p] of[...plates])dropPlate(k,p);shown=curFl;pmT=0;dirty=true}
+  pmT-=dt;
+  if(pmT<=0||dirty){
+    pmT=.35;dirty=false;bq=[];
+    const o=C.position,want=new Map();
+    for(const e of list){if(e.f!==curFl)continue;const p=wpos(e.f,e.s,e.u,e.v);want.set(sigOf(e),[Math.hypot(p[0]-o.x,p[2]-o.z),e])}
+    for(const [k,p] of[...plates]){const w=want.get(k);if(!w||w[0]>CFG.RK)dropPlate(k,p)}
+    for(const [k,w] of want)if(w[0]<=CFG.RB&&!plates.has(k))bq.push([w[0],w[1],k]);
+    bq.sort((a,b)=>b[0]-a[0]);   // gần nhất ở cuối mảng -> pop() dựng bảng gần trước
+  }
+  for(let n=0;n<CFG.perFrame&&bq.length;n++){
+    const [,e,k]=bq.pop();if(plates.has(k))continue;
+    const m=plate(e.name,e.w,e.h,honor(e.l,e.f));place(m,e.f,e.s,e.u,e.v);grp.add(m);plates.set(k,{m})}
 }
 // khung xem trước (chữ của bạn + nền xanh/đỏ)
 const pv=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
@@ -182,7 +222,19 @@ function aimInfo(){
   }
   if(bs<0)return null;
   const nm=myPlate(),w=nm.w,h=CFG.hM,u=+clamp(bu,-A+w/2+.3,A-w/2-.3).toFixed(2),v=+clamp(bv,h/2+.7,H-h/2-.7).toFixed(2);
+  if(!clear(o,f,bs,u,v,w,h))return null;
   return {s:bs,u,v,w,h,nm,ok:free(f,bs,u,v,w,h)};
+}
+// bảng có thật sự nhìn thấy được không: không bị khối nào (cây, nhà, tượng, tường thành...) chắn trước mặt bảng, và đường nhìn từ mắt tới bảng không bị chắn
+function clear(o,f,s,u,v,w,h){
+  const n=NRM[s],y0=f*FH;
+  for(const [du,dv] of[[0,0],[-.45,0],[.45,0],[0,-.4],[0,.4]]){
+    const p=wpos(f,s,u+du*w,v+dv*h);
+    if(hitAny({x:p[0]+n[0]*.3,y:p[1]-.05,z:p[2]+n[2]*.3,r:.05,h:.1}))return false;
+  }
+  const c=wpos(f,s,u,v),dx=c[0]+n[0]*.3-o.x,dy=c[1]-o.y,dz=c[2]+n[2]*.3-o.z,k=Math.ceil(Math.hypot(dx,dz)/.8);
+  for(let i=1;i<k;i++){const t=i/k;if(hitAny({x:o.x+dx*t,y:o.y+dy*t-.05,z:o.z+dz*t,r:.05,h:.1}))return false}
+  return true;
 }
 
 // ---------- khung hỏi ----------
@@ -216,16 +268,18 @@ function tryEngrave(){
   chips(rec.f,rec.s,rec.u,rec.v,rec.w,rec.h);
   snd(700,.05,'square',.05);setTimeout(()=>snd(520,.06,'square',.05),120);setTimeout(()=>snd(380,.1,'sawtooth',.05),260);
   showMsg(et('done',rec.name));
-  post(rec).then(key=>{
-    if(key){mine.add(key);raw=raw.filter(x=>x!==rec);sync()}   // tải lại từ Firebase: lấy giờ chuẩn của máy chủ, nếu có người ghi trước mình ở chỗ này thì bảng của mình bị ẩn + trả lại lượt
-    else{lsSet();if(!warnedLocal){warnedLocal=true;setTimeout(()=>showMsg(et('local')),1800)}}   // chưa cấu hình / lỗi mạng: lưu cục bộ
-  });
+  if(CFG.db){   // ghi lên Firebase; lỗi mạng thì bảng nằm trong hàng đợi và được gửi lại ở các lần sau (bảng vẫn hiện ở máy mình, không mất lượt)
+    pending.add(rec);savePend();
+    flushPending().then(()=>{if(pending.has(rec)&&!warnedLocal){warnedLocal=true;setTimeout(()=>showMsg(et('local')),1800)}});
+  }else{lsSet();if(!warnedLocal){warnedLocal=true;setTimeout(()=>showMsg(et('local')),1800)}}   // chưa cấu hình: lưu cục bộ
 }
 addEventListener('keydown',e=>{if(e.code==='KeyE'&&!e.repeat)tryEngrave()});
 
+let lt=performance.now();
 function loop(){
   requestAnimationFrame(loop);
-  if(shown!==curFl||dirty){rebuild(curFl);dirty=false}
+  const now=performance.now(),dt=Math.min(.1,(now-lt)/1000);lt=now;
+  maintain(dt);
   const a=(playing&&!dead&&tokens>0)?aimInfo():null;
   if(!a){pv.visible=false;box.style.display='none';return}
   const sub=honor(HT[L]?L:'en',curFl),key=a.nm.name+'|'+sub;

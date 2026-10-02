@@ -3,7 +3,10 @@ const parts=[],holes=[];let hi=0;
 function spawnPart(m,vx,vy,vz,life,bounce,fl){S.add(m);parts.push({m,v:new THREE.Vector3(vx,vy,vz),life,bounce,fl,s:m.scale.clone(),r:new THREE.Vector3(Math.random()*10-5,Math.random()*10-5,Math.random()*10-5)})}
 // Độ cao mặt đỡ ngay dưới hạt (sàn tầng trên, bục, khối chắn...) - mặc định là sàn tầng 1 (y=0)
 function groundY(x,y,z){let g=0;
-  for(const b of boxes)if(b.y1>g&&b.y1<=y+.6&&x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1)g=b.y1;
+  bxFresh();   // physics.js: lưới không gian - chỉ xét các khối ở ô chứa (x,z) thay vì quét toàn bộ danh sách
+  const a=BXG.map.get(bxKey(Math.floor(x/BXG.cs),Math.floor(z/BXG.cs)));
+  if(a)for(let k=0;k<a.length;k++){const b=a[k];if(b.y1>g&&b.y1<=y+.6&&x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1)g=b.y1}
+  const big=BXG.big;for(let k=0;k<big.length;k++){const b=big[k];if(b.y1>g&&b.y1<=y+.6&&x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1)g=b.y1}
   return g}
 function tickParts(dt){
   for(let i=parts.length-1;i>=0;i--){

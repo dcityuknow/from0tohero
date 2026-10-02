@@ -114,7 +114,7 @@ const AITalk=(function(){
       usr='Nói câu của bạn bây giờ.'+(K.recent.length?' Phải khác các câu này: '+K.recent.join(' | '):'');
     K.busy++;
     try{
-      const P=AIP[kind],sys=fill(P.head+(Math.random()<AIT.infoRate?P.info:P.combat)+'Ngôn ngữ: {lang}.',v);   // chọn nhánh bằng code
+      const AP=AIP[kind],sys=fill(AP.head+(Math.random()<AIT.infoRate?AP.info:AP.combat)+'Ngôn ngữ: {lang}.',v);   // chọn nhánh bằng code
       const out=clean(await groq(sys,usr,boss?'medium':'low'),maxW);
       if(out){K.recent.push(out);if(K.recent.length>6)K.recent.shift()}
       return out;
