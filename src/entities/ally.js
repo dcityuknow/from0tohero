@@ -53,7 +53,7 @@ function killAllMinions(){
 // ---- dựng đồng minh ----
 function mkGunFor(a,len,col,acc){const v=new VB();v.box(0,-.5-len/2,0,.1,len,.12,chk(col,0x2b2a3a),.03,true);v.box(0,-.45,.1,.06,.16,.08,acc,.03);const m=v.mesh();a.aR.add(m);return m}
 function recruitAlly(fl){
-  const a=buildBoss();   // thân boss mới (dựng mất khoảng vài trăm ms)
+  const a=(fl===1&&typeof buildBoss2==='function')?buildBoss2():buildBoss();   // thân boss mới (dựng mất khoảng vài trăm ms)
   const sc=ALLY.scale;a.boss=true;a.ally=true;a.on=true;a.fl=fl;a.g.scale.setScalar(sc);a.h=1.7*sc;a.r=.4*sc;a.hp=a.maxhp=1e9;
   a.slot=allies.length?1:-1;a.cd=.5;a.wp='rifle';a.n=0;a.tg=null;a.tT=0;a.aim=0;a.stk=0;a.stT=0;a.sx=0;a.sz=0;a.gap=0;a.pk='';a.ps=0;a.ry=undefined;a.mv=0;a.t=0;
   a.gun={pistol:mkGunFor(a,.35,0x3a3850,0xff9a3c),rifle:mkGunFor(a,.7,0xf2b84b,0x3a3850),sniper:mkGunFor(a,1.1,0x4d9dff,0xffd23f)};

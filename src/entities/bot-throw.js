@@ -23,10 +23,11 @@ const eio=x=>x*x*(3-2*x),lerp=(a,b,u)=>a+(b-a)*u,cl01=x=>x<0?0:x>1?1:x;
 // viên đá cầm trên tay phải của bot
 function holdRock(b,Q,on){
   if(!Q.rm){Q.rm=new THREE.Mesh(ROCKG,VMAT);Q.rm.frustumCulled=false;Q.rm.position.set(0,-.68,.07);b.aR.add(Q.rm)}
-  Q.rm.visible=on;
+  Q.rm.scale.setScalar(b.boss?2.2:1);Q.rm.visible=on;
 }
 // tìm nguồn đá gần nhất còn đá, không bị sông chắn, không sát người chơi, không trùng con bot khác đang đi tới
 function findStone(b){
+  if(b.boss){const dd=Math.hypot(P.x-b.x,P.z-b.z)||1;return {x:b.x+(P.x-b.x)/dd*.9,z:b.z+(P.z-b.z)/dd*.9,r:.4,n:1,max:1,t:0}}   // boss tự bốc đá dưới chân (không cần tìm nguồn đá)
   const NA=window.Nature;if(!NA||!NA.stones)return null;
   let best=null,bd=ROCK.find;
   for(const s of NA.stones(curFl)){
@@ -51,12 +52,12 @@ function rockBurst(x,y,z){   // đá vỡ thành mảnh khi đập vào tường
 // thả đá: nhắm vào người chơi có dự đoán hướng chạy + hơi lệch ngẫu nhiên, bay theo đường vòng cung
 function rkRelease(b,Q){
   Q.has=false;holdRock(b,Q,false);
-  const ry=b.ry||0,ox=b.x+Math.sin(ry)*.45,oy=b.y+1.75,oz=b.z+Math.cos(ry)*.45;
-  const dist=Math.hypot(P.x-ox,P.z-oz),T0=Math.max(.45,Math.min(1.4,dist/ROCK.speed));
+  const bs=b.boss,sc=bs?b.g.scale.x:1,ry=b.ry||0,ox=b.x+Math.sin(ry)*.45*sc,oy=b.y+(bs?b.h*1.05:1.75),oz=b.z+Math.cos(ry)*.45*sc;
+  const dist=Math.hypot(P.x-ox,P.z-oz),hi=bs&&P.y-b.y>2,T0=hi?Math.max(1.1,Math.min(1.6,1+(P.y-b.y)*.05+dist*.015)):Math.max(.45,Math.min(1.4,dist/ROCK.speed));   // boss ném lên cao: bay lâu hơn = vòng cung cao, vượt qua lan can
   const tx=P.x+rvx*T0*.7+(Math.random()-.5)*1.4,ty=P.y+1.0+(Math.random()-.5)*.6,tz=P.z+rvz*T0*.7+(Math.random()-.5)*1.4;
   const vx=(tx-ox)/T0,vz=(tz-oz)/T0,vy=(ty-oy+.5*ROCK.grav*T0*T0)/T0;
-  const m=new THREE.Mesh(ROCKG,VMAT);m.scale.setScalar(1.35);m.frustumCulled=false;m.position.set(ox,oy,oz);S.add(m);
-  rocks.push({m,x:ox,y:oy,z:oz,vx,vy,vz,t:4});
+  const m=new THREE.Mesh(ROCKG,VMAT);m.scale.setScalar(bs?3.2:1.35);m.frustumCulled=false;m.position.set(ox,oy,oz);S.add(m);
+  rocks.push({m,x:ox,y:oy,z:oz,vx,vy,vz,t:5,dmg:bs?18:ROCK.dmg,rad:bs?.6:.24});   // đá của boss to hơn, đau hơn
   snd(520,.14,'sawtooth',.04*GV,{x:ox,y:oy,z:oz});   // tiếng vút
 }
 const rkStill=(b,dt)=>{move(b,0,b.vy*dt,0);return 0};   // đứng yên nhưng vẫn áp trọng lực (main.js đã trừ b.vy)
@@ -69,15 +70,18 @@ function botRock(b,dt,dx,dz,d){
   const old=b.rk;let Q=old;
   if(!Q||Q.tok!==b.tTok){   // bot mới sinh / tái sinh -> làm lại từ đầu
     if(old&&old.rm)old.rm.visible=false;
-    Q=b.rk={tok:b.tTok,st:0,t:0,cd:1.5+Math.random()*4,has:false,th:Math.random()<ROCK.throwers,src:null,got:false,rel:false,rm:old?old.rm:null,f:0,c:0,lean:0,step:0,ar:null,al:null}}
+    Q=b.rk={tok:b.tTok,st:0,t:0,cd:1.5+Math.random()*4,has:false,th:b.boss||Math.random()<ROCK.throwers,src:null,got:false,rel:false,rm:old?old.rm:null,f:0,c:0,lean:0,step:0,ar:null,al:null}}
   Q.f=RFR;Q.c=0;Q.lean=0;Q.step=0;Q.ar=Q.has?-.55:null;Q.al=null;   // tư thế mặc định mỗi khung: đang có đá thì tay phải co lại cầm đá
   if(!Q.th||dead)return null;
   const s=Q.src;
   switch(Q.st){
   case 0:{Q.cd-=dt;
-    if(Q.cd<=0&&Math.abs(P.y-b.y)<3){
-      if(d>ROCK.rmin&&d<ROCK.rmax){
-        if(Q.has){if(sight(b)){Q.st=4;Q.t=0}else Q.cd=.7}   // có đá + thấy người chơi -> ngắm
+    // bot thường: ném khi người chơi ngang tầm (cách 6-26m). BOSS: chỉ ném khi người chơi đứng CAO hơn (>=2.5m, vd trên tường thành), cách 4-36m, ném vòng cung không cần thấy thẳng
+    const dyp=P.y-b.y,okY=b.boss?(dyp>=2.5&&dyp<14):Math.abs(dyp)<3,r0=b.boss?4:ROCK.rmin,r1=b.boss?36:ROCK.rmax;
+    if(b.boss){if(Q.has&&!okY){Q.hold=(Q.hold||0)+dt;if(Q.hold>1.5){Q.has=false;holdRock(b,Q,false);Q.hold=0}}else Q.hold=0}   // người chơi xuống rồi thì boss vứt đá, cầm súng lại
+    if(Q.cd<=0&&okY){
+      if(d>r0&&d<r1){
+        if(Q.has){if(b.boss||sight(b)){Q.st=4;Q.t=0}else Q.cd=.7}   // có đá + thấy người chơi -> ngắm
         else{const n=findStone(b);if(n){Q.src=n;Q.st=1;Q.t=0}else Q.cd=2+Math.random()*2}
       }else Q.cd=.5}
     return null}
@@ -114,7 +118,7 @@ function botRock(b,dt,dx,dz,d){
     return rkStill(b,dt)}
   case 8:{Q.t+=dt;   // quán tính: tay vung xuống, thẳng người lại
     const u=cl01(Q.t/.5),e=eio(u);Q.ar=lerp(4.5,6.283,e);Q.lean=lerp(.4,0,e);Q.step=1-e;Q.al=lerp(.4,0,e);
-    if(u>=1){Q.st=0;Q.cd=ROCK.cdMin+Math.random()*(ROCK.cdMax-ROCK.cdMin)}
+    if(u>=1){Q.st=0;Q.cd=b.boss?5+Math.random()*4:ROCK.cdMin+Math.random()*(ROCK.cdMax-ROCK.cdMin)}
     return rkStill(b,dt)}
   }
   return null;
@@ -128,7 +132,8 @@ function rockPose(b){
   if(Q.f!==RFR){   // botRock không chạy khung này (bot đang cận chiến...) -> bỏ dở thao tác
     Q.c=Q.lean=Q.step=0;Q.ar=Q.al=null;if(Q.st!==0){Q.st=0;Q.cd=2;Q.src=null}}
   const c=Q.c,ln=Q.lean,sp=Q.step,g=b.g;
-  if(c||ln||sp||g.rotation.x){g.rotation.order='YXZ';g.position.y-=.5*c;g.rotation.x=ln+.55*c}   // YXZ: xoay theo hướng nhìn rồi mới nghiêng người
+  const bl=b.boss?-(b.up||0)*.3:0;   // boss ngửa người ra sau khi đánh lên cao
+  if(c||ln||sp||g.rotation.x||bl){g.rotation.order='YXZ';g.position.y-=.5*c;g.rotation.x=ln+.55*c+bl}   // YXZ: xoay theo hướng nhìn rồi mới nghiêng người
   if(c||sp){b.lL.rotation.x=-1.45*c-.6*sp;b.lR.rotation.x=1.25*c+.35*sp}                       // quỳ: 1 chân duỗi trước, 1 chân gập sau · ném: bước chân trước
   if(Q.ar!==null)b.aR.rotation.x=Q.ar;
   if(Q.al!==null)b.aL.rotation.x=Q.al;
@@ -146,8 +151,8 @@ function tickRocks(dt){
     const p=rocks[i];p.t-=dt;let end=false;
     for(let k=0;k<3&&!end;k++){
       const s=dt/3;p.vy-=ROCK.grav*s;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;
-      if(!dead&&Math.hypot(P.x-p.x,P.z-p.z)<P.r+.24&&p.y>P.y-.05&&p.y<P.y+P.h+.1){   // TRÚNG NGƯỜI CHƠI
-        hurt(ROCK.dmg);quake({x:p.x,y:p.y,z:p.z},.18);snd(130,.14,'square',.08*GV);rockBurst(p.x,p.y,p.z);end=true}
+      if(!dead&&Math.hypot(P.x-p.x,P.z-p.z)<P.r+(p.rad||.24)&&p.y>P.y-.05&&p.y<P.y+P.h+.1){   // TRÚNG NGƯỜI CHƠI
+        hurt(p.dmg||ROCK.dmg);quake({x:p.x,y:p.y,z:p.z},.18);snd(130,.14,'square',.08*GV);rockBurst(p.x,p.y,p.z);end=true}
       else if(NA&&NA.isWater&&p.y<curFl*FH+.1&&NA.isWater(curFl,p.x,p.z,0)){NA.bulletSplash(p.x,p.y,p.z);end=true}   // rơi xuống sông
       else{
         const lg=lakeGround(p.x,p.z,p.y),gy=Math.max(curFl*FH,lg===null?-1e9:lg);

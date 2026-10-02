@@ -1,11 +1,21 @@
 // Boss (1 con, dùng lại cho từng tầng, máu tăng theo tầng): vũ khí, đạn, AI, hiệu ứng
-const boss=buildBoss();boss.boss=true;boss.r=.5;boss.h=2.2;boss.g.scale.setScalar(1.3);boss.cd=1;boss.dir=1;boss.flip=0;boss.fl=0;boss.maxhp=500;boss.on=false;
+// `boss` = boss của tầng đang đánh (đổi theo tầng trong onKill). Tầng 2 dùng hình dáng riêng (entities/boss2-model.js), các tầng khác dùng hình FLASH.
+const BOSSES=[null,null,null,null];
+function initBoss(b){b.boss=true;b.r=.5;b.h=2.2;b.g.scale.setScalar(1.3);b.cd=1;b.dir=1;b.flip=0;b.fl=0;b.maxhp=500;b.on=false;b.up=0;b.g.rotation.order='YXZ'}   // b.up: 0..1 mức ngửa đầu / giương người khi đánh lên cao
+let boss=buildBoss();initBoss(boss);BOSSES[0]=boss;
 // Loadout theo tầng: 1 = ngắn; 2 = AK + ngắn; 3 = ngắn + AK + ngắm; 4 = tất cả + lựu đạn
 const LO=[['pistol'],['rifle','pistol'],['pistol','rifle','sniper'],['pistol','rifle','sniper','grenade']];
 const F={pistol:{cd:.55,dmg:8,sp:22,q:.9},rifle:{cd:.12,dmg:5,sp:26,q:1.6},sniper:{cd:1.8,dmg:35,sp:70,q:0}},MZ={pistol:.9,rifle:1.25,sniper:1.65};
 const BM={pistol:new THREE.MeshBasicMaterial({color:0xff5a1f}),rifle:new THREE.MeshBasicMaterial({color:0xffe066}),sniper:new THREE.MeshBasicMaterial({color:0x4dd8ff})};
-function mkGun(len,col,acc){const v=new VB();v.box(0,-.5-len/2,0,.1,len,.12,chk(col,0x2b2a3a),.03,true);v.box(0,-.45,.1,.06,.16,.08,acc,.03);const m=v.mesh();boss.aR.add(m);return m}
-const GUN={pistol:mkGun(.35,0x3a3850,0xff9a3c),rifle:mkGun(.7,0xf2b84b,0x3a3850),sniper:mkGun(1.1,0x4d9dff,0xffd23f)};
+function mkGun(len,col,acc,o=boss){const v=new VB();v.box(0,-.5-len/2,0,.1,len,.12,chk(col,0x2b2a3a),.03,true);v.box(0,-.45,.1,.06,.16,.08,acc,.03);const m=v.mesh();o.aR.add(m);return m}
+const gunSet=o=>({pistol:mkGun(.35,0x3a3850,0xff9a3c,o),rifle:mkGun(.7,0xf2b84b,0x3a3850,o),sniper:mkGun(1.1,0x4d9dff,0xffd23f,o)});
+const GUN=gunSet(boss);
+// lấy boss của tầng f (tầng 2 dựng boss riêng ở lần đầu cần, hoặc dựng sẵn ngầm sau vài giây để khỏi giật)
+function bossFor(f){
+  if(f===1&&typeof buildBoss2==='function'){if(!BOSSES[1]){const b=buildBoss2();initBoss(b);b.gun=gunSet(b);BOSSES[1]=b}return BOSSES[1]}
+  return BOSSES[0];
+}
+setTimeout(()=>{try{bossFor(1)}catch(e){}},8000);
 function bossScale(f){const sc=1.3+.07*f;boss.g.scale.setScalar(sc);boss.h=1.7*sc;boss.r=.4*sc;boss.wp=LO[f][0];boss.gc=3}
 function pickW(L,d){const w=L.includes('sniper')&&d>20?'sniper':L.includes('rifle')&&d>7?'rifle':'pistol';return L.includes(w)?w:L.includes('rifle')?'rifle':'pistol'}
 function throwG(b){const mp=new THREE.Vector3(b.x,b.y+1.8,b.z),T=1.1,dx=P.x-mp.x,dy=P.y+.2-mp.y,dz=P.z-mp.z,m=grenadeModel();S.add(m);
@@ -14,20 +24,24 @@ const bul=[],BG=new THREE.SphereGeometry(.1,6,6),BMt=new THREE.MeshBasicMaterial
 // thanh máu boss ở đầu màn hình
 const bb=document.createElement('div');bb.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);width:min(320px,50vw);z-index:3;display:none;pointer-events:none;text-align:center;color:#fff;font:700 12px sans-serif;text-shadow:0 1px 2px #000';
 bb.innerHTML='<div id="bbn"></div><div id="bbw" style="height:10px;background:rgba(0,0,0,.5);border:2px solid #fff;border-radius:6px;overflow:hidden"><div id="bbf" style="height:100%;background:#ffd23f"></div></div>';document.body.appendChild(bb);
-const bname=f=>f===0?'FLASH':t('bossname');   // boss tầng 1 tên FLASH
+const bname=f=>f===0?'FLASH':f===1?'LONGJUN':t('bossname');   // boss tầng 1 tên FLASH, tầng 2 tên LONGJUN
 function onKill(){const f=curFl;fk[f]++;
-  if(!bossDone[f]&&!bossAlive&&fk[f]>=need(f)){bossAlive=true;boss.fl=f;boss.maxhp=500*(1+.6*f);bossScale(f);boss.on=true;spawnBot(boss);showMsg(t('bossappear',bname(f)))}}
+  if(!bossDone[f]&&!bossAlive&&fk[f]>=need(f)){bossAlive=true;boss=bossFor(f);boss.fl=f;boss.maxhp=500*(1+.6*f);bossScale(f);boss.on=true;spawnBot(boss);showMsg(t('bossappear',bname(f)))}}
 function sight(b){const n=Math.ceil(Math.hypot(P.x-b.x,P.z-b.z)/.8);
   for(let i=1;i<n;i++){const u=i/n;if(hitAny({x:b.x+(P.x-b.x)*u,y:b.y+1.6+(P.y+1.3-b.y-1.6)*u,z:b.z+(P.z-b.z)*u,r:.05,h:.1}))return false}return true}
 function bossAI(b,dt,dx,dz,d){
   b.vy-=22*dt;d=d||1;b.flip-=dt;if(b.flip<=0){b.dir=Math.random()<.5?1:-1;b.flip=1.5+Math.random()*2}
-  const nx=dx/d,nz=dz/d;let mx,mz;
-  if(d>11){mx=nx;mz=nz}else if(d<6){mx=-nx;mz=-nz}else{mx=nz*b.dir;mz=-nx*b.dir}
+  const dyp=P.y-b.y,atk=!dead&&dyp<14&&dyp>-8;   // đánh được cả khi người chơi đứng cao tới 14m (mặt tường thành) hoặc thấp hơn 8m
+  // ngửa đầu + giương người khi mục tiêu ở trên cao (bossPose đọc b.up)
+  b.up=b.up||0;b.up+=((atk&&d<45?Math.max(0,Math.min(1,(dyp-1.2)/5)):0)-b.up)*Math.min(1,dt*6);
+  const rk=botRock(b,dt,dx,dz,d);if(rk!==null)return rk;   // nhặt + ném đá lên cao khi người chơi đứng trên tường (bot-throw.js)
+  const nx=dx/d,nz=dz/d,hiT=dyp>2.5,far=hiT?15:11,near=hiT?9:6;let mx,mz;   // người chơi ở trên cao: boss lùi ra xa hơn để có góc bắn
+  if(d>far){mx=nx;mz=nz}else if(d<near){mx=-nx;mz=-nz}else{mx=nz*b.dir;mz=-nx*b.dir}
   const nv=botNav(b,P.x,P.z,dt);   // sông chắn giữa boss và người chơi -> đi vòng qua cầu (steering.js)
   if(nv)steer(b,nv.x,nv.z,6,dt);else steer(b,b.x+mx*8,b.z+mz*8,6,dt);
-  const L=LO[b.fl],ok=!dead&&Math.abs(P.y-b.y)<3;b.cd-=dt;b.gc-=dt;
-  if(ok&&L.includes('grenade')&&b.gc<=0&&d>6&&d<30){b.gc=6;throwG(b)}
-  if(b.cd<=0&&ok&&d<45&&sight(b)){
+  const L=LO[b.fl];b.cd-=dt;b.gc-=dt;
+  if(atk&&L.includes('grenade')&&b.gc<=0&&d>6&&d<30){b.gc=6;throwG(b)}
+  if(b.cd<=0&&atk&&d<45&&sight(b)){
     const w=pickW(L,d),f=F[w];b.wp=w;b.cd=f.cd;if(w==='rifle'&&(b.n=(b.n||0)+1)%6===0)b.cd=1;   // AK bắn theo loạt 6 viên
     b.g.updateMatrixWorld(true);const mp=b.aR.localToWorld(new THREE.Vector3(0,-MZ[w],0)),q=f.q;
     const v=new THREE.Vector3(P.x-mp.x+(Math.random()-.5)*q,P.y+1.1-mp.y+(Math.random()-.5)*q*.5,P.z-mp.z+(Math.random()-.5)*q).normalize().multiplyScalar(f.sp);
@@ -38,7 +52,13 @@ function bossAI(b,dt,dx,dz,d){
   return 1;
 }
 const SPK=[new THREE.MeshBasicMaterial({color:0xffe066}),new THREE.MeshBasicMaterial({color:0xff9a3c})];
-function bossPose(b){b.aR.rotation.x=-1.45;for(const k in GUN)GUN[k].visible=k===b.wp;
+function bossPose(b){
+  const Q=b.rk,rk=!!(Q&&(Q.st!==0||Q.has)),G=b.gun||GUN,up=b.up||0;   // rk: đang nhặt / cầm / ném đá -> tay do rockPose lo, cất súng
+  if(!rk)b.aR.rotation.x=-1.45-up*.75;                                 // tay súng nâng cao dần theo góc bắn lên
+  for(const k in G)G[k].visible=!rk&&k===b.wp;
+  if(!Q){b.g.rotation.order='YXZ';b.g.rotation.x=-up*.3}               // (khi có b.rk thì rockPose đã cộng độ ngả này)
+  if(b.hP)b.hP.rotation.x=-up*.8;                                      // ngửa đầu nhìn lên
+  b.aL.rotation.x-=up*.5;b.lL.rotation.x+=up*.3;b.lR.rotation.x+=up*.3;   // tay trái giương lên, chân giữ thẳng khi thân ngả ra sau
   if(Math.random()<.6){   // tia lửa điện quanh người boss
     const sc=b.g.scale.x,m=new THREE.Mesh(UG,SPK[Math.random()<.5?0:1]),z=.05+Math.random()*.08;
     m.scale.set(z,z*(1+Math.random()*3),z);m.position.set(b.x+(Math.random()-.5)*.9*sc,b.y+(.2+Math.random()*2.3)*sc,b.z+(Math.random()-.5)*.9*sc);

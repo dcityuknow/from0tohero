@@ -32,7 +32,7 @@ function buildBoss(){
   H.box(0,1.62,.6,.72,.08,.04,(i)=>i&1?0xffffff:0xe8e8f0,.04);H.box(0,1.48,.6,.6,.06,.04,(i)=>i&1?0xffffff:0xe8e8f0,.04);
   H.box(.14,1.45,.61,.2,.1,.06,0xff9fbf,.04);
   for(const sx of[-1,1]){H.box(sx*.72,2.18,0,.12,.2,.2,YEL,.04);H.box(sx*.78,2.0,0,.12,.2,.2,YEL,.04);H.box(sx*.72,1.82,0,.12,.2,.2,YEL,.04)}   // tai tia chớp
-  add(b.g,H,true);
+  b.hP=pivot(0,1.45);const hm=add(b.hP,H,true);hm.position.y=-1.45;   // đầu có trục ở cổ (0,1.45): boss ngửa đầu khi bắn / ném lên cao
   b.lL=pivot(-.17,.6);b.lR=pivot(.17,.6);b.aL=pivot(-.46,1.27);b.aR=pivot(.46,1.27);
   // chân: đầu gối vàng, giày vàng kẻ ô, đế đen
   for(const l of[b.lL,b.lR]){

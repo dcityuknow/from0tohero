@@ -42,10 +42,12 @@ const FM=(function(){
   function load(f){
     if(f<0||f>=NF||!window.Nature)return;
     need[f]=now;
+    if(f===1&&rec.wall===undefined&&window.GreatWall)cap('wall',GreatWall.build);   // Vạn Lý Trường Thành tầng 2 (world/greatwall.js)
     if(f===0&&!set0On&&rec.set0===undefined&&!snap.set0)buildSet0();
     if(!has(f)){Nature.load(f)}
   }
   function unload(f){
+    if(f===1&&rec.wall)drop('wall');
     if(has(f))Nature.unload(f);
     if(f===0&&set0On)dropSet0();
   }
