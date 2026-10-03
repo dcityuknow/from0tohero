@@ -175,9 +175,9 @@ const plate=(name,w,h,sub)=>{
   m.renderOrder=2;return m;
 };
 // vị trí / hướng của bảng trên tường: mặt phẳng quay vào trong map
-const wallH=f=>f<NF-1?FH-SLAB:FH-1,ROT=[0,Math.PI,Math.PI/2,-Math.PI/2],OFF=.03;
+const wallH=f=>f<NF-1?FHT[f]-SLAB:FHT[f]-1,ROT=[0,Math.PI,Math.PI/2,-Math.PI/2],OFF=.03;
 const LX=[[1,0,0],[-1,0,0],[0,0,-1],[0,0,1]],NRM=[[0,0,1],[0,0,-1],[1,0,0],[-1,0,0]];
-function wpos(f,s,u,v){const A=AF(f),y=f*FH+v;return s===0?[u,y,-A+OFF]:s===1?[-u,y,A-OFF]:s===2?[-A+OFF,y,-u]:[A-OFF,y,u]}
+function wpos(f,s,u,v){const A=AF(f),y=FY(f)+v;return s===0?[u,y,-A+OFF]:s===1?[-u,y,A-OFF]:s===2?[-A+OFF,y,-u]:[A-OFF,y,u]}
 const place=(m,f,s,u,v)=>{const p=wpos(f,s,u,v);m.position.set(p[0],p[1],p[2]);m.rotation.y=ROT[s]};
 
 // các bảng của tầng đang đứng: chỉ dựng bảng ở gần (CFG.RB), giữ tới CFG.RK; rời tầng / bảng xa thì giải phóng GPU. Khóa bảng = nội dung (không đổi khi id local -> id Firebase)
@@ -210,7 +210,7 @@ function myPlate(){const n=cleanName(window.PROFILE&&PROFILE.name)||'Player';if(
 // ---------- ngắm tường ----------
 const _d=new THREE.Vector3();
 function aimInfo(){
-  const f=curFl,A=AF(f),y0=f*FH,H=wallH(f),o=C.position;C.getWorldDirection(_d);
+  const f=curFl,A=AF(f),y0=FY(f),H=wallH(f),o=C.position;C.getWorldDirection(_d);
   let bs=-1,bt=1e9,bu=0,bv=0;
   for(let s=0;s<4;s++){
     const ax=s<2?_d.z:_d.x,pos=s<2?o.z:o.x,pl=(s===0||s===2)?-A:A;
@@ -227,7 +227,7 @@ function aimInfo(){
 }
 // bảng có thật sự nhìn thấy được không: không bị khối nào (cây, nhà, tượng, tường thành...) chắn trước mặt bảng, và đường nhìn từ mắt tới bảng không bị chắn
 function clear(o,f,s,u,v,w,h){
-  const n=NRM[s],y0=f*FH;
+  const n=NRM[s],y0=FY(f);
   for(const [du,dv] of[[0,0],[-.45,0],[.45,0],[0,-.4],[0,.4]]){
     const p=wpos(f,s,u+du*w,v+dv*h);
     if(hitAny({x:p[0]+n[0]*.3,y:p[1]-.05,z:p[2]+n[2]*.3,r:.05,h:.1}))return false;

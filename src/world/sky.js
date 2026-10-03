@@ -72,7 +72,7 @@ function buildSky(){
   const dome=new THREE.Mesh(gd,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
   dome.renderOrder=-1;dome.frustumCulled=false;S.add(dome);
   const geos=CLOUD_SHAPES.map(cloudGeometry),
-    mat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0x8c98ae,specular:0xffffff,shininess:70,fog:false}),cl=new THREE.Group(),list=[],top=NF*FH;
+    mat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0x8c98ae,specular:0xffffff,shininess:70,fog:false}),cl=new THREE.Group(),list=[],top=FY(NF);
   for(let i=0;i<SKY.clouds;i++){
     const m=new THREE.Mesh(geos[i%4],mat),s=SKY.sMin+Math.random()*(SKY.sMax-SKY.sMin),a=Math.random()*6.283,r=SKY.spread*Math.pow(Math.random(),.8);
     m.scale.set(s,s*.55,s);m.rotation.y=Math.random()*6.283;
@@ -83,16 +83,16 @@ function buildSky(){
   // tầng 1..NF-1: mỗi tầng 1 nhóm (sương nhiều lớp + mây nhỏ), chỉ hiện khi người chơi đang ở tầng đó
   const FT=fogTexture(),cmat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0x8c98ae,specular:0xffffff,shininess:70}),fl=[];
   for(let f=0;f<NF;f++){
-    const A=AF(f),yc=(f+1)*FH-SLAB,sz=2*A+2,g=new THREE.Group(),lay=[],cs=[];
+    const A=AF(f),yc=FY(f+1)-SLAB,sz=2*A+2,g=new THREE.Group(),lay=[],cs=[];
     SKYFOG.layers.forEach(([dy,op],i)=>{
       const t=FT.clone();t.needsUpdate=true;t.repeat.set(sz/SKYFOG.tile,sz/SKYFOG.tile);t.offset.set(Math.random(),Math.random());
-      const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*.3:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
       m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,k:(i%2?-1:1)*(.6+i*.25)});
     });
     for(let i=0;i<SKYFOG.clouds;i++){
       const m=new THREE.Mesh(geos[i%4],cmat),s=SKYFOG.cMin+Math.random()*(SKYFOG.cMax-SKYFOG.cMin);
       m.scale.set(s,s*.55,s);m.rotation.y=Math.random()*6.283;m.frustumCulled=false;
-      m.position.set((Math.random()*2-1)*(A-5),f*FH+SKYFOG.cLo+Math.random()*(SKYFOG.cHi-SKYFOG.cLo),(Math.random()*2-1)*(A-5));
+      m.position.set((Math.random()*2-1)*(A-5),FY(f)+SKYFOG.cLo+Math.random()*(SKYFOG.cHi-SKYFOG.cLo),(Math.random()*2-1)*(A-5));
       m.userData.v=SKYFOG.cDrift*(.5+Math.random());g.add(m);cs.push(m);
     }
     g.visible=false;S.add(g);fl.push({f,g,lay,cs,A});
@@ -102,8 +102,9 @@ function buildSky(){
 // gọi mỗi khung (main.js, sau khi đặt camera)
 function tickSky(dt){
   if(!_sk)_sk=buildSky();
-  const up=P.y>(NF-1)*FH-2;_sk.dome.visible=_sk.cl.visible=up;
-  if(up){_sk.dome.position.copy(C.position);for(const c of _sk.list){c.position.x+=c.userData.v*dt;if(c.position.x>SKY.spread)c.position.x-=2*SKY.spread}}
+  const up=P.y>FY(NF-1)-2,sk=up||curFl===1;_sk.dome.visible=_sk.cl.visible=sk;   // tầng 2 rộng hơn tầng 3 nên phần ngoài không có trần: thấy trời
+  if(S.fog&&!(window.Nature&&Nature.wading)&&!P.under){const tn=curFl===1?40:18,tf=curFl===1?150:55,k=Math.min(1,dt*3);S.fog.near+=(tn-S.fog.near)*k;S.fog.far+=(tf-S.fog.far)*k}   // tầng 2: sương xa hơn để thấy núi
+  if(sk){_sk.dome.position.copy(C.position);for(const c of _sk.list){c.position.x+=c.userData.v*dt;if(c.position.x>SKY.spread)c.position.x-=2*SKY.spread}}
   for(const q of _sk.fl){
     const on=curFl===q.f&&(!up||q.f===NF-1);   // tầng cao nhất luôn có sương (dù đang ở vùng thấy vòm trời)
     q.g.visible=on;if(!on)continue;

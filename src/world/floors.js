@@ -74,7 +74,7 @@ const FM=(function(){
   // ---- KHUNG map (world.js + level.js): ẩn các tầng ở xa tầng đang chơi ----
   const struct=[];
   {const bb=new THREE.Box3();
-    for(const m of meshes){bb.setFromObject(m);if(bb.isEmpty())continue;struct.push([m,Math.max(0,Math.min(NF-1,Math.floor((bb.min.y+SLAB+.01)/FH)))])}}
+    for(const m of meshes){bb.setFromObject(m);if(bb.isEmpty())continue;struct.push([m,Math.max(0,Math.min(NF-1,flOf(bb.min.y+SLAB+.01)))])}}
   function visStruct(c){if(c===visFl)return;visFl=c;for(const [m,g] of struct)m.visible=Math.abs(g-c)<=1}
 
   // người chơi vừa chuyển sang tầng nf (floor-manager.js gọi): bảo đảm tầng đó đã có (nếu chưa thì dựng ngay)
@@ -87,12 +87,12 @@ const FM=(function(){
     now+=dt;const c=curFl;need[c]=now;visStruct(c);
     chk-=dt;
     if(chk<=0){chk=.25;
-      if(c<NF-1&&bossDone[c]&&P.y>c*FH-1&&P.y<(c+1)*FH){   // thang LÊN (thang tầng c ở cx = ±(AF-2), chạy từ z = AF-4 lùi 18m; chỉ lên được khi đã hạ boss)
-        const A=AF(c),cx=(c%2?1:-1)*(A-2),zs=A-4;
-        if(Math.abs(P.x-cx)<9&&P.z>zs-22&&P.z<zs+14)want(c+1)}
-      if(c>0&&P.y>c*FH-1){   // lỗ thang XUỐNG ở sàn tầng này (là đỉnh thang của tầng c-1)
-        const f=c-1,A=AF(f),cx=(f%2?1:-1)*(A-2),zs=A-4;
-        if(Math.abs(P.x-cx)<9&&P.z>zs-30&&P.z<zs-6)want(f)}
+      if(c<NF-1&&bossDone[c]&&P.y>FY(c)-1&&P.y<FY(c+1)){   // thang LÊN (thang tầng c ở cx = ±(AF-2), chạy từ z = AF-4 lùi 18m; chỉ lên được khi đã hạ boss)
+        const A=AS(c),cx=(c%2?1:-1)*(A-2),zs=A-4;
+        if(Math.abs(P.x-cx)<9&&P.z>zs-STLf(c)-4&&P.z<zs+14)want(c+1)}
+      if(c>0&&P.y>FY(c)-1){   // lỗ thang XUỐNG ở sàn tầng này (là đỉnh thang của tầng c-1)
+        const f=c-1,A=AS(f),cx=(f%2?1:-1)*(A-2),zs=A-4;
+        if(Math.abs(P.x-cx)<9&&P.z>zs-STLf(f)-12&&P.z<zs-STLf(f)+12)want(f)}
     }
     ul-=dt;
     if(ul<=0){ul=1;for(const f of loaded())if(f!==c&&now-(need[f]||0)>KEEP)unload(f)}

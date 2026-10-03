@@ -72,8 +72,8 @@ function clearAllies(){   // chơi lại
   for(const a of allies){S.remove(a.g);const i=bots.indexOf(a);if(i>=0)bots.splice(i,1);for(const p of a.parts){const j=botMeshes.indexOf(p.mesh);if(j>=0)botMeshes.splice(j,1)}}
   allies.length=0;for(const p of abul)S.remove(p.m);abul.length=0;aOffer=null;aq.style.display='none';
 }
-// ---- đường lên/xuống thang (khớp level.js: thang tầng f ở cx=±(AF(f)-2), chạy z từ AF(f)-4 lùi về AF(f)-22) ----
-const stairWP=(f,up)=>{const A=AF(f),cx=(f%2?1:-1)*(A-2),zs=A-4,b=[cx,zs+2.3],t=[cx,zs-19.5];return up?[b,t]:[t,b]};
+// ---- đường lên/xuống thang (khớp level.js: thang tầng f ở cx=±(AS(f)-2), chạy z từ AS(f)-4 lùi STL mét) ----
+const stairWP=(f,up)=>{const A=AS(f),cx=(f%2?1:-1)*(A-2),zs=A-4,b=[cx,zs+2.3],t=[cx,zs-STLf(f)-1.5];return up?[b,t]:[t,b]};
 const _ap=new THREE.Vector3(),_up=new THREE.Vector3(0,1,0),_ad=new THREE.Vector3();
 function los(a,t){const n=Math.ceil(Math.hypot(t.x-a.x,t.z-a.z)/.8);
   for(let i=1;i<n;i++){const u=i/n;if(hitAny({x:a.x+(t.x-a.x)*u,y:a.y+1.9+(t.y+1.2-a.y-1.9)*u,z:a.z+(t.z-a.z)*u,r:.05,h:.1}))return false}return true}
@@ -90,7 +90,7 @@ function allyFire(a,t,d){
 }
 function allyThink(a,dt){
   a.vy-=22*dt;
-  const af=Math.min(NF-1,Math.floor((a.y+.05+SLAB-.3)/FH)),pf=curFl,dp=Math.hypot(P.x-a.x,P.z-a.z);
+  const af=flOf(a.y+.05+SLAB-.3),pf=curFl,dp=Math.hypot(P.x-a.x,P.z-a.z);
   let tx=P.x,tz=P.z,sp=ALLY.walk,stay=false;
   if(dead)stay=true;
   else if(af!==pf){   // khác tầng: đi tới thang rồi lên/xuống cùng người chơi
@@ -135,7 +135,7 @@ function tickAbul(dt){
     const p=abul[i];let gone=false;p.life-=dt;
     for(let k=0;k<6&&!gone;k++){
       const s=dt/6;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;
-      if(p.y<curFl*FH||hitAny({x:p.x,y:p.y-.05,z:p.z,r:.05,h:.1})){gone=true;if(window.Nature)Nature.bulletSplash(p.x,p.y,p.z)}
+      if(p.y<FY(curFl)||hitAny({x:p.x,y:p.y-.05,z:p.z,r:.05,h:.1})){gone=true;if(window.Nature)Nature.bulletSplash(p.x,p.y,p.z)}
       else for(const b of bots){
         if(b.ally||!b.on||b.hp<=0||p.y<b.y||p.y>b.y+b.h||Math.hypot(b.x-p.x,b.z-p.z)>=b.r+.15)continue;
         gone=true;b.hp-=p.dmg;_ad.set(p.vx,p.vy,p.vz).normalize();blood(_ap.set(p.x,p.y,p.z),_up,_ad,10);snd(180,.08,'sawtooth',.05*GV,{x:p.x,y:p.y,z:p.z});

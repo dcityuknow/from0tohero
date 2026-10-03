@@ -193,8 +193,8 @@ function keepOuts(f){
   if(f===0&&window.PavilionKeep)k.push(window.PavilionKeep);   // chòi Nhật (world/pavilion.js): không mọc cây / đá, không đào sông, không đặt đầu cầu đè lên chòi
   if(f===0&&window.TeaKeeps)k.push(...window.TeaKeeps);   // 2 bộ bàn trà (world/teaset.js): cây / đá / sông / đầu cầu né ra
   if(f===0&&window.BathKeeps)k.push(...window.BathKeeps);   // 2 hồ tắm đá (world/bath.js): cây / đá / sông / đầu cầu né ra
-  if(f<NF-1){const A=AF(f),cx=(f%2?1:-1)*(A-2);k.push({x0:cx-3.2,x1:cx+3.2,z0:A-23,z1:A-.5})}
-  if(f>0){const Af=AF(f-1),s=(f-1)%2,a=s?Af-4:-Af,b=s?Af:-Af+4;k.push({x0:a-2,x1:b+2,z0:Af-24,z1:Af-2})}
+  if(f<NF-1){const A=AS(f),cx=(f%2?1:-1)*(A-2);k.push({x0:cx-3.2,x1:cx+3.2,z0:A-STLf(f)-5,z1:A-.5})}
+  if(f>0){const Af=AS(f-1),s=(f-1)%2,a=s?Af-4:-Af,b=s?Af:-Af+4;k.push({x0:a-2,x1:b+2,z0:Af-STLf(f-1)-6,z1:Af-2})}
   return k;
 }
 
@@ -448,7 +448,7 @@ function carpetTex(){   // viền nhạt quanh mỗi mảnh 0.5m -> nhìn như m
   x.fillStyle='#fff';x.fillRect(0,0,32,32);x.fillStyle='rgba(0,0,0,.16)';x.fillRect(0,0,32,2);x.fillRect(0,0,2,32);x.fillRect(0,30,32,2);x.fillRect(30,0,2,32);
   _ct=new THREE.CanvasTexture(c);_ct.anisotropy=4;return _ct}
 function buildFloor(f){
-  const T=THM[f],A=AF(f),y0=f*FH,rand=RNG(CFG.seed*131+f*7919+1),k=Math.pow(A/20,CFG.scaleExp)*CFG.density;
+  const T=THM[f],A=AF(f),y0=FY(f),rand=RNG(CFG.seed*131+f*7919+1),k=Math.pow(A/20,CFG.scaleExp)*CFG.density;
   const Fl={f,y:y0,objs:[],lakes:[],crit:[],deco:null,cells:new Map(),terr:[],detail:[],hg:false,hAt:null,bridges:[],stones:[]},keep=keepOuts(f),placed=[],d=new VB(),lim=A-1.2;
   let cn=0,pn=0;
   const dkC=new THREE.Color(),dkG=(h,m)=>dkC.setHex(h).multiplyScalar(m).getHex();
@@ -463,6 +463,7 @@ function buildFloor(f){
     if(wet(x,z,rad+.8))return false;
     for(const p of placed)if(Math.hypot(x-p.x,z-p.z)<rad+p.r+.25)return false;
     if(hitAny({x,y:y0+.02,z,r:rad,h:1.7}))return false;
+    if(f===1&&hAt(x,z)>6.5)return false;   // tầng 2: cây chỉ mọc ở thung lũng / chân núi
     return sup(x,z,rad+.4);
   };
   const spot=(rad,edge)=>{for(let n=0;n<50;n++){const x=rand.range(-lim,lim),z=rand.range(-lim,lim);if(okAt(x,z,rad,edge))return{x,z}}return null};
@@ -528,11 +529,12 @@ function buildFloor(f){
     return {cx,cz,ux,uz,rx:A*1.2,rz:W,y:y0,f,dmax,ice:!!T.ice,T,loc,at,
       rho:(x,z)=>{const [u,v]=loc(x,z),sl=dv(u);return Math.abs(v-cv(u))/Math.sqrt(1+sl*sl)/wf(u)}};   // <1: trong lòng sông
   };
-  Fl.lakes.push(mkRiver());
+  if(f===1&&window.GreatWall&&GreatWall.makeLakes)Fl.lakes.push(...GreatWall.makeLakes({y:y0,f,dmax:Math.min(Math.max(.2,CFG.depth),SLT-.3),T,A}));   // tầng 2: các dòng suối uốn theo thung lũng núi (world/greatwall.js)
+  else Fl.lakes.push(mkRiver());
   if(f===0&&window.BathPools)for(const sp of window.BathPools)Fl.lakes.push(Object.assign({},sp,{y:y0,f,ice:false,T:Object.assign({},T,{water:sp.water,sand:sp.sand})}));   // hồ tắm lõm (world/bath.js): đào sàn, đáy hồ, nước, lội nước dùng chung hệ thống với sông
   // 1b) Khối vật cản (của map) nằm giữa lòng sông -> gỡ bỏ cả va chạm lẫn mô hình. Không đụng tường ngoài, sàn, thang, cổng.
-  {const rv=Fl.lakes[0],M=A-.6,
-     cand=b=>b.y0>=y0-.05&&b.y0<y0+FH-3&&b.y1-y0<8&&b.x0>-M&&b.x1<M&&b.z0>-M&&b.z1<M&&b.x1-b.x0<=20&&b.z1-b.z0<=20&&!keep.some(k=>b.x1>k.x0&&b.x0<k.x1&&b.z1>k.z0&&b.z0<k.z1),
+  if(f!==1){const rv=Fl.lakes[0],M=A-.6,
+     cand=b=>b.y0>=y0-.05&&b.y0<y0+FHT[f]-3&&b.y1-y0<8&&b.x0>-M&&b.x1<M&&b.z0>-M&&b.z1<M&&b.x1-b.x0<=20&&b.z1-b.z0<=20&&!keep.some(k=>b.x1>k.x0&&b.x0<k.x1&&b.z1>k.z0&&b.z0<k.z1),
      inRv=b=>{const nx=Math.max(1,Math.ceil((b.x1-b.x0)/.5)),nz=Math.max(1,Math.ceil((b.z1-b.z0)/.5));
        for(let i=0;i<=nx;i++)for(let j=0;j<=nz;j++)if(rv.rho(b.x0+(b.x1-b.x0)*i/nx,b.z0+(b.z1-b.z0)*j/nz)<1.05)return true;return false},
      rem=boxes.filter(b=>cand(b)&&inRv(b));
@@ -586,7 +588,7 @@ function buildFloor(f){
   const flat=[];   // vùng phải phẳng (đầu cầu)
   // 1c) Cầu vòm gỗ bắc ngang sông (lưng cầu cong lên, lan can gỗ 2 bên). Tầng 4 sông đóng băng nên không cần cầu.
   //     Cầu chạy vuông góc (theo trục x hoặc z) với dòng sông, chọn chỗ hẹp nhất mà 2 đầu cầu có đất trống.
-  {const rv=Fl.lakes[0];
+  for(const rv of Fl.lakes.filter(l=>!l.pool)){
    if(rv&&!rv.ice){
     const along=Math.abs(rv.ux)>Math.abs(rv.uz),pt=(q,w)=>along?[q,w]:[w,q],wat=(q,w)=>{const [x,z]=pt(q,w);return rv.rho(x,z)<1},
       okLand=(q,w)=>{const [x,z]=pt(q,w);return Math.abs(x)<lim-.3&&Math.abs(z)<lim-.3&&!keep.some(k=>circleRect(x,z,1.9,k))&&!hitAny({x,y:y0+.02,z,r:.5,h:.5})&&(f===0||sup(x,z,.6))},
@@ -620,7 +622,7 @@ function buildFloor(f){
       }
       for(let w=wa-2;w<=wb+2;w+=2){const [x,z]=pt(q,w);placed.push({x,z,r:2.2});flat.push({x,z,r:3.4})}Fl.bridges.push({along,q,wa,wb});   // đăng ký cầu cho AI bot (steering.js) · cây / đá tránh đầu cầu, địa hình phẳng quanh cầu
     };
-    for(let nb=A>=30?2:1;nb>0;nb--){
+    for(let nb=rv.nb||(A>=30?2:1);nb>0;nb--){
       let best=null;
       for(let q=-lim+5;q<=lim-5;q+=1){
         if(bq.some(p=>Math.abs(p-q)<16))continue;
@@ -634,26 +636,23 @@ function buildFloor(f){
 
   // 1d) ĐỊA HÌNH: bản đồ độ cao lưới .5m (tra bằng nội suy). Phẳng hẳn quanh sông, đầu cầu, thang, vật cản, sát tường.
   const HS=.5,NH=Math.round(2*A/HS)+1,HG=new Float32Array(NH*NH),hz=(x,z)=>HG[Math.round((z+A)/HS)*NH+Math.round((x+A)/HS)];
-  if(CFG.terrain&&CFG.hill>0){
-    const rv=Fl.lakes[0],ph=[0,1,2,3].map(()=>rand()*6.283),
-      ob=boxes.filter(b=>b.y0>=y0-.05&&b.y0<y0+FH-3&&!b.gw),   // b.gw: các lát tường thành nhấp nhô (greatwall.js) - địa hình ở đó do GreatWall.ridge tạo
-     
+  const GWH=(f===1&&window.GreatWall&&GreatWall.terrainGrid)?GreatWall.terrainGrid():null;   // tầng 2: độ cao núi + sống tường + thung lũng suối do greatwall.js tính sẵn (lưới .5m)
+  if(CFG.terrain&&(CFG.hill>0||GWH)){
+    const rv=Fl.lakes[0],rvs=Fl.lakes.filter(l=>!l.pool),ph=[0,1,2,3].map(()=>rand()*6.283),
+      ob=boxes.filter(b=>b.y0>=y0-.05&&b.y0<y0+FHT[f]-3&&!b.gw),   // b.gw: khối của tường thành (greatwall.js) - địa hình ở đó do chính greatwall.js tạo
       dR=(x,z,b)=>Math.hypot(Math.max(b.x0-x,0,x-b.x1),Math.max(b.z0-z,0,z-b.z1));
     for(let j=0;j<NH;j++)for(let i=0;i<NH;i++){
       const x=-A+i*HS,z=-A+j*HS;
-      let m=Math.min(clamp01((Math.min(A-Math.abs(x),A-Math.abs(z))-1)/5),clamp01(((rv.rho(x,z)-1)*rv.rz-2.5)/7));
+      let m=clamp01((Math.min(A-Math.abs(x),A-Math.abs(z))-1)/5);
+      if(GWH){for(const l of rvs){if(m<=0)break;m=Math.min(m,clamp01(((l.rho(x,z)-1)*l.rz-1.5)/3))}}   // suối: thung lũng đã phẳng sẵn, chỉ cần bảo đảm sát bờ = 0
+      else m=Math.min(m,clamp01(((rv.rho(x,z)-1)*rv.rz-2.5)/7));
       if(m>0)for(const k of keep){m=Math.min(m,clamp01((dR(x,z,k)-1.5)/6));if(m<=0)break}
       if(m>0)for(const c of flat){m=Math.min(m,clamp01((Math.hypot(x-c.x,z-c.z)-c.r)/5));if(m<=0)break}
       if(m>0)for(const b of ob){m=Math.min(m,clamp01((dR(x,z,b)-1.2)/5));if(m<=0)break}
       if(m<=0){HG[j*NH+i]=0;continue}
+      if(GWH){HG[j*NH+i]=GWH[j*NH+i]*m;continue}
       const n=.5*Math.sin(x*.11+ph[0])*Math.sin(z*.10+ph[1])+.3*Math.sin(x*.19+z*.15+ph[2])+.2*Math.sin(x*.31-z*.26+ph[3]);   // sóng dài -> đồi rộng
       HG[j*NH+i]=CFG.hill*smooth(clamp01((n+.1)/1.0))*m;
-    }
-    if(window.GreatWall&&GreatWall.ridge&&GreatWall.floor===f){   // gò đất dưới chân Vạn Lý Trường Thành (world/greatwall.js): tường cao như nhau so với mặt đất nên nhấp nhô theo gò; xa sông thì giữ nguyên, gần sông thì hạ dần
-      for(let j=0;j<NH;j++)for(let i=0;i<NH;i++){
-        const x=-A+i*HS,z=-A+j*HS,r=GreatWall.ridge(x,z);
-        if(r>0)HG[j*NH+i]+=r*clamp01(((rv.rho(x,z)-1)*rv.rz-1.5)/3);
-      }
     }
     hAt=(x,z)=>{let u=(x+A)/HS,v=(z+A)/HS;const mx=NH-1.001;u=u<0?0:u>mx?mx:u;v=v<0?0:v>mx?mx:v;
       const i=u|0,j=v|0,fu=u-i,fv=v-j,a=HG[j*NH+i],b=HG[j*NH+i+1],c=HG[(j+1)*NH+i],e=HG[(j+1)*NH+i+1];
@@ -743,15 +742,19 @@ function buildFloor(f){
   //    rải thêm vài mảnh lệch tông sang tông kế bên cho có chi tiết.
   if(CFG.terrain){
     const Pal=T.ice?[0xf2f7ff,0xd6e6f7,0xaec6e4]:f===2?[0x92b24c,0x5b8a34,0x2c501f]:[0x62b85c,0x2f8a45,0x113f26],   // [nhạt, đậm, cực đậm]
-      q=[0,1,2,3].map(()=>rand()*6.283),col=new THREE.Color(),CH=16,chunks=new Map(),ty=y0+.03,CS0=CFG.carpet>=1?1:Math.max(.2,CFG.carpet),NC=Math.round(2*A/CS0),CS=2*A/NC,
+      q=[0,1,2,3].map(()=>rand()*6.283),col=new THREE.Color(),CH=16,chunks=new Map(),ty=y0+.03,CS0=f===1?Math.max(.8,CFG.carpet):(CFG.carpet>=1?1:Math.max(.2,CFG.carpet)),NC=Math.round(2*A/CS0),CS=2*A/NC,
       band=(x,z)=>{const v=.55*Math.sin(x*.085+q[0])*Math.sin(z*.075+q[1])+.35*Math.sin(x*.16-z*.12+q[2])+.25*Math.sin(x*.29+z*.24+q[3]);
         return v<-.35?2:v<.2?1:0};
+    const GRC=[0x6aa14b,0x4a8340,0x2f5a2d],RKC=[0x8c8478,0x756d62,0x9d9488],_rc=new THREE.Color();   // tầng 2: màu rừng / màu đá
     const CAP=Math.pow(Math.ceil(CH/Math.min(CS,.5))+1,2);   // số ô tối đa / khối 16m (bộ nhớ cấp phát 1 lần, dạng số nguyên 8-bit cho nhẹ)
     const emit=(xa,za,s,i,j)=>{
       const xb=xa+s,zb=za+s,ya=ty+hAt(xa,za),yb=ty+hAt(xb,za),yc=ty+hAt(xb,zb),yd=ty+hAt(xa,zb),
         hh=(ya+yb+yc+yd)/4-ty,h1=(Math.imul(i,73856093)^Math.imul(j,19349663))>>>0,jt=(h1%1000)/1000,sp=((h1>>>10)%1000)/1000;
       let bi=band(xa+s/2,za+s/2);if(sp<.14)bi=Math.max(0,Math.min(2,bi+(sp<.07?-1:1)));   // ~14% mảnh lệch tông
-      col.setHex(Pal[bi]).multiplyScalar((.88+.16*jt)*(1+.1*hh/Math.max(.1,CFG.hill)));
+      if(f===1){   // núi: rừng xanh ở thấp, đá xám nâu ở cao / dốc
+        const sl=Math.max(Math.abs(ya-yc),Math.abs(yb-yd))/(s*1.414),rk=clamp01((hh-5)/10+(sl-.55)*.9);
+        col.setHex(GRC[bi]);_rc.setHex(RKC[(h1>>>3)%3]);col.lerp(_rc,rk*rk*(3-2*rk)).multiplyScalar(.9+.2*jt);
+      }else col.setHex(Pal[bi]).multiplyScalar((.88+.16*jt)*(1+.1*hh/Math.max(.1,CFG.hill)));
       const R=Math.round(Math.min(1,col.r)*255),G=Math.round(Math.min(1,col.g)*255),B=Math.round(Math.min(1,col.b)*255);
       const key=Math.floor((xa+A)/CH)*1000+Math.floor((za+A)/CH);let c=chunks.get(key);
       if(!c)chunks.set(key,c={n:0,p:new Float32Array(CAP*18),c:new Uint8Array(CAP*18),u:new Uint8Array(CAP*12),nr:new Int8Array(CAP*18)});
@@ -796,7 +799,7 @@ function buildFloor(f){
         face([0,0,1],[[x1,y,z1,0],[x1,y1,z1,1],[x0,y1,z1,1],[x0,y,z1,0]]);
         face([0,0,-1],[[x0,y,z0,0],[x0,y1,z0,1],[x1,y1,z0,1],[x1,y,z0,0]]);
       };
-      const ar=4*lim*lim*CFG.detail,ok=(x,z,m)=>Math.abs(x)<lim&&Math.abs(z)<lim&&!wet(x,z,m)&&!(f===0&&window.BathKeeps&&BathKeeps.some(q=>x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1))&&!noSlab(x,z)&&!hitAny({x,y:y0+.02,z,r:.06,h:.3}),
+      const ar=4*lim*lim*CFG.detail,ok=(x,z,m)=>Math.abs(x)<lim&&Math.abs(z)<lim&&(f!==1||hAt(x,z)<9)&&!wet(x,z,m)&&!(f===0&&window.BathKeeps&&BathKeeps.some(q=>x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1))&&!noSlab(x,z)&&!hitAny({x,y:y0+.02,z,r:.06,h:.3}),
         gY=(x,z)=>y0+.02+hAt(x,z);
       for(let i=0,n=Math.round(ar*.22);i<n;i++){   // cụm cỏ 3-5 lá
         const x=rand.range(-lim,lim),z=rand.range(-lim,lim);if(!ok(x,z,1.2))continue;
@@ -838,16 +841,17 @@ function buildFloor(f){
 
 // ---- Chạy: tầng 1 dựng ngay, 3 tầng còn lại dựng dần sau khi tải ----
 const FL=[];
-const act=f=>P.y>f*FH-6&&P.y<(f+1)*FH-3;   // tầng đang gần người chơi
+const act=f=>P.y>FY(f)-6&&P.y<FY(f+1)-3;   // tầng đang gần người chơi
 function vis(){
   for(const Fl of FL){const a=act(Fl.f);
-    for(const m of Fl.objs){const b=a&&Math.hypot(m.position.x-P.x,m.position.z-P.z)<CFG.viewDist;m._vb=b;m.visible=b&&!m._oc}   // _oc: bị tường / nhà che khuất (engine/occlusion.js)
+    const VD=CFG.viewDist*(Fl.f===1?1.7:1);
+    for(const m of Fl.objs){const b=a&&Math.hypot(m.position.x-P.x,m.position.z-P.z)<VD;m._vb=b;m.visible=b&&!m._oc}   // _oc: bị tường / nhà che khuất (engine/occlusion.js)
     if(Fl.deco)Fl.deco.visible=a;
     for(const m of Fl.terr)m.visible=a;
-    for(const m of Fl.detail){const b=a&&Math.hypot(m.userData.cx-P.x,m.userData.cz-P.z)<CFG.viewDist+14;m._vb=b;m.visible=b&&!m._oc}   // cỏ/hoa/đá vụn: chỉ vẽ khối ở gần
+    for(const m of Fl.detail){const b=a&&Math.hypot(m.userData.cx-P.x,m.userData.cz-P.z)<VD+14;m._vb=b;m.visible=b&&!m._oc}   // cỏ/hoa/đá vụn: chỉ vẽ khối ở gần
     for(const l of Fl.lakes){if(l.mesh)l.mesh.visible=a;if(l.bed)l.bed.visible=a}
     for(const c of Fl.crit)c.g.visible=a;
-    if(Fl.fish)for(const q of Fl.fish)q.g.visible=a&&Math.hypot(q.x-P.x,q.z-P.z)<CFG.viewDist;
+    if(Fl.fish)for(const q of Fl.fish)q.g.visible=a&&Math.hypot(q.x-P.x,q.z-P.z)<VD;
   }
 }
 function lakeAt(x,y,z){   // đang lội trong hồ nào (chân thấp hơn mặt nước)
@@ -860,10 +864,10 @@ function lakeAt(x,y,z){   // đang lội trong hồ nào (chân thấp hơn mặ
 lakeGround=function(x,z,y){
   const ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
   for(const Fl of FL){if(!Fl.cells.size)continue;const l=Fl.cells.get(ck(ci,cj));
-    if(l&&y>l.y-l.dmax-1.2&&y<l.y+FH-SLT-.1)return l.y-lakeH(l,x,z)}
+    if(l&&y>l.y-l.dmax-1.2&&y<l.y+FHT[l.f]-SLT-.1)return l.y-lakeH(l,x,z)}
   // không phải lòng sông -> mặt đồi (chỉ khi chân đang gần/dưới mặt đồi; đứng trên khối cao thì để physics tự xử lý)
   for(const Fl of FL){if(!Fl.hg)continue;
-    if(y>Fl.y-1.2&&y<Fl.y+FH-3){const h=Fl.hAt(x,z);return h>.005&&y<Fl.y+h+1?Fl.y+h:null}}
+    if(y>Fl.y-1.2&&y<Fl.y+FHT[Fl.f]-3){const h=Fl.hAt(x,z);return h>.005&&y<Fl.y+h+1?Fl.y+h:null}}
   return null;
 };
 function splash(x,z,l,n){
@@ -1042,9 +1046,9 @@ function loop(now){
     gyHook=true;const _g=groundY;
     groundY=function(x,y,z){const g=_g(x,y,z),ci=Math.floor(x/CELL),cj=Math.floor(z/CELL);
       for(const Fl of FL){const l=Fl.cells.size&&Fl.cells.get(ck(ci,cj));
-        if(l&&g<=l.y+.001&&y<l.y+FH-SLT-.1&&y>l.y-l.dmax-1)return l.y-CFG.level-.02}
+        if(l&&g<=l.y+.001&&y<l.y+FHT[l.f]-SLT-.1&&y>l.y-l.dmax-1)return l.y-CFG.level-.02}
       for(const Fl of FL){if(!Fl.hg)continue;   // hạt (máu, bụi...) rơi xuống mặt đồi
-        if(y>Fl.y-1.2&&y<Fl.y+FH-3){const h=Fl.y+Fl.hAt(x,z);if(h>g&&y>h-.3)return h;break}}
+        if(y>Fl.y-1.2&&y<Fl.y+FHT[Fl.f]-3){const h=Fl.y+Fl.hAt(x,z);if(h>g&&y>h-.3)return h;break}}
       return g};
   }
   tickRipples(dt);

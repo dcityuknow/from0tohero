@@ -153,9 +153,9 @@ function tickRocks(dt){
       const s=dt/3;p.vy-=ROCK.grav*s;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;
       if(!dead&&Math.hypot(P.x-p.x,P.z-p.z)<P.r+(p.rad||.24)&&p.y>P.y-.05&&p.y<P.y+P.h+.1){   // TRÚNG NGƯỜI CHƠI
         hurt(p.dmg||ROCK.dmg);quake({x:p.x,y:p.y,z:p.z},.18);snd(130,.14,'square',.08*GV);rockBurst(p.x,p.y,p.z);end=true}
-      else if(NA&&NA.isWater&&p.y<curFl*FH+.1&&NA.isWater(curFl,p.x,p.z,0)){NA.bulletSplash(p.x,p.y,p.z);end=true}   // rơi xuống sông
+      else if(NA&&NA.isWater&&p.y<FY(curFl)+.1&&NA.isWater(curFl,p.x,p.z,0)){NA.bulletSplash(p.x,p.y,p.z);end=true}   // rơi xuống sông
       else{
-        const lg=lakeGround(p.x,p.z,p.y),gy=Math.max(curFl*FH,lg===null?-1e9:lg);
+        const lg=lakeGround(p.x,p.z,p.y),gy=Math.max(FY(curFl),lg===null?-1e9:lg);
         if(p.y<=gy+.06||hitAny({x:p.x,y:p.y-.1,z:p.z,r:.1,h:.2})){rockBurst(p.x,Math.max(p.y,gy+.06),p.z);snd(200,.07,'triangle',.05*GV,p);end=true}}
     }
     if(end||p.t<=0){S.remove(p.m);rocks.splice(i,1)}

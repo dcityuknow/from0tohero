@@ -22,11 +22,11 @@ const OC=(function(){
 
   // khối che = va chạm của khung map (tường ngoài, khối chắn, thang, rào) + tường nhà; bỏ sàn dày (tấm sàn có lỗ / hồ) và cổng trong suốt
   function buildOcc(){
-    occFl=curFl;const y0=curFl*FH,live=new Set(boxes),skip=new Set(),out=[];
+    occFl=curFl;const y0=FY(curFl),live=new Set(boxes),skip=new Set(),out=[];
     for(const g of gates)if(g&&g.e)skip.add(g.e);
     for(const b of FM.structBoxes){
       if(!live.has(b)||skip.has(b)||Math.abs((b.y1-b.y0)-SLAB)<.02||b.hole)continue;
-      if(b.y1<y0-.5||b.y0>y0+FH)continue;
+      if(b.y1<y0-.5||b.y0>y0+FHT[curFl])continue;
       out.push([b.x0,b.x1,b.y0,b.y1,b.z0,b.z1]);
     }
     if(curFl===0&&window.OccSrc)for(const k in OccSrc)for(const b of OccSrc[k])out.push([b.x0,b.x1,b.y0,b.y1,b.z0,b.z1]);
@@ -48,7 +48,7 @@ const OC=(function(){
   function hidden(cx,cy,cz,r){
     const ex=C.position.x,ey=C.position.y,ez=C.position.z,dx=cx-ex,dy=cy-ey,dz=cz-ez;
     if(dx*dx+dy*dy+dz*dz<cfg.minDist*cfg.minDist)return false;
-    const fy=curFl*FH+.05;
+    const fy=FY(curFl)+.05;
     for(let i=0;i<SM.length;i++){const o=SM[i];let sy=cy+o[1]*r;if(sy<fy)sy=fy;
       if(!blocked(ex,ey,ez,cx+o[0]*r,sy,cz+o[2]*r))return false}   // thấy được 1 điểm là đủ để vẽ (kiểm tra tâm trước nên đa số thoát ngay)
     return true;
