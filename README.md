@@ -33,7 +33,7 @@ block-arena/
 | To change | Edit |
 |---|---|
 | Map size of all 4 floors | `MAPK` in `src/world/world.js` |
-| Floor height (ceiling, stair step count) | `FH` in `src/world/world.js` |
+| Floor height per floor (ceiling, stair length / step count) | `FHT` in `src/world/world.js` (default `[22.4,32,32,32]`; use `FY(f)` / `FHT[f]` / `flOf(y)` in code, not `f*FH`) |
 | Damage, magazine size, fire rate | `src/core/config.js` |
 | Drop rate, health restore | `src/core/config.js` |
 | How long a left floor stays in memory (default 25 s) | `KEEP` in `src/world/floors.js` |
