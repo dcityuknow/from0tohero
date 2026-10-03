@@ -55,7 +55,7 @@ function frame(now){
     for(const b of bots){
       if(b.ally)continue;      // đồng minh do ally.js điều khiển
       if(!b.on){b.g.visible=false;continue}
-      if(b.hp>0&&(b.y<curFl*FH-4||b.y>curFl*FH+12)){spawnBot(b);continue}   // +12: bot được phép leo lên mặt tường thành (cao 7m)
+      if(b.hp>0&&(b.y<FY(curFl)-4||b.y>FY(curFl)+(curFl===1?44:12))){spawnBot(b);continue}   // +12 (tầng 2: +44): bot được phép leo lên núi / mặt tường thành
       if(b.hp<=0)continue;      // bot chết được tái sử dụng bởi bộ sinh quái (tickSpawn)
       const dx=P.x-b.x,dz=P.z-b.z,d=Math.hypot(dx,dz);let mv=0;
       // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
