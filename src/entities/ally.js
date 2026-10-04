@@ -40,7 +40,7 @@ function allyAnswer(yes){
 }
 // Tất cả quái thường chết cùng lúc: vài con gần nhất vỡ mảnh, còn lại bốc máu nhẹ cho đỡ nặng máy
 function killAllMinions(){
-  const v=[];for(const b of bots)if(!b.boss&&b.on&&b.hp>0)v.push(b);
+  const v=[];for(const b of bots)if(!b.boss&&!b.arch&&b.on&&b.hp>0)v.push(b);
   v.sort((p,q)=>Math.hypot(p.x-P.x,p.z-P.z)-Math.hypot(q.x-P.x,q.z-P.z));
   const up=new THREE.Vector3(0,1,0),d0=new THREE.Vector3(0,.3,0),c=new THREE.Vector3();
   v.forEach((b,i)=>{

@@ -52,7 +52,9 @@ class VB{
     geo.setAttribute('normal',new THREE.Float32BufferAttribute(this.n,3));
     geo.setAttribute('color',new THREE.Float32BufferAttribute(this.c,3));
     geo.setIndex(this.i);
-    const m=new THREE.Mesh(geo,VMAT);m.frustumCulled=false;return m;
+    geo.computeBoundingSphere();
+    // mesh LỚN tĩnh (nhà, chòi, tượng...: bán kính > 3m) cho three.js tự bỏ vẽ khi nằm ngoài tầm nhìn; vật nhỏ / súng cầm tay giữ không cull như cũ (tránh nhấp nháy)
+    const m=new THREE.Mesh(geo,VMAT);m.frustumCulled=geo.boundingSphere.radius>3;return m;
   }
 }
 const chk=(a,b)=>(i,j,k)=>((i+j+k)&1)?a:b;
