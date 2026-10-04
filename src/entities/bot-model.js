@@ -1,6 +1,88 @@
 // Bot thường: mô hình voxel chi tiết (đầu, thân, tay, chân), spawn, nhân bản bot
 const bots=[],botMeshes=[];
 const spawns=[[-10,-16],[14,-14],[-14,14],[14,10],[0,-17],[-12,2],[12,-2]];
+// ---------- DỮ LIỆU LOGO (lấy mẫu từ ảnh gốc) ----------
+// Lưới 120x66, '.' = trống, ký tự khác = độ sáng xám 0..63.
+const BLG_W=120,BLG_H=66,BLG_ASPECT=1.8207,BLG_B64='0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
+const BLG_PX=[
+  '............................hjklmmmkj..............................................jkllmmnk.............................',
+  '........................jkmqsuwyyyxwutspok....................................imortvxxyyzzxwvsqn........................',
+  '.....................jlqvBGKMOPPPPPPOMKGBxson..............................kmpuAGKMPQQQQQQPOMKFBxup.....................',
+  '...................jnvDJMMJHFDDCDDEFIJMOPOKEzto..........................kovCJOQONMMMMNNOOPQRRRQNJEyro..................',
+  '.................jntCKKGBzxxxxyyyzzAABCEGKPQPGxtm......................intENQOKIIJKLMNNNOOPPQRSSTTQKFAs.................',
+  '................kqAGGCywwwwxxxxyyyzzzzAABDGJMPMExrl...................lsBKOLIHIJKLLMMNNOOOPPQQRSTUUTRMFwo...............',
+  '..............imuCBywvvvwwwxxxxyyyyzzzzzABCDFIMPLEwo................jozKMJGGHJKLLLMMMMNNOOPPPQQRRSUVXWSLDv..............',
+  '.............kpwzwuvvvvwwwwxxxyyyyyzzzzzzAABCDGJNPKAuo............jmuGMIEFHIJKLLMMMMNNNNNOOPPQQRRRSTUWYWRJBq............',
+  '...........hkrwwuuuvvvvvwwwxxyyzzzyyyyyyyyzAACDEHKOOJCvqok.....kmpwELKFFGIJKLMNNNNNMMMMMNNOOPPQQQRSTTUVYYWPFu...........',
+  '...........kqvutuuuuvvvwwwxyzAAzzzyxxwwwwwwyzABCEGJNPPKCxvtrqrstzGNNIDEHIJLMNOOONMLJJJIJJKLNOOPPQQRSTUUVY+YQHr..........',
+  '..........jottttuuuuvvwxxyABBBBBCDEFEDCBywvuvwyABDFIKMPPOLIHGHKMONJFDFHJKNPQQPNLKJJIHHGFEEFIJLNPQQRSTUUUVYZYQFq.........',
+  '........ginrsttuuvvvvwxzBDEDEGKNPQQPPPPPNKFAwtuwyABDEGHJLMNONMLJGFEFHJKOQSRPNMNPQQQQQQQOLIECCDHLNPQRSTUUVVXZYRIu........',
+  '........imqrsttuuvvwwyBFGGHLOPNJEByvuuwyCHMOLEwtuwzBCCEEFFFGFFFFFGHIJMQTTQOPQPMHDAyxzBDGKOOMICADHLPQRSUUVVVX+ZTKs.......',
+  '.......hlpqsttuuvvwxzDIJJMPNIBtr..........puCKKBvtuyACDDEEFFFFGGHIJKNSTRPPPJBtr.........qtAHMNHAzDIOQRTUVVVWX++UG.......',
+  '......gjnqrstuuvvwwzEJLMOPIzqk..............jqDLGyttwzBDDEEFFGGHHJMPSSQPPLym..............lpwFOIByBINQSUVVVWWY+ZQz......',
+  '......hlprsstuuvvwzFKMNPMDv...................myIJBvuvyACDEEFGHIJLOQQPQNCs...................qALKCxBHNRTUVVWWXZ+XLs.....',
+  '.....gjnqssstuvvwzHNOOPGyq......................ozJIEzwwyzBCEFGHJLMOPPFs......................mtDJCwzFNRTVWWWWX+/VF.....',
+  '....ghlprsstuvvwzGPRPODu..........................qDLMJGDCBCDFHJMPRPJw..........................owGAwyGOSUVWWWXY++Qy....',
+  '....hjnqssstuvvxEOTQPDu............................krBKONMLMNPRSSOHyo............................nvEyvAJRTVWWWXX+/WLr...',
+  '...ghkorssstuvwAKTRPGw................................quBFIJKJHEzt................................nwBwvDNSTVWXXXY+ZSA...',
+  '...gimpsssstuvyHTUPFy..............................................................................ntytxGPSUWXXXXZ+ZM...',
+  '...hknrrssstvxEPWRGyq..............................................................................jmsvtAJRTVWXXXY++Tw..',
+  '..gilprrsstuvALWWLAp................................................................................jmutvENSTVWXXY+/YG..',
+  '..gjmqrrsstuwFSYSDw..................................................................................kputzJRTUWXXY+/+Pp.',
+  '..gknqrrsstuyKWYNzr..................................................................................jltrvEPTUVWXYZ//Tw.',
+  '..hlprrrsstvBRZWGw....................................................................................jptsAMSTUWXYY+/XA.',
+  '.gilprrrstuwFW+TBs....................................................................................ilurwISTUVWXYZ/ZH.',
+  '.gimqrrrstuxKYZOzp.....................................................................................jtrtFQTUVWXYZ/+O.',
+  '.gjnqrrrstvyN+YKy......................................................................................jrtsCPSUVWXYZ//Qp',
+  '.gjnqrrrttvAQ+XHw......................................................................................ipvsBOTTUVXXY+/St',
+  '.gjoqrrstuvBS+VFu......................................................................................hnwrzMSTUVXYY+/Ux',
+  'fgjoqrrstuvCU+UDs......................................................................................ilxryLSTUVXYY+/Vw',
+  'ggjoqqrstuvDU+TCt......................................................................................ilxsxLSTUWXYY+/Wv',
+  'fgjoqrrttuvCU+UDs......................................................................................ilxsxKSTUWXYY+/Wv',
+  'ggjoqrsttuvCT+UDs......................................................................................hlxsxLSUVWXYY+/Vv',
+  'hginqrsttuvBS+VEt......................................................................................hnxsyMSUVXYYY+/Vw',
+  'hginqrsttuvzQ+XHw......................................................................................ipwsANTUWXYYY+/Tv',
+  '.gimqrsstuvyO+ZKy......................................................................................irvtCOTVWXXYY++Qq',
+  '.gimqrrstuvxLZ+Ozo.....................................................................................jutuEQTVWXYYZ/+Om',
+  '.hhlprrstuuwGW+TBr....................................................................................hkvswHRUWXXYYZ/ZK.',
+  '.hhkoqrsttuvCS+XFv....................................................................................hovtzKSVWXXYY+/XC.',
+  '.hhjnqrrstuvzNYZNyq...................................................................................jttwDOUVWXXYY+/Ty.',
+  '..hilprrsstuxHUZTBt..................................................................................hmwtyHRUVWXXYZ/+Pq.',
+  '..hikorrrrtuvCOYWIxl.................................................................................jsvwBLSUVXXXY+/YJ..',
+  '..gijmqrrrstvyGTYQBv................................................................................inxvAHPTUWXXXY++Uz..',
+  '...iikprrrrsuvAKWWKyt..............................................................................ilxxyFNSTVWXXXZ+YNr..',
+  '...hijnqrrrstuwCPXSIyr.................................lnortutrqo.................................imxzyCLQSUVWXXY+ZTD...',
+  '...hijlprrrrstvxHTWQFwp.............................klqtyCFIJJIFAxrn.............................hlwAzBHPRSUVWXXZ+WMu...',
+  '....ijknrrrrssuvAKUUNCvn..........................jnsyCHKNOPPQQQOLFztn..........................iltBBBFMRSTUVWXX+ZRE....',
+  '.....jklprrrsstuwCMSTMCwq........................luCHKONMLKKLMOQRSQNIBs........................knvDDDELQRSTUWWXZ+UIq....',
+  '.....ikknprrssstuwCJQRMExuo....................lsAEHIGEDDEEFGHJKNPSTSNGyq....................jlsAFGEFKQRSTTVWXY+XNv.....',
+  '......kllnqssssstvxCIPRMHyurl................jnxEEFCAABCDEEFFGGHJLPSVVPJBvm.................lnuEHJGGLPRRSTUVWY+YRF......',
+  '......immmorsssstuvxBINQNJDwtqn............lnuCFEDAyABCDDEEFFFFGGIKNRVWSMFzsq............klorAGLKHHMPRSSTUUVXZZULu......',
+  '.......lnnmorsssstuvxAFKOPOJEzvtqpqonmnonquyDHHEAyyBBCCDDDDDDDEEFGHIKPUWWRMFByurronmmopoqtyCHLNKHJNPQRSTUUVWZYTNy.......',
+  '........nponprsssttuvwyCFINQPNKGDBAyyyzBDGJLLHCyyzBCDEEDCCBBAAAzACEFHJMRUVUROLHEBAzzyzACFJMOPMJJLOQRRSTUUVWYYSOC........',
+  '.........nrqoprssttuvvwxyAEHKNPQPONMMMNNONKHCzyzBBDEFEEFHJKLLJHEAyyzCFILNQSTUTSQPONNNNOPQQOMKKMOPQRSSTTUVWYWSPB.........',
+  '..........pvroprstttuvwwxxyBCDFILMNONNMKGCAzzzABCDFGGGLQUUVVVVUTPHAwxAEHIKNPQRRSSSSSRQQONLLLMNPQRRSSTTTUWYWRRC..........',
+  '...........rxtppqstttuvvwwxxyzABBCCCCCBAzzzzzABCEFGIMRTOFACyyCAGOSOHAwzDGHJLMNOPOPOOONMMMMNOPPQQRRSSTTUWWUSRE...........',
+  '............rBztqqsttuvvvwwwwxxxyyyyyzzzzzzzABCEFHLSTJx..........vJSQGyxAEGIJKLMMMMNNNNNNOOPPPQQRRSSTUVURRSE............',
+  '.............rDHAtqqsttuvvvvwwwwxxxxyyyyzzAABDEGJPTIv..............tGSNCyyBFHIJKLLMMMMMNNNOOPPQQQRSTUTRQSNy.............',
+  '...............vJJAvrrstuuvvvwwwwxxxyyyyzAABCEJPTQy..................wNRLEzyBDGIJKLLLMMMNNOOPPQQRRRQPPSRD...............',
+  '................oJQMEwsrsstuvvwwwwxxxxyyzABCGMTTHs....................pJTSLDzzADGHJKLLMMNNOOOPPPPNMNRUOu................',
+  '..................zLQNGAwutttuuvvvwwxxyzBEJOSTKv........................wISRNIDBBCEFHIJKKLLLMLLLLNRTPD..................',
+  '....................vFQSQMHECAzzzAABCFILQTUPFw............................vEOTSPMIGFEEEFGGHIKMPSUTHz....................',
+  '.......................yAKQSSSRRRSSSTTSQKBu..................................tBJPTTTSRRRRSTTTRMDCq......................',
+  '............................vxABAzzzyv............................................wzBDEEFCyxy...........................'
+].join('');
+function botLogoGrid(nx,ny){
+  const out=new Array(nx*ny).fill(-1);
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
+    const ya=Math.floor(j*BLG_H/ny),yb=Math.max(Math.floor((j+1)*BLG_H/ny),ya+1),
+          xa=Math.floor(i*BLG_W/nx),xb=Math.max(Math.floor((i+1)*BLG_W/nx),xa+1);
+    let cnt=0,tot=0,sum=0;
+    for(let r=ya;r<yb;r++)for(let c=xa;c<xb;c++){tot++;const ch=BLG_PX[r*BLG_W+c];if(ch!=='.'){cnt++;sum+=BLG_B64.indexOf(ch)}}
+    if(cnt/tot>=.5)out[j*nx+i]=Math.round(sum/cnt/63*255);
+  }
+  return out;
+}
 function buildBot(){
   const b={x:0,y:0,z:0,vy:0,r:.4,h:1.7,hp:100,ground:false,respawn:0,t:0,mv:0,parts:[],g:new THREE.Group()};
   // mỗi bộ phận = 1 mesh gộp (VB nhớ lại từng khối để vỡ mảnh); head=true để tính headshot
@@ -24,16 +106,11 @@ function buildBot(){
   const H=new VB(true),HY=1.6,VY=1.65,VF=.32;
   H.box(0,HY,0,.56,.56,.56,PINK,.05,true);
   H.box(0,VY,.27,.6,.28,.1,(i,j,k)=>(i+j+k)&1?0x14141b:0x1e1e27,.04,true);   // kính đen
-  // logo trắng hình "hạt đậu / quả tạ" (cùng công thức với boss, thu nhỏ)
-  {const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
-    so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),
-    si=(x,y)=>sm(Math.hypot(x-.5,y)-.26,Math.hypot(x+.5,y)-.26,1.0);
-    const LW=.46,LS=.0139,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2;
-    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
-      const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
-      if(o>0||n<=0)continue;
-      const g=Math.round(255*(.62+.38*Math.sin(Math.PI*(-o)/(-o+n)))),hex=g<<16|g<<8|g;
-      H.cube(x*u,VY+y*u,VF+.01,LS*.95,LS*.95,.02,hex,i,j,0)}}
+  // logo vô cực trên kính: lấy mẫu trực tiếp từ ảnh logo gốc (cùng dữ liệu với house.js) -> đúng hình dạng, độ cong, sắc độ
+  {const LW=.46,LS=.0139,nx=Math.round(LW/LS),ny=Math.round(nx/BLG_ASPECT),LH=LW/BLG_ASPECT,lg=botLogoGrid(nx,ny);
+    for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
+      const l=lg[j*nx+i];if(l<0)continue;
+      H.cube((-.5+(i+.5)/nx)*LW,VY+(.5-(j+.5)/ny)*LH,VF+.01,LS*.95,LS*.95,.02,(l<<16)|(l<<8)|l,i,j,0)}}
   H.box(0,1.4,.292,.28,.06,.02,0x2b2a3a,.01);H.box(0,1.4,.305,.25,.035,.01,(i)=>i&1?0xffffff:-1,.02);
   for(const sx of[-.2,.2])H.box(sx,1.45,.286,.07,.04,.012,0xff9fbf,.02);
   for(const sx of[-1,1]){H.cyl(sx*.3,1.6,0,.08,.05,0xffd23f,.02,'x');H.cyl(sx*.325,1.6,0,.045,.02,0x3a3850,.015,'x')}
