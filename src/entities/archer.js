@@ -41,17 +41,22 @@ const Archer=(function(){
     // thân: áo dài hẹp, thắt lưng da + khóa bạc hình số 8, dây chéo, ống tên sau lưng với 3 mũi tên lông vàng
     const T=new VB(true);
     T.box(0,1.52,0,.58,.8,.38,(i,j,k)=>(j<3?LEA2(i,j,k):CLOTH(i,j,k)),.05,true);
-    T.box(0,1.2,0,.62,.14,.42,BELT,.04,true);                                                  // thắt lưng dày
-    // khóa bạc hình số 8 (2 vòng bạc, lõi xanh) nổi hẳn ra trước thắt lưng (mặt trước thắt lưng z=.21)
-    for(const cx of[-.075,.075]){
-      T.box(cx,1.255,.235,.15,.032,.05,SIL,.01);T.box(cx,1.145,.235,.15,.032,.05,SIL,.01);   // thanh trên / dưới
-      T.box(cx-.059,1.2,.235,.032,.12,.05,SIL,.01);T.box(cx+.059,1.2,.235,.032,.12,.05,SIL,.01);   // thanh trái / phải
-      T.box(cx,1.2,.222,.07,.07,.03,GLOW,.012);                                              // lõi xanh phát sáng
+    T.box(0,1.2,0,.62,.28,.42,BLK,.04,true);                                                  // thắt lưng dày, cao
+    // LOGO in trên đai (cả mặt trước lẫn mặt sau) = đúng hình "hạt đậu / số 8" như logo trên kính bot (cùng công thức bot-model.js): viền bạc có đổ sáng, lõi đen
+    {const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
+      so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),
+      si=(x,y)=>sm(Math.hypot(x-.5,y)-.26,Math.hypot(x+.5,y)-.26,1.0);
+      const LW=.5,LS=.0125,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2,BF=.21;   // BF = mặt trước thắt lưng
+      for(const sd of[1,-1])for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){   // sd=1: logo mặt trước · sd=-1: logo mặt sau lưng
+        const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
+        if(o>0)continue;
+        if(n<=0){const g=.75+.25*Math.sin(Math.PI*Math.min(1,-n*3));T.cube(x*u,1.2+y*u,sd*(BF+.012),LS*.97,LS*.97,.024,(Math.round(20*g)<<16)|(Math.round(20*g)<<8)|Math.round(26*g),i,j,0);continue}   // lõi đen
+        const g=Math.round(255*(.6+.4*Math.sin(Math.PI*(-o)/(-o+n))));
+        T.cube(x*u,1.2+y*u,sd*(BF+.03),LS*.97,LS*.97,.06,(g<<16)|((g-6)<<8)|(g+(g<240?10:0)),i,j,0)}   // viền bạc nổi
     }
-    T.box(0,1.2,.24,.04,.06,.05,SIL,.01);                                                      // thắt eo của số 8
-    for(let k=0;k<5;k++)T.box(.15-k*.075,1.8-k*.11,.2,.1,.13,.025,LEA2,.015);                  // dây đeo chéo từ vai phải xuống hông trái
+    for(let k=0;k<4;k++)T.box(.15-k*.075,1.8-k*.11,.2,.1,.13,.025,LEA2,.015);                  // dây đeo chéo từ vai phải xuống hông trái
     T.box(0,1.88,.15,.36,.12,.2,TAN2,.04,true);                                                // cổ áo
-    T.box(.12,1.62,-.27,.24,.66,.2,LEA,.04,true);T.box(.12,1.97,-.27,.25,.07,.21,LEA2,.03);   // ống tên
+    T.box(.12,1.67,-.27,.24,.66,.2,LEA,.04,true);T.box(.12,2.02,-.27,.25,.07,.21,LEA2,.03);   // ống tên
     for(const [x,dz] of[[.04,0],[.12,.03],[.2,-.02]]){T.box(x,2.14,-.27+dz,.03,.3,.03,0x3a2619,.015);T.box(x,2.32,-.27+dz,.055,.13,.03,0xf0e04a,.015)}   // cán + lông vàng
     add(b.g,T,false);
     // đầu: mặt nâu, mắt xanh phát sáng, ngọc xanh ở cổ, mũ phù thủy đen (vành rộng, thân nhọn nhiều tầng, đỉnh cong ra sau) + dải xanh + khóa
@@ -73,7 +78,7 @@ const Archer=(function(){
       const v=new VB(true);
       v.box(0,-.32,0,.24,.64,.26,PANT,.045,true);v.box(0,-.82,0,.25,.4,.27,TAN2,.045,true);
       for(let k=0;k<3;k++)v.box(0,-.7-k*.1,0,.28,.06,.3,LEA,.03);                           // dây quấn bắp chân
-      v.box(0,-1.04,.03,.27,.14,.35,LEA2,.04,true);
+      v.box(0,-1.02,.05,.32,.2,.44,LEA2,.04,true);v.box(0,-.9,0,.3,.07,.34,LEA,.03);
       add(l,v,false);
     }
     // tay dài: tay trái cầm cung cong dài + mũi tên đã lắp; tay phải kéo dây
