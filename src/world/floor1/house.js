@@ -300,7 +300,7 @@ function logo(v,cx,cy,cz,LW,isBack=false){
   const LS=.05,nx=Math.round(LW/LS),ny=Math.round(nx/LOGO_ASPECT),LH=LW/LOGO_ASPECT,g=logoGrid(nx,ny);
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
     const l=g[j*nx+i];if(l<0)continue;
-    const hex=(l<<16)|(l<<8)|l,x=(-.5+(i+.5)/nx)*LW,y=(.5-(j+.5)/ny)*LH;
+    const hex=(l<<16)|(l<<8)|l,x=(isBack?.5-(i+.5)/nx:-.5+(i+.5)/nx)*LW,y=(.5-(j+.5)/ny)*LH;   // isBack: nhìn từ phía sau nên lật ngang để đúng chiều như mặt trước
     if(isBack)v.cube(cx+x,cy+y,cz,-LS*.95,LS*.95,.12,hex,i,j,0);
     else v.cube(cx+x,cy+y,cz,LS*.95,LS*.95,.12,hex,i,j,0);
   }
@@ -582,7 +582,7 @@ function buildHouse(hx,hz){
   logo(v,-5.5,2.23,5.35,2.0,false);
   text(v,'POWERED',-5.5,1.47,5.261,.04,0xffffff);
   text(v,'BY RLNC',-5.5,1.15,5.261,.04,0xffffff);
-  fp(-1.8,1.8,1.3,3.2,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=34||j<2||j>=17)?POST:0x2b1c12);
+  fp(-2.0,2.0,1.15,3.35,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=38||j<2||j>=20)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4]);   // bảng gỗ đen, y chang mặt trước
   logo(v,0,2.25,-3.25-.18,3.0,true);
 
   // ====================================================================
