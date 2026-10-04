@@ -18,8 +18,14 @@ block-arena/
    ├─ loader.js               LIST of JS files in load order (add new files here)
    ├─ main.js                 main loop, damage handling, restart
    ├─ core/                   core.js (renderer/camera) · config.js (weapon stats, drops) · state.js
-   ├─ world/                  world.js (floor 1, MAPK) · sky.js (sky dome, clouds, ceiling fog) · level.js (4 floors, stairs, gates)
-   │                          floors.js (lazy load / unload of floors) · physics.js · house.js · pavilion.js · statues.js · teaset.js · bath.js · nature.js
+   ├─ world/
+   │  ├─ common/              world.js (floor 1, MAPK, FHT) · sky.js · level.js (4 floors, stairs, gates) · physics.js · floors.js (lazy load / unload)
+   │  ├─ nature/              shared nature engine for every floor (split from the old nature.js, shares state via window.NatureKit):
+   │  │                       kit.js (CFG, THM themes, RNG) · placement.js (keep-out zones) · plants.js (trees, rocks, logs, butterflies)
+   │  │                       lake.js (rivers: depth, carving) · state.js (FL, lakeAt, isWater, wetAt) · fx.js (splash, ripples, bullets in water)
+   │  │                       fish.js · swim.js (wade / swim / hold breath) · build.js (buildFloor) · runtime.js (frame loop, load / unload, window.Nature)
+   │  ├─ floor1/              house.js · pavilion.js · statues.js · teaset.js · bath.js
+   │  └─ floor2/              greatwall.js
    ├─ i18n/                   lang-data.js (translations) · i18n.js (language selection)
    ├─ engine/                 input.js · sound.js · music.js · voxel.js (voxel building core) · occlusion.js (occlusion culling)
    ├─ player/                 player.js (hands) · weapons.js (4 weapons) · viewmodel.js (reload, bolt action)
@@ -32,31 +38,35 @@ block-arena/
 ## Quick tweaks
 | To change | Edit |
 |---|---|
-| Map size of all 4 floors | `MAPK` in `src/world/world.js` |
-| Floor height per floor (ceiling, stair length / step count) | `FHT` in `src/world/world.js` (default `[22.4,32,32,32]`; use `FY(f)` / `FHT[f]` / `flOf(y)` in code, not `f*FH`) |
+| Map size of all 4 floors | `MAPK` in `src/world/common/world.js` |
+| Floor height per floor (ceiling, stair length / step count) | `FHT` in `src/world/common/world.js` (default `[22.4,32,32,32]`; use `FY(f)` / `FHT[f]` / `flOf(y)` in code, not `f*FH`) |
 | Damage, magazine size, fire rate | `src/core/config.js` |
 | Drop rate, health restore | `src/core/config.js` |
-| How long a left floor stays in memory (default 25 s) | `KEEP` in `src/world/floors.js` |
+| How long a left floor stays in memory (default 25 s) | `KEEP` in `src/world/common/floors.js` |
 | Occlusion culling (budget ms, min distance) | `cfg` in `src/engine/occlusion.js` · add `?occ=0` to the URL to turn it off and compare |
-| Fish jumping out of the river (on/off, how often, how high) | `fishJump`, `jumpEvery`, `jumpH` in `CFG` of `src/world/nature.js` |
+| Fish jumping out of the river (on/off, how often, how high) | `fishJump`, `jumpEvery`, `jumpH` in `CFG` of `src/world/nature/kit.js` |
 | Archers on the Great Wall (count, range, damage, fire rate) | `CFG` in `src/entities/archer.js` |
 | Respawn lives (+1 / +2 / +3 per boss, stacking) | `addLives` in `src/main.js` (called from `bossDown`) |
 | Max bots, spawn speed | `MAXBOT`, `SP_IV` in `src/entities/spawner.js` |
 | Boss health / weapons per floor | `src/entities/boss.js` |
-| Bots to defeat before the boss appears | `need()` in `src/world/level.js` |
-| Sky, clouds, ceiling fog | `SKY` / `SKYFOG` in `src/world/sky.js` |
-| Tea set position | `TEA` in `src/world/teaset.js` |
-| Bath pools with waterfall (position, which corners) | `BATHS` in `src/world/bath.js` |
-| Statue position | `STA` in `src/world/statues.js` |
+| Bots to defeat before the boss appears | `need()` in `src/world/common/level.js` |
+| Sky, clouds, ceiling fog | `SKY` / `SKYFOG` in `src/world/common/sky.js` |
+| Tea set position | `TEA` in `src/world/floor1/teaset.js` |
+| Bath pools with waterfall (position, which corners) | `BATHS` in `src/world/floor1/bath.js` |
+| Statue position | `STA` in `src/world/floor1/statues.js` |
 | Text and languages | `src/i18n/lang-data.js` |
 | Boss dialogue | `assets/data/talking.txt` |
+
+## Adding things per floor
+- Put a floor's own files in `src/world/floorN/` and register them in `loader.js` **before** the `nature/` block.
+- Files inside `src/world/nature/` share helpers through `window.NatureKit` (`const {CFG,V}=NK;` at the top, `Object.assign(NK,{...})` at the bottom); load order inside that block matters.
 
 ## Conventions
 - No `import`/`export`: all files share global variables, so **the order in `src/loader.js` matters a lot**
   (a file that uses something must be loaded AFTER the file that defines it).
 - Each folder is one group of responsibility. Put a new file in the appropriate group, then register it in `loader.js`.
-- Scenery files (`house.js`, `pavilion.js`, `statues.js`, `teaset.js`, `bath.js`) must load **before** `nature.js`, so trees, rocks and rivers
-  avoid them. Each one exposes a keep-out area (`HouseZone`, `PavilionKeep`, `TeaKeeps`, `BathKeeps`) that `keepOuts()` in `nature.js` reads.
+- Scenery files (`floor1/house.js`, `pavilion.js`, `statues.js`, `teaset.js`, `bath.js`) must load **before** the `nature/` files, so trees, rocks and rivers
+  avoid them. Each one exposes a keep-out area (`HouseZone`, `PavilionKeep`, `TeaKeeps`, `BathKeeps`) that `keepOuts()` in `src/world/nature/placement.js` reads.
 
 ## Performance: lazy floors + occlusion culling
 - **Only the floor you are on is built.** On start only floor 1 (trees, river, house, pavilion, statues, tea sets) exists. Floors 2-4 are built when you walk near the stairs
