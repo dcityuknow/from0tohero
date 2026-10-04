@@ -24,6 +24,7 @@
     'world/floor1/house.js','world/floor1/pavilion.js','world/floor1/statues.js',
     'world/floor1/teaset.js',
     'world/floor1/bath.js',
+    'world/floor1/stairgrove.js',   // rừng cây cao + hàng bụi che tường thang lên tầng 2
     'world/floor2/greatwall.js',   // Vạn Lý Trường Thành tầng 2 (dựng lười qua floors.js)
     // nature/: thiên nhiên dùng chung mọi tầng. THỨ TỰ quan trọng (file sau dùng thứ file trước định nghĩa qua NatureKit)
     'world/nature/kit.js',
