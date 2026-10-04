@@ -39,6 +39,8 @@ block-arena/
 | How long a left floor stays in memory (default 25 s) | `KEEP` in `src/world/floors.js` |
 | Occlusion culling (budget ms, min distance) | `cfg` in `src/engine/occlusion.js` · add `?occ=0` to the URL to turn it off and compare |
 | Fish jumping out of the river (on/off, how often, how high) | `fishJump`, `jumpEvery`, `jumpH` in `CFG` of `src/world/nature.js` |
+| Archers on the Great Wall (count, range, damage, fire rate) | `CFG` in `src/entities/archer.js` |
+| Respawn lives (+1 / +2 / +3 per boss, stacking) | `addLives` in `src/main.js` (called from `bossDown`) |
 | Max bots, spawn speed | `MAXBOT`, `SP_IV` in `src/entities/spawner.js` |
 | Boss health / weapons per floor | `src/entities/boss.js` |
 | Bots to defeat before the boss appears | `need()` in `src/world/level.js` |
