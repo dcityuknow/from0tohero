@@ -30,7 +30,7 @@
     'entities/bot-model.js','entities/boss-model.js','entities/boss2-model.js','entities/steering.js','entities/boss.js',
     'entities/spawner.js','entities/ai-talk.js','entities/boss-talk.js','entities/floor-manager.js',
     'entities/bot-throw.js',
-    'entities/ally.js',
+    'entities/ally.js','entities/archer.js',
     // Gameplay: bắn, hiệu ứng, vật phẩm, lựu đạn
     'gameplay/combat.js','gameplay/effects.js','ui/minimap.js','gameplay/items.js','gameplay/grenade.js','gameplay/fall.js',
     'gameplay/engrave.js',
