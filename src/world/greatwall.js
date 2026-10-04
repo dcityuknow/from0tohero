@@ -195,9 +195,11 @@ function mats(){
 }
 // ---------- GOM MẶT: mỗi loại họa tiết = 1 mesh duy nhất (rất ít draw call) ----------
 let Q=null;
-const newQ=()=>{Q={};for(const k of KIND)Q[k]={p:[],n:[],u:[],i:[],k:0}};
+const CELLQ=24;   // chia mesh tường theo ô 24m: mỗi mảnh có hình cầu bao riêng -> three.js bỏ vẽ mảnh ngoài tầm nhìn, tia bắn không phải duyệt cả bức tường
+const newQ=()=>{Q=new Map()};
+const qOf=(kind,a)=>{const key=kind+'|'+Math.floor(a[0]/CELLQ)+'|'+Math.floor(a[2]/CELLQ);let q=Q.get(key);if(!q){q={kind,p:[],n:[],u:[],i:[],k:0};Q.set(key,q)}return q};
 function quad(kind,a,b,c,d,n,uv){
-  const q=Q[kind],base=q.k;
+  const q=qOf(kind,a),base=q.k;
   for(const p of[a,b,c,d]){q.p.push(p[0],p[1],p[2]);q.n.push(n[0],n[1],n[2]);const t=uv(p);q.u.push(t[0]/TILE,t[1]/TILE)}
   q.i.push(base,base+1,base+2,base,base+2,base+3);q.k+=4;
 }
@@ -234,7 +236,10 @@ function pineGeo(c1,c2){
 function buildPines(P,cells,keyOf,Y0,B_){
   const A=P.A,R=rng(4242),HWd=HWID,exs=[];
   {const A1=AS(1),cx1=A1-2,A0=AS(0);   // chừa chỗ cho 2 đầu thang (thang lên tầng 3 ở phía Đông, lỗ thang từ tầng 1 lên ở phía Tây)
-    exs.push([cx1-6,cx1+6,A1-4-STLf(1)-8,A1+2]);exs.push([-A0-3,-A0+10,A0-4-STLf(0)-8,A0+2])}
+    // Thang lên tầng 3 nằm SÁT tường Đông: chừa trống LỐI VÀO (góc Đông-Nam, nơi có cổng đỏ) + phần sau tường thang (x > tường trong), còn dải trước tường thang để thông che tường cho đẹp
+    exs.push([cx1-24,A1+2,A1-4-2.5,A1+2]);exs.push([cx1+1.6,A1+2,A1-4-STLf(1)-8,A1+2]);
+    exs.push([-A0-3,-A0+10,A0-4-STLf(0)-8,A0+2])}
+  const A1s=AS(1),inSW=(x,z)=>x>A1s-13&&x<A1s-4.5&&z>A1s-4-STLf(1)-2&&z<A1s-7;   // dải thông trước tường thang tầng 3: cao nhất để che tường
   const inEx=(x,z)=>exs.some(e=>x>e[0]&&x<e[1]&&z>e[2]&&z<e[3]);
   const hasCell=(x,z)=>{for(const dx of[-2.5,0,2.5])for(const dz of[-2.5,0,2.5])if(cells.has(keyOf(x+dx,z+dz)))return true;return false};
   const cand=[],W=PINE.band[1];
@@ -243,10 +248,10 @@ function buildPines(P,cells,keyOf,Y0,B_){
     const bd=A-Math.max(Math.abs(x),Math.abs(z));
     if(bd<PINE.band[0]||bd>W)continue;
     if(P.bil(P.fDS,x,z)<4.5||P.bil(P.fDW,x,z)<HWd+6)continue;   // không sát suối / không đè lên Vạn Lý Trường Thành
-    if(r1>(bd<9?PINE.dense[0]:bd<17?PINE.dense[1]:PINE.dense[2]))continue;
+    if(r1>(inSW(x,z)?1:bd<9?PINE.dense[0]:bd<17?PINE.dense[1]:PINE.dense[2]))continue;
     if(inEx(x,z)||hasCell(x,z))continue;
-    const k=1-(bd-PINE.band[0])/(W-PINE.band[0]),gy=P.G(x,z);   // k: 1 sát tường -> 0 ở rìa trong: cây sát tường cao nhất
-    const sy=Math.min((PINE.sy[0]+r4*(PINE.sy[1]-PINE.sy[0]))*(.55+.45*k),(27.5-gy)/15);   // ngọn cây không chọc thủng trần tầng
+    const k=inSW(x,z)?1:1-(bd-PINE.band[0])/(W-PINE.band[0]),gy=P.G(x,z);   // k: 1 sát tường -> 0 ở rìa trong: cây sát tường cao nhất
+    const sy=Math.min((inSW(x,z)?PINE.sy[1]:PINE.sy[0]+r4*(PINE.sy[1]-PINE.sy[0]))*(.55+.45*k),(27.5-gy)/15);   // ngọn cây không chọc thủng trần tầng
     if(sy<.35)continue;
     cand.push([x,z,gy,r2*6.283,PINE.sx[0]+r3*(PINE.sx[1]-PINE.sx[0]),sy,r5]);
   }
@@ -355,14 +360,14 @@ function build(){
   }
   // --- xuất mesh ---
   const M=mats();
-  for(const k of KIND){
-    const q=Q[k];if(!q.k)continue;
+  for(const q of Q.values()){
+    if(!q.k)continue;
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(q.p,3));
     g.setAttribute('normal',new THREE.Float32BufferAttribute(q.n,3));
     g.setAttribute('uv',new THREE.Float32BufferAttribute(q.u,2));
     g.setIndex(q.i);
-    const m=new THREE.Mesh(g,M[k]);S.add(m);meshes.push(m);   // meshes: đạn để lại vết trên gạch
+    const m=new THREE.Mesh(g,M[q.kind]);S.add(m);meshes.push(m);   // meshes: đạn để lại vết trên gạch
   }
   Q=null;
   buildPines(P,cells,keyOf,Y0,B_);

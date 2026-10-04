@@ -1,10 +1,10 @@
 // Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong gốc: 20/25/30/35, nhân với MAPK ở world.js).
 // Thang tầng chẵn ở TÂY, tầng lẻ ở ĐÔNG. Cổng khóa ở chân thang, mở khi hạ boss của tầng đó.
 // SLAB (độ dày sàn các tầng 2-4, m) được khai báo ở world.js. Dày để đào sông sâu (đáy sông sâu tối đa SLAB-.3)
-const NF=4,AF=f=>Math.round((20+5*f)*MAPK*(f===1?2:1));   // tầng 2 (f=1) rộng gấp đôi: 150 x 150m
+const NF=4,AF=f=>Math.round((20+5*(f===2?1:f))*MAPK*(f===1||f===2?2:1));   // tầng 2 và tầng 3 (f=1,2) cùng rộng 150 x 150m (nửa cạnh 75): thang lên tầng 3 nằm sát tường bao
 const STLf=f=>FHT[f]*1.125;   // chiều dài thang của tầng f (thang đi từ tầng f lên tầng f+1): tầng 1 = 25.2m, các tầng khác 36m
 //                       // chiều dài thang (m): bậc cao .5m, sâu .5625m như cũ -> FH=32 thì thang dài 36m
-const AS=f=>Math.min(AF(f),AF(f+1));      // nửa cạnh "neo thang" của tầng f: thang lên tầng f+1 phải rơi vào sàn tầng f+1 (tầng 3 nhỏ hơn tầng 2) nên lấy cạnh nhỏ hơn
+const AS=f=>Math.min(AF(f),AF(f+1));      // nửa cạnh "neo thang" của tầng f: thang lên tầng f+1 phải rơi vào sàn tầng f+1 (tầng 4 nhỏ hơn tầng 3) nên lấy cạnh nhỏ hơn
 const need=f=>50*(f+1);                 // boss xuất hiện sau khi hạ 50 / 100 / 150 / 200 bot (cấp số cộng), mỗi tầng đếm lại từ 0
 let curFl=0;const fk=[0,0,0,0],bossDone=[false,false,false,false],gates=[];let bossAlive=false;
 const FC=[[PK,BL,MT,YL],[0x8a7f73,0x7a7066,0x9b9185,0x6f665d],[0xffd166,0x8ecae6,0xf4a3c4,0xb8f2c8],[0x9aa5ff,0xff9fa8,0xb5ead7,0xffdac1]];

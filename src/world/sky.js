@@ -35,6 +35,8 @@ function cloudGeometry(sh){
 // ---- Trần các tầng 1-3: sương mù trắng đặc thành nhiều lớp sát trần + mây nhỏ lơ lửng bên dưới ----
 const SKYFOG={
   layers:[[.05,.97],[.5,.9],[1.1,.78],[1.9,.64],[2.9,.5],[4.1,.34]],   // [cách trần (m), độ đặc 0..1]: lớp trên đặc, lớp dưới loãng dần
+  layers2:[[.05,.98],[.4,.95],[.8,.9],[1.3,.84],[1.9,.76],[2.6,.67],[3.4,.57],[4.3,.47],[5.4,.36],[6.8,.24]],   // tầng 2 (núi cao ~21m, trần cách sàn 29.6m): nhiều lớp hơn, dày hơn để che hẳn trần
+  f2K:.85,           // tầng 2: nhân độ đặc các lớp sương với số này (trước đây .3 nên lộ trần)
   tile:30,           // 1 ô họa tiết sương rộng bao nhiêu mét
   speed:.6,          // tốc độ trôi của các lớp (m/s; mỗi lớp nhân hệ số riêng, xen kẽ chiều)
   clouds:9,          // số mây nhỏ lơ lửng mỗi tầng
@@ -84,9 +86,9 @@ function buildSky(){
   const FT=fogTexture(),cmat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0x8c98ae,specular:0xffffff,shininess:70}),fl=[];
   for(let f=0;f<NF;f++){
     const A=AF(f),yc=FY(f+1)-SLAB,sz=2*A+2,g=new THREE.Group(),lay=[],cs=[];
-    SKYFOG.layers.forEach(([dy,op],i)=>{
+    (f===1?SKYFOG.layers2:SKYFOG.layers).forEach(([dy,op],i)=>{
       const t=FT.clone();t.needsUpdate=true;t.repeat.set(sz/SKYFOG.tile,sz/SKYFOG.tile);t.offset.set(Math.random(),Math.random());
-      const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*.3:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*SKYFOG.f2K:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
       m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,k:(i%2?-1:1)*(.6+i*.25)});
     });
     for(let i=0;i<SKYFOG.clouds;i++){
@@ -102,7 +104,7 @@ function buildSky(){
 // gọi mỗi khung (main.js, sau khi đặt camera)
 function tickSky(dt){
   if(!_sk)_sk=buildSky();
-  const up=P.y>FY(NF-1)-2,sk=up||curFl===1;_sk.dome.visible=_sk.cl.visible=sk;   // tầng 2 rộng hơn tầng 3 nên phần ngoài không có trần: thấy trời
+  const up=P.y>FY(NF-1)-2,sk=up;_sk.dome.visible=_sk.cl.visible=sk;   // tầng 3 nay rộng bằng tầng 2 nên tầng 2 có trần kín: chỉ tầng cao nhất mới thấy trời
   if(S.fog&&!(window.Nature&&Nature.wading)&&!P.under){const tn=curFl===1?40:18,tf=curFl===1?150:55,k=Math.min(1,dt*3);S.fog.near+=(tn-S.fog.near)*k;S.fog.far+=(tf-S.fog.far)*k}   // tầng 2: sương xa hơn để thấy núi
   if(sk){_sk.dome.position.copy(C.position);for(const c of _sk.list){c.position.x+=c.userData.v*dt;if(c.position.x>SKY.spread)c.position.x-=2*SKY.spread}}
   for(const q of _sk.fl){

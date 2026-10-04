@@ -4,13 +4,26 @@ tracer.visible=false;tracer.frustumCulled=false;S.add(tracer);
 const spark=new THREE.Mesh(new THREE.SphereGeometry(.12,6,6),new THREE.MeshBasicMaterial({color:0xffe066}));spark.visible=false;S.add(spark);
 let fx=0;
 const rc=new THREE.Raycaster();
+// Lọc trước các mesh có thể trúng tia: bỏ mesh nằm quá xa (> tầm đạn 60m) hoặc hình cầu bao không cắt tia -> không phải duyệt tam giác của chúng
+const _rs=new THREE.Sphere();
+function rayTargets(ray,far){
+  const out=[];
+  for(const m of meshes){
+    const g=m.geometry;if(!g.boundingSphere)g.computeBoundingSphere();
+    _rs.copy(g.boundingSphere).applyMatrix4(m.matrixWorld);
+    if(_rs.center.distanceToSquared(ray.origin)>(far+_rs.radius)*(far+_rs.radius)||!ray.intersectsSphere(_rs))continue;
+    out.push(m);
+  }
+  for(const m of botMeshes){const b=m.userData.bot;if(b.on&&b.hp>0&&!b.ally)out.push(m)}
+  return out;
+}
 function shoot(){
   const w=W[cur];
   if(cur==='grenade'||cd>0||rel>0)return;
   if(ammos[cur]<=0){if(reserve[cur]>0)reload();else{snd(90,.05,'square',.04);cd=.3;showMsg(t('noammo',t(cur)))}return}
   ammos[cur]--;cd=w.rate;if(cur==='sniper')sniperShot();else gunShot(cur);
   const sp=(cur==='sniper'&&scoped)?0:w.sp;rc.setFromCamera({x:(Math.random()-.5)*sp*2,y:(Math.random()-.5)*sp*2},C);
-  const hs=rc.intersectObjects(meshes.concat(botMeshes.filter(m=>m.userData.bot.on&&m.userData.bot.hp>0&&!m.userData.bot.ally)),false);
+  const hs=rc.intersectObjects(rayTargets(rc.ray,60),false);
   const from=muzzle.getWorldPosition(new THREE.Vector3());
   let to=rc.ray.at(60,new THREE.Vector3()),col=0xffe066;
   const h=hs.find(x=>{const b=x.object.userData.bot;return !b||b.hp>0});

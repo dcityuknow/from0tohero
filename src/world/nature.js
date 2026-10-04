@@ -654,6 +654,22 @@ function buildFloor(f){
       const n=.5*Math.sin(x*.11+ph[0])*Math.sin(z*.10+ph[1])+.3*Math.sin(x*.19+z*.15+ph[2])+.2*Math.sin(x*.31-z*.26+ph[3]);   // sóng dài -> đồi rộng
       HG[j*NH+i]=CFG.hill*smooth(clamp01((n+.1)/1.0))*m;
     }
+    // Tầng 2: gọt các "mũi nhọn" cô lập giữa thung lũng. Mũi nhọn = đỉnh hẹp (< ~8m ngang) nhô cao hơn hẳn nền quanh nó.
+    // Dùng phép "mở" hình thái (xói mòn rồi nở ra, cửa sổ vuông bán kính OR): đỉnh hẹp bị cắt về mức nền, núi / đồi rộng giữ nguyên.
+    // Chỉ áp dụng ở chỗ nền quanh thấp (< OPLOW m: thung lũng), và không đụng ô sát chân Vạn Lý Trường Thành / sát mép map (do greatwall.js thiết kế sẵn).
+    if(GWH){const OR=8,OPLOW=7.5,KEEP=1.0,GP=GreatWall.prep(),N2=NH*NH,T1=new Float32Array(N2),ER=new Float32Array(N2),OP=new Float32Array(N2);
+      const pass=(src,dst,horiz,isMin)=>{   // min / max trượt (đơn giản, O(N*OR)) theo 1 chiều
+        for(let j=0;j<NH;j++)for(let i=0;i<NH;i++){
+          let m=isMin?1e9:-1e9;
+          for(let k=-OR;k<=OR;k++){const a=horiz?Math.min(NH-1,Math.max(0,i+k)):i,b=horiz?j:Math.min(NH-1,Math.max(0,j+k)),v=src[b*NH+a];if(isMin?v<m:v>m)m=v}
+          dst[j*NH+i]=m}};
+      pass(HG,T1,true,true);pass(T1,ER,false,true);      // xói mòn
+      pass(ER,T1,true,false);pass(T1,OP,false,false);    // nở ra -> OP = HG đã bỏ đỉnh hẹp (luôn <= HG)
+      for(let j=0;j<NH;j++)for(let i=0;i<NH;i++){
+        const o=j*NH+i,res=HG[o]-OP[o];if(res<=KEEP||OP[o]>=OPLOW)continue;
+        const x=-A+i*HS,z=-A+j*HS;if(GP.bil(GP.fDW,x,z)<GreatWall.cfg.HWID+8||A-Math.max(Math.abs(x),Math.abs(z))<9)continue;
+        HG[o]=OP[o]+KEEP*Math.min(1,KEEP/res)}   // còn lại một chút gồ ghề tự nhiên
+    }
     hAt=(x,z)=>{let u=(x+A)/HS,v=(z+A)/HS;const mx=NH-1.001;u=u<0?0:u>mx?mx:u;v=v<0?0:v>mx?mx:v;
       const i=u|0,j=v|0,fu=u-i,fv=v-j,a=HG[j*NH+i],b=HG[j*NH+i+1],c=HG[(j+1)*NH+i],e=HG[(j+1)*NH+i+1];
       return a+(b-a)*fu+(c-a)*fv+(a-b-c+e)*fu*fv};

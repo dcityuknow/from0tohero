@@ -15,9 +15,9 @@ function tickParts(dt){
     if(!p.rest){
       p.v.y-=16*dt;m.position.addScaledVector(p.v,dt);m.rotation.x+=p.r.x*dt;m.rotation.z+=p.r.z*dt;
       const fl=groundY(m.position.x,m.position.y,m.position.z)+(p.fl!==undefined?p.fl:p.s.y*.5);
-      if(m.position.y<fl){m.position.y=fl;if(p.bounce&&Math.abs(p.v.y)>1.5){p.v.y*=-.35;p.v.x*=.6;p.v.z*=.6}else{p.v.set(0,0,0);p.r.set(0,0,0);p.rest=true}}
+      if(m.position.y<fl){m.position.y=fl;if(p.bounce&&Math.abs(p.v.y)>1.5){p.v.y*=-.35;p.v.x*=.6;p.v.z*=.6}else{p.v.set(0,0,0);p.r.set(0,0,0);p.rest=true;m.updateMatrix();m.matrixAutoUpdate=false}}   // nằm yên: khỏi tính lại ma trận mỗi khung
     }
-    if(p.life<.5)m.scale.copy(p.s).multiplyScalar(p.life/.5);
+    if(p.life<.5){m.scale.copy(p.s).multiplyScalar(p.life/.5);if(p.rest)m.updateMatrix()}
   }
 }
 const bm=[0xd10f2f,0x8f0a22,0xff2a4d].map(c=>new THREE.MeshBasicMaterial({color:c}));
@@ -32,7 +32,8 @@ function shatter(b,dir){
   b.g.updateMatrixWorld(true);
   const c0=new THREE.Vector3(b.x,b.y+.9,b.z),pp=new THREE.Vector3(),q=new THREE.Quaternion(),all=[];
   for(const p of b.parts)for(const c of p.vb.cubes)all.push([p.mesh,c]);
-  const stride=Math.max(1,Math.floor(all.length/220)),k=Math.cbrt(stride)*.95;   // bớt số mảnh, mảnh to hơn cho đỡ nặng
+  const cap=parts.length>420?110:parts.length>220?160:220,   // đang có sẵn nhiều mảnh vỡ trên màn: dùng ít mảnh hơn (mảnh to hơn) để khỏi tụt FPS khi hạ nhiều quái cùng lúc
+    stride=Math.max(1,Math.floor(all.length/cap)),k=Math.cbrt(stride)*.95;   // bớt số mảnh, mảnh to hơn cho đỡ nặng
   for(let i=0;i<all.length;i+=stride){
     const [mesh,c]=all[i],m=new THREE.Mesh(UG,M(c.hex));
     pp.set(c.x,c.y,c.z).applyMatrix4(mesh.matrixWorld);mesh.getWorldQuaternion(q);

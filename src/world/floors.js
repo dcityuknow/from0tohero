@@ -108,3 +108,6 @@ const FM=(function(){
   mark('set0');   // từ đây tới đầu nature.js: nhà / chòi / tượng / bàn trà tự dựng khi nạp file
   return api;
 })();
+
+// const ở cấp script KHÔNG tự thành thuộc tính của window: các file khác kiểm tra window.FM (level.js, nature.js, occlusion.js, archer.js) nên phải gắn tay
+window.FM=FM;
