@@ -1,5 +1,10 @@
 // Vòng lặp chính, nhận sát thương, chơi lại
 let deadT=0,stepD=0,pg=true;   // deadT: 0->1 hoạt ảnh ngã xuống khi hết máu
+// ---- NGHIÊNG KHUNG CẢNH KHI MẤT MÁU: mỗi lần trúng đòn, camera nghiêng nhẹ (cùng chiều với lúc ngã chết, nhưng chỉ vài độ) rồi tự trả về ----
+const HURT_TILT=.008;        // rad nghiêng thêm cho mỗi 1 máu mất (đạn 10 máu = +.08 rad ~ 4.6 độ)
+const HURT_TILT_MAX=.2;      // nghiêng tối đa (rad): .2 ~ 11 độ (chết = 1.5 rad ~ 86 độ)
+const HURT_TILT_TAU=.7;      // giây: độ nghiêng giảm còn ~37% sau chừng này giây. Lớn hơn = nghiêng lâu hơn; bị đánh liên tục (boss cận chiến) thì giữ nghiêng đều
+let hurtTilt=0,hurtTiltT=0;  // hurtTilt: góc đang hiển thị, hurtTiltT: góc mục tiêu (giảm dần về 0)
 let hurtT=0,lodN=0,botSeq=0;   // thời gian còn lại của vệt đỏ khi trúng đòn (thay cho setTimeout mỗi lần trúng: bot cận chiến gọi hurt() mỗi khung)
 // ---- MẠNG HỒI SINH: hạ boss tầng 1 / 2 / 3 được +1 / +2 / +3 mạng (cộng dồn). Hết máu mà còn mạng thì hồi sinh NGAY TẠI CHỖ chết ----
 let lives=0,reviveT=0;   // reviveT: giây bất tử sau khi hồi sinh (tránh bị bot đứng sát đánh chết lại ngay)
@@ -9,11 +14,11 @@ function addLives(n){lives+=n;showMsg((LVG[L]||LVG.en).replace('%d',n));if(windo
 function updLives(){const e=$('lv');if(e)e.textContent=lives;const w=$('lvl');if(w)w.style.display=lives>0?'':'none'}
 function hurt(n){
   if(reviveT>0||dead)return;
-  P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;hurtT=.12;
+  P.hp=Math.max(0,P.hp-n);$('hurt').style.opacity=.9;hurtT=.12;hurtTiltT=Math.min(HURT_TILT_MAX,hurtTiltT+n*HURT_TILT);
   if(P.hp<=0&&lives>0){lives--;P.hp=100;reviveT=3;P.vy=0;showMsg((LVT[L]||LVT.en).replace('%d',lives));updLives();$('hurt').style.opacity=0;return}   // hồi sinh tại chỗ: giữ nguyên vị trí / tầng / đạn
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
-function restart(){lives=0;reviveT=0;updLives();P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();resetLevel()}
+function restart(){hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();resetLevel()}
 // ---- Đồng hồ FPS ở góc trái dưới màn hình: xanh = mượt, vàng = trung bình, đỏ = giật lag. Chỉnh ngưỡng ở FPSC ----
 const FPSC={good:50,mid:30,every:.5};   // >= good: xanh · >= mid: vàng · thấp hơn: đỏ · every: giây giữa 2 lần cập nhật số
 const fpsEl=document.createElement('div');fpsEl.id='fps';fpsEl.className='pill';
@@ -34,6 +39,7 @@ function frame(now){
   requestAnimationFrame(frame);fpsTick(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(hurtT>0){hurtT-=dt;if(hurtT<=0)$('hurt').style.opacity=0}
+  hurtTiltT*=Math.exp(-dt/HURT_TILT_TAU);hurtTilt+=(hurtTiltT-hurtTilt)*Math.min(1,dt*18);   // nghiêng nhanh khi trúng, trả về từ từ
   if(playing){
     cd-=dt;slideCd-=dt;gcd-=dt;tickThrow(dt);tickG(dt);tickRocks(dt);tickPickups(dt);
     if(rel>0){rel-=dt;if(rel<=0){const n=Math.min(W[cur].mag-ammos[cur],reserve[cur]);ammos[cur]+=n;reserve[cur]-=n}}
@@ -94,7 +100,7 @@ function frame(now){
   if(reviveT>0)reviveT-=dt;
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
-  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de);applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);
+  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);
   {const gr=cur==='grenade';   // chỉ ghi vào DOM khi giá trị thật sự đổi (tránh dựng lại chữ / layout mỗi khung)
     if(P.hp!==H.hp){H.hp=P.hp;H.eHp.style.width=P.hp+'%'}
     const am=gr?gren:rel>0?'…':ammos[cur],mg=gr?GMAX:reserve[cur];
