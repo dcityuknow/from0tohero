@@ -137,12 +137,28 @@ const Archer=(function(){
     return out;
   }
   const _q={x:0,y:0,z:0},_q2={x:0,y:0,z:0};
+  // Tháp canh là hình vuông song song trục x/z (cạnh 12m), KHÔNG xoay theo đường tường. Trước đây chỉ chừa 6.9m dọc ĐƯỜNG ĐI nên ở đoạn tường chéo
+  // (góc tháp nằm xa tới 8.5m) + lệch ngang lat, lính bị đặt/chạy vào trong thân tháp = xuyên tường. Kiểm tra trực tiếp theo hình vuông, cho mọi tháp (kể cả tháp ngã ba của nhánh kia).
+  const TMARG=6+.9;
+  function inTower(x,z,pad){const m=TMARG+(pad||0),T=GP.towers;for(let i=0;i<T.length;i++){const t=T[i];if(Math.abs(x-t.cx)<m&&Math.abs(z-t.cz)<m)return true}return false}
+  // vị trí s (và lệch lat) có đứng được không: không trong tháp + không đụng khối đặc ở ngang thân (lan can, thân tháp, đồi...)
+  const _p={x:0,y:0,z:0};
+  function okAt(b,s){
+    at(b,s,_p);
+    if(inTower(_p.x,_p.z,.0))return false;
+    return !hitAny({x:_p.x,y:_p.y+.6,z:_p.z,r:b.r*CFG.scale,h:1.4});
+  }
   function place(){
     GP=GreatWall.prep();const slots=[];
     GP.BR.forEach((B,bi)=>{
       const tw=B.twI.map(i=>i*B.step).sort((u,v)=>u-v),cuts=[0,...tw,B.len];
       for(let k=0;k<cuts.length-1;k++){
-        const lo=cuts[k]+(k===0?3:TWR),hi=cuts[k+1]-(k===cuts.length-2?3:TWR),len=hi-lo;
+        // ước lượng thô như cũ, rồi thu hẹp lại bằng kiểm tra thật (tháp ở BẤT KỲ nhánh nào, kể cả đầu nhánh SPUR nằm trong tháp ngã ba)
+        let lo=cuts[k]+(k===0?3:TWR),hi=cuts[k+1]-(k===cuts.length-2?3:TWR);
+        const pr={bi,lat:0,yo:0},bad=sv=>{for(const l of[-2.2,0,2.2]){pr.lat=l;at(pr,sv,_q);if(inTower(_q.x,_q.z,0))return true}return false};   // xét cả 2 mép lệch ngang
+        while(lo<hi&&bad(lo))lo+=.5;
+        while(hi>lo&&bad(hi))hi-=.5;
+        const len=hi-lo;
         if(len<6)continue;
         const m=Math.max(1,Math.floor(len/CFG.gap));   // số lính đoạn này
         for(let q=0;q<m;q++)slots.push({bi,lo,hi,s:lo+len*(q+.5)/m,r:((bi*977+k*131+q*17)%100)/100});
@@ -152,6 +168,8 @@ const Archer=(function(){
     while(list.length<slots.length)list.push(body());
     slots.forEach((q,i)=>{const b=list[i];b.bi=q.bi;b.lo=q.lo;b.hi=q.hi;b.s=q.s;b.lat=(i&1?1:-1)*(1+q.r*1.2);b.yo=0;
       at(b,b.s,_q);const sy=surf(_q.x,_q.z,_q.y);b.yo=sy-_q.y;at(b,b.s,_q);
+      // lệch ngang làm điểm đặt rơi vào tháp -> thu về giữa đường
+      if(inTower(_q.x,_q.z,0)){b.lat=0;b.yo=0;at(b,b.s,_q);const sy2=surf(_q.x,_q.z,_q.y);b.yo=sy2-_q.y;at(b,b.s,_q)}
       b.x=_q.x;b.y=_q.y;b.z=_q.z;b.hp=CFG.hp;b.dd=undefined;b.vy=0;b.g.position.set(b.x,b.y,b.z)});
     list.length=slots.length;placed=true;
   }
@@ -210,7 +228,7 @@ const Archer=(function(){
           }
           let room=b.dir>0?b.hi-b.s:b.s-b.lo;
           for(const o of list)if(o!==b&&o.hp>0&&o.bi===b.bi&&(o.s-b.s)*b.dir>0&&Math.abs(o.s-b.s)<1.4)room=0;   // đồng đội chặn đường: không xuyên nhau
-          if(room>.2){const st=Math.min(room,CFG.run*dt);b.s+=b.dir*st;mv=1}
+          if(room>.2){const st=Math.min(room,CFG.run*dt);if(okAt(b,b.s+b.dir*(st+.5))){b.s+=b.dir*st;mv=1}}   // dò trước 0.5m: sắp chạm tháp/tường thì dừng (không xuyên)
           else b.dir=-b.dir*(Math.random()<.02?1:0)||0;   // cụt đường: đứng lại bắn (thỉnh thoảng thử quay đầu)
         }else if(d>CFG.calm)b.dir=0;
       }
