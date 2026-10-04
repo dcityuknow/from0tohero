@@ -1,64 +1,103 @@
-// Boss TẦNG 2 - "LONGJUN" (Long Quân): đại tướng trấn giữ Vạn Lý Trường Thành.
-// Khác boss tầng 1 (FLASH, chibi áo đỏ): thân người cao, giáp vảy đỏ sẫm viền vàng, huy hiệu rồng ngọc bích, râu dài, mày xếch,
-// mũ sắt vành vàng có chổi lông đỏ + hai cánh lông trĩ, áo choàng đỏ cắm cờ lệnh sau lưng, ủng đen.
-// Cấu trúc giống buildBoss() (lL lR aL aR parts g) nên AI / hoạt ảnh / vỡ mảnh / đồng minh dùng chung; thêm b.hP = trục đầu (để ngửa đầu khi bắn lên cao).
+// Boss TẦNG 2 - "LONGJUN" bản mới: HỒN BĂNG ĐẦU LỬA (đầu lửa xanh băng khổng lồ, mắt là vòng bạc số 8, miệng tròn há,
+// thân pha lê ánh ngọc trai tách khớp, vài ngọn lửa xanh nhỏ lơ lửng quanh tay chân).
+// Cấu trúc giống buildBoss() (lL lR aL aR parts g) + b.hP = trục đầu (để ngửa đầu khi bắn lên cao).
 // Nạp SAU boss-model.js, TRƯỚC boss.js (boss.js gọi buildBoss2 khi tầng 2 cần boss; ally.js dùng lại làm đồng minh).
 function buildBoss2(){
-  const b={x:0,y:0,z:0,vy:0,r:.4,h:1.7,hp:100,ground:false,respawn:0,t:0,mv:0,parts:[],g:new THREE.Group()};
+  const b={x:0,y:0,z:0,vy:0,r:.4,h:1.7,hp:100,ground:false,respawn:0,t:0,mv:0,parts:[],g:new THREE.Group(),big:3};   // big: hệ số phóng to (boss.js > bossScale nhân vào scale + hitbox). Giữ nguyên số khối voxel, chỉ phóng to cả nhóm.
   const add=(par,vb,head)=>{const m=vb.mesh();m.userData.bot=b;if(head)m.userData.head=true;par.add(m);botMeshes.push(m);b.parts.push({mesh:m,vb});return m};
   const pivot=(x,y)=>{const q=new THREE.Group();q.position.set(x,y,0);b.g.add(q);return q};
-  const ARM=tri(0x8e2420,0x7c1d1a,0x9d2c27),DARM=tri(0x5e1613,0x4f110f,0x6a1b17),GOLD=chk(0xe3b53b,0xf2cc5a),STEEL=tri(0x3a3d46,0x30333b,0x44474f),
-    SKIN=tri(0xf1c7a0,0xe9bb90,0xf5d0ac),BOOT=tri(0x25252d,0x1e1e26,0x2d2d36),PLUME=tri(0xd9262c,0xe83a3a,0xc01f25),JADE=0x2fa07a,BLK=0x14141b;
-  // ---- thân: giáp vảy (hàng sáng / tối xen kẽ), huy hiệu rồng ngọc ở ngực, đai vàng, váy giáp, áo choàng + 2 cờ lệnh ----
+  // ---- bảng màu ----
+  const OUT=0x22356b,FL=0xaec6ec,FACE=0xe8f0fc,NAVY=0x1a2347,NAVY2=0x3b4f80,FIRE=0x4f86d6,FIRE2=0xa9d0ff;
+  const SIL=tri(0x9aa3b2,0x7a8494,0xb4bcc8);                                   // bạc bóng
+  const pal=[0xf3f6fc,0xdfe7f6,0xe8e0f3,0xd9ecf3];                              // pha lê ánh ngọc trai (trắng/xanh/tím nhạt xen kẽ)
+  const IR=(i,j,k)=>pal[(i+j*2+k*3)&3];
+  const GR=tri(0xa9b4c8,0x98a4ba,0xb9c2d3);                                     // khớp xám bạc
+  // ---- thân pha lê ----
   const T=new VB(true);
-  T.box(0,.95,0,.66,.72,.38,(i,j,k,nx,ny,nz)=>{
-    const dd=Math.hypot(i-(nx-1)/2,j-10);
-    if(k===nz-1&&dd<=1.5)return JADE;
-    if(k===nz-1&&dd<=3.4)return GOLD(i,j,k);
-    if(j<2||j>=ny-2)return GOLD(i,j,k);
-    return (j&1)?ARM(i,j,k):DARM(i,j,k);
-  },.045,true);
-  T.box(0,.62,0,.72,.1,.42,GOLD,.035,true);T.box(0,.62,.22,.12,.1,.03,JADE,.02);                     // thắt lưng + khóa ngọc
-  T.box(0,.4,.15,.5,.3,.12,(i,j,k)=>(i&1)?ARM(i,j,k):GOLD(i,j,k),.045,true);                          // váy giáp
-  T.box(0,1.0,-.24,.6,.95,.05,(i,j,k,nx,ny)=>(i<1||i>=nx-1||j<1)?GOLD(i,j,k):DARM(i,j,k),.045,true);  // áo choàng
-  T.cyl(0,1.05,-.275,.14,.02,GOLD,.02,'z',.09);T.box(0,1.05,-.28,.07,.07,.02,JADE,.02);               // huy hiệu rồng sau lưng
-  T.box(0,1.38,0,.2,.14,.2,SKIN,.04,true);T.box(0,1.34,0,.44,.08,.34,GOLD,.035,true);                  // cổ + cổ giáp vàng
-  for(const sx of[-1,1]){T.box(sx*.22,1.75,-.3,.03,.85,.03,GOLD,.015);T.box(sx*.22,1.92,-.4,.02,.35,.2,ARM,.02)}   // cờ lệnh sau vai
+  T.box(0,.98,0,.44,.46,.28,IR,.035,true);                                      // ngực
+  T.box(0,1.0,.15,.18,.24,.04,0xcfe3f7,.025,true);                             // tinh thể ở ngực
+  T.box(0,1.27,0,.12,.1,.12,GR,.03,true);                                       // cổ
+  for(const sx of[-1,1])T.box(sx*.27,1.15,0,.14,.14,.18,IR,.035,true);         // vai
+  T.box(0,.8,0,.2,.1,.18,GR,.03,true);                                          // eo
+  T.box(0,.7,0,.34,.14,.24,IR,.035,true);                                       // hông
+  T.box(0,.63,.12,.2,.16,.06,0xc8d4e8,.03,true);T.box(0,.7,.13,.1,.06,.05,0xeaf2fb,.02);   // mảnh giáp hình nhọn phía trước
   add(b.g,T,false);
-  // ---- đầu: trục ở cổ (0,1.45) để ngửa lên / cúi xuống; tọa độ khối vẽ theo hệ b.g rồi dịch ngược lại ----
-  const H=new VB(true),HY=1.85;
-  H.box(0,HY,0,.58,.52,.52,SKIN,.045,true);
-  for(const sx of[-1,1]){
-    H.box(sx*.15,HY+.07,.262,.17,.05,.03,BLK,.02);H.box(sx*.19,HY+.1,.262,.09,.04,.03,BLK,.015);     // mày xếch
-    H.box(sx*.15,HY,.262,.12,.05,.03,0xffffff,.02);H.box(sx*.15,HY,.276,.05,.05,.02,BLK,.015);       // mắt
-    H.box(sx*.31,HY-.08,0,.06,.3,.34,STEEL,.04,true);                                               // má giáp
-  }
-  H.box(0,HY-.1,.27,.1,.14,.04,SKIN,.03);
-  H.box(0,HY-.13,.272,.34,.05,.04,BLK,.02);H.box(-.2,HY-.2,.272,.05,.14,.04,BLK,.02);H.box(.2,HY-.2,.272,.05,.14,.04,BLK,.02);   // ria mép
-  H.box(0,HY-.28,.24,.22,.2,.08,BLK,.03,true);H.box(0,HY-.43,.24,.12,.12,.06,BLK,.03);                                        // râu dài
-  H.box(0,HY-.2,.272,.12,.03,.03,0x7a2a2a,.015);
-  H.ell(0,HY+.17,-.02,.34,.26,.33,STEEL,.045,true);                         // mũ sắt
-  H.box(0,HY+.2,0,.62,.07,.56,GOLD,.035,true);                              // vành vàng
-  H.box(0,HY+.34,.2,.1,.2,.06,GOLD,.03,true);                               // mào trước mũ
-  H.cyl(0,HY+.55,0,.03,.3,GOLD,.015,'y');H.ell(0,HY+.74,0,.05,.05,.05,0xd9262c,.02);   // mũi nhọn + hạt đỏ
-  for(let k=0;k<6;k++)H.ell(0,HY+.45+k*.03,-.18-k*.1,.07,.07+.01*k,.1,PLUME,.03);        // chổi lông đỏ rủ phía sau
-  for(const sx of[-1,1])for(let k=0;k<6;k++)H.box(sx*(.34+.08*k),HY+.22+.1*k,-.04,.08,.12,.1,k%2?0xe3b53b:0xd9262c,.04);   // hai cánh lông trĩ vươn chéo lên
-  b.hP=pivot(0,1.45);const hm=add(b.hP,H,true);hm.position.y=-1.45;
-  b.lL=pivot(-.17,.6);b.lR=pivot(.17,.6);b.aL=pivot(-.46,1.27);b.aR=pivot(.46,1.27);
-  // ---- chân: đùi giáp đỏ, mai che gối vàng, ống chân thép, ủng đen mũi vàng ----
-  for(const l of[b.lL,b.lR]){
+  // ---- đầu lửa: KHỐI CẦU, nửa trước trắng (viền xanh nhạt), nửa sau xanh navy đậm; ngọn lửa phình trên đỉnh ----
+  // trục ở cổ (0,1.28) để ngửa/cúi; vẽ theo hệ b.g rồi dịch ngược
+  const H=new VB(true),HY=1.78,HP=1.28;
+  const FMAT=new THREE.MeshBasicMaterial({vertexColors:true});   // vật liệu LỬA tự sáng: dùng chung cho đầu + ngọn lửa + tinh thể -> cùng một màu liền khối
+  const RIM=0xc3d8f2,WHT=0xf4f8fd,DK=0x56607a,DOME=tri(0x22318a,0x1d2b7a,0x2a3b9a);
+  // elip vỏ ngoài, màu theo vị trí: z>.06 = mặt trước trắng (rìa xanh nhạt), còn lại = xanh navy
+  const blob=(cx,cy,cz,rx,ry,rz,s,th=.06)=>{
+    const nx=Math.round(2*rx/s),ny=Math.round(2*ry/s),nz=Math.round(2*rz/s);
+    const ins=(i,j,k)=>((i+.5-nx/2)*s/rx)**2+((j+.5-ny/2)*s/ry)**2+((k+.5-nz/2)*s/rz)**2<=1;
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)for(let k=0;k<nz;k++){
+      if(!ins(i,j,k))continue;
+      if(ins(i-1,j,k)&&ins(i+1,j,k)&&ins(i,j-1,k)&&ins(i,j+1,k)&&ins(i,j,k-1)&&ins(i,j,k+1))continue;
+      const u=(i+.5-nx/2)*s/rx,v=(j+.5-ny/2)*s/ry,dz=(k+.5-nz/2)*s;
+      const hex=dz>th?(u*u+v*v>.8?RIM:WHT):DOME(i,j,k);
+      H.cube(cx+(i+.5-nx/2)*s,cy+(j+.5-ny/2)*s,cz+dz,s*.93,s*.93,s*.93,hex,i,j,k);
+    }};
+  blob(0,HY,0,.56,.6,.5,.045);
+  H.ell(0,HY,0,.5,.54,.45,(i,j,k)=>k>7?WHT:0x22318a,.06,true);   // lõi bên trong lấp khe giữa các khối vỏ (nửa trước trắng, nửa sau navy) để mặt liền mạch, không lộ đường kẻ ô
+  // MẮT = logo hạt đậu / số 8 (cùng công thức với logo bot trong bot-model.js), vẽ bằng khối mỏng bám theo mặt cầu; màu bạc có viền tối + chuyển sáng để nổi trên nền trắng
+  {const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
+    so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),
+    si=(x,y)=>sm(Math.hypot(x-.5,y)-.21,Math.hypot(x+.5,y)-.21,1.22);
+    const LW=.58,LS=.0135,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2,EY=HY+.1;
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
+      const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
+      if(o>0||n<=0)continue;
+      const wx=x*u,wy=EY+y*u,q=1-(wx/.56)**2-((wy-HY)/.6)**2;if(q<=0)continue;
+      const z=.5*Math.sqrt(q)+.03;
+      const edge=-o<.05||n<.04,g=Math.round(255*(edge?.3:.5+.3*Math.sin(Math.PI*(-o)/(-o+n)))),hex=(g-8)<<16|(g-2)<<8|(g+14);
+      H.cube(wx,wy,z,LS*.95,LS*.95,.035,hex,i,j,0)}}
+  H.ell(0,HY-.28,.43,.115,.095,.05,0x10162e,.02,true);H.ell(0,HY-.32,.46,.085,.04,.03,NAVY2,.015);   // miệng tròn há
+  b.hP=pivot(0,HP);const hm=add(b.hP,H,true);hm.position.y=-HP;hm.material=FMAT;   // cả đầu vốn là lửa: không chịu bóng đèn
+  b.lL=pivot(-.14,.58);b.lR=pivot(.14,.58);b.aL=pivot(-.32,1.15);b.aR=pivot(.32,1.15);
+  // ---- chân: đùi, gối khớp, ống chân, bàn chân ----
+  for(const[l,s]of[[b.lL,-1],[b.lR,1]]){
     const v=new VB(true);
-    v.box(0,-.15,0,.28,.3,.3,ARM,.045,true);v.box(0,-.31,.17,.24,.12,.06,GOLD,.03,true);
-    v.box(0,-.38,0,.3,.22,.32,STEEL,.045,true);v.box(0,-.5,0,.31,.06,.33,GOLD,.03,true);
-    v.box(0,-.53,.05,.32,.14,.42,BOOT,.04,true);v.box(0,-.54,.26,.3,.1,.05,GOLD,.025);
+    v.box(0,-.12,0,.12,.22,.13,IR,.035,true);v.ell(0,-.25,0,.085,.07,.09,GR,.03,true);
+    v.box(0,-.4,0,.12,.22,.13,IR,.035,true);v.box(0,-.54,.04,.15,.09,.2,IR,.03,true);
     add(l,v,false);
   }
-  // ---- tay: giáp vai vàng có gai ngọc, tay áo đỏ, hộ uyển vàng, găng thép ----
-  for(const a of[b.aL,b.aR]){
+  // ---- tay: vai khớp, cánh tay, cẳng tay, bàn tay, lửa xanh bên cạnh ----
+  for(const[a,s]of[[b.aL,-1],[b.aR,1]]){
     const v=new VB(true);
-    v.ell(0,.04,0,.22,.14,.23,GOLD,.04,true);v.cyl(0,.2,0,.025,.12,JADE,.015,'y');
-    v.box(0,-.22,0,.24,.4,.26,ARM,.045,true);v.box(0,-.38,0,.28,.14,.3,GOLD,.035,true);v.box(0,-.55,.02,.26,.2,.3,STEEL,.045,true);
+    v.ell(0,0,0,.09,.09,.09,GR,.03,true);v.box(0,-.15,0,.12,.26,.13,IR,.035,true);
+    v.ell(0,-.29,0,.075,.06,.08,GR,.03,true);v.box(0,-.4,0,.13,.2,.14,IR,.035,true);
+    v.box(0,-.54,.01,.14,.12,.08,IR,.03,true);v.box(s*.04,-.62,.01,.05,.06,.06,IR,.02);
     add(a,v,false);
   }
+  const TG0=[[-.30,.60,.16,.22,.1],[.04,.76,.13,.2,-.08],[.34,.52,.13,.17,.1],[.53,.27,.1,.14,.08],[-.53,.34,.11,.17,-.1],[-.6,-.04,.09,.13,-.08]];   // ngọn lửa [x,y,rx,ry,độ cong]
+  // ---- LỬA TRẮNG ĐỘNG: ngọn lửa trên đầu + tinh thể lửa quanh tay chân. Không gộp vào khối voxel cứng, mà là mesh riêng (MeshBasic = tự sáng, không chịu bóng) có hoạt ảnh theo thời gian ----
+  // Ngọn lửa = chuỗi 3 đoạn thon dần, mỗi đoạn lắc lệch pha -> gợn sóng như lửa cháy; đỉnh nhấp nháy co giãn. Tinh thể: bồng bềnh, xoay, chớp sáng.
+  const WF=tri(WHT,0xf0f6fd,WHT),BF=tri(0xe3edf9,RIM,0xf0f6fd),T0=performance.now();   // cùng bảng màu với mặt: trắng + rìa xanh nhạt ở đỉnh
+  const fxs=[],crys=[];
+  const fh=new THREE.Group();fh.position.y=-HP;b.hP.add(fh);                       // cùng hệ tọa độ b.g, đi theo đầu khi ngửa/cúi
+  const seg=(par,rx,ry,col)=>{const v=new VB();v.ell(0,ry*.9,0,rx,ry,.11,col,.03,true);const m=v.mesh();m.material=FMAT;m.frustumCulled=false;par.add(m)};
+  TG0.forEach(([x,y,rx,ry,l],k)=>{
+    const Ht=ry*3.2,fr=[.4,.33,.27],wd=[1,.72,.42],root=new THREE.Group(),sg=[];
+    root.position.set(x,HY+y-ry*1.1,0);fh.add(root);let par=root;
+    for(let i=0;i<3;i++){const p=new THREE.Group();if(i>0)p.position.set(l*.3,fr[i-1]*Ht,0);par.add(p);seg(p,rx*wd[i],fr[i]*Ht/2*1.15,i===2?BF:WF);sg.push(p);par=p}
+    fxs.push({root,sg,ph:k*1.7,sp:5+k*.6});
+  });
+  const cv=new VB();cv.ell(0,0,0,.04,.05,.04,RIM,.015,true);cv.ell(0,.06,0,.03,.06,.03,WHT,.015,true);cv.ell(0,.12,0,.014,.04,.014,WHT,.012,true);
+  const CG=cv.mesh().geometry;                                                     // 1 hình tinh thể lửa dùng chung
+  const mkC=(par,x,y,z,sc)=>{const m=new THREE.Mesh(CG,FMAT);m.frustumCulled=false;m.position.set(x,y,z);m.scale.setScalar(sc);par.add(m);crys.push({m,y0:y,sc,ph:crys.length*2.1})};
+  mkC(b.lL,-.17,-.38,-.04,1);mkC(b.lR,.17,-.38,-.04,1);mkC(b.aL,-.14,-.46,0,1);mkC(b.aR,.14,-.46,0,1);   // quanh tay chân
+  mkC(fh,-.63,HY+.72,0,.7);mkC(fh,.6,HY+.82,0,.5);mkC(fh,-.45,HY+1.0,0,.45);mkC(fh,.38,HY+1.12,0,.6);       // tàn lửa bay trên đầu
+  // hàm cập nhật chỉ phụ thuộc thời gian tuyệt đối nên gọi nhiều lần / frame cũng không sao; gắn vào onBeforeRender của 1 mesh lửa nên chỉ chạy khi boss đang được vẽ (không cần sửa boss.js)
+  fxs[0].sg[0].children[0].onBeforeRender=()=>{
+    const t=(performance.now()-T0)/1000;
+    FMAT.color.setScalar(.965+.035*Math.sin(t*6.5));   // cả khối lửa (mặt + ngọn + tinh thể) chớp sáng nhẹ cùng nhau
+    for(const f of fxs){
+      f.sg.forEach((p,i)=>{p.rotation.z=.22*Math.sin(t*f.sp-i*1.2+f.ph)*(.4+i*.45)});
+      f.root.scale.set(1+.07*Math.sin(t*8+f.ph),1+.13*Math.sin(t*9.5+f.ph*1.3),1);
+      f.sg[2].scale.y=.85+.3*(.5+.5*Math.sin(t*12+f.ph));
+    }
+    for(const c of crys){c.m.position.y=c.y0+.035*Math.sin(t*3+c.ph);c.m.rotation.y=t*2+c.ph;c.m.scale.setScalar(c.sc*(.85+.25*Math.sin(t*8+c.ph*2)))}
+  };
   S.add(b.g);bots.push(b);spawnBot(b);return b;
 }

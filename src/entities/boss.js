@@ -16,7 +16,8 @@ function bossFor(f){
   return BOSSES[0];
 }
 setTimeout(()=>{try{bossFor(1)}catch(e){}},8000);
-function bossScale(f){const sc=1.3+.07*f;boss.g.scale.setScalar(sc);boss.h=1.7*sc;boss.r=.4*sc;boss.wp=LO[f][0];boss.gc=3}
+function bossScale(f){const sc=(1.3+.07*f)*(boss.big||1);   // boss.big (boss2-model.js): hệ số phóng to riêng của từng boss, mặc định 1
+  boss.g.scale.setScalar(sc);boss.h=1.7*sc;boss.r=.4*sc;boss.wp=LO[f][0];boss.gc=3}
 function pickW(L,d){const w=L.includes('sniper')&&d>20?'sniper':L.includes('rifle')&&d>7?'rifle':'pistol';return L.includes(w)?w:L.includes('rifle')?'rifle':'pistol'}
 function throwG(b){const mp=new THREE.Vector3(b.x,b.y+1.8,b.z),T=1.1,dx=P.x-mp.x,dy=P.y+.2-mp.y,dz=P.z-mp.z,m=grenadeModel();S.add(m);
   grenades.push({x:mp.x,y:mp.y,z:mp.z,vx:dx/T,vy:(dy+11*T*T)/T,vz:dz/T,r:.12,h:.24,ground:false,t:1.6,m,foe:true});snd(200,.12,'sine',.05*GV,mp)}
