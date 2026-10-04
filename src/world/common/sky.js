@@ -1,0 +1,116 @@
+// Bầu trời: (1) vòm trời gradient + mây kim loại bóng dạng "giọt nước" (metaball) ở tầng cao nhất, không có trần;
+// (2) các tầng dưới có trần: nhiều lớp sương mù trắng đặc sát trần che kín trần + mây nhỏ bay lơ lửng bên dưới (SKYFOG).
+// Chỉnh nhanh ở SKY. Nạp SAU world.js, TRƯỚC level.js (level.js gọi ceilWhite khi dựng sàn).
+const SKY={
+  clouds:34,             // số đám mây ở tầng cao nhất
+  hMin:40,hMax:90,       // độ cao mây tính từ đỉnh tòa nhà (m) - tăng lên cho mây nhìn cao hơn
+  sMin:7,sMax:17,        // cỡ đám mây (m)
+  spread:200,            // mây rải trong bán kính này quanh tâm map
+  drift:1.6,             // tốc độ trôi (m/s)
+  horizon:0xcfe8ff,mid:0x8ec5f5,top:0x3f8fe6   // màu chân trời -> giữa -> đỉnh vòm
+};
+// Hình dạng mây: cụm [x,z,bán kính] trên mặt phẳng ngang (nhìn từ dưới lên thấy đúng hình) - 1 giọt, 2 giọt nối, 3 giọt nối, 4-5 giọt nối
+const CLOUD_SHAPES=[
+  [[0,0,1]],
+  [[-.85,0,.8],[.85,0,.8]],
+  [[0,-.95,.72],[-.85,.5,.72],[.85,.5,.72],[0,0,.7]],
+  [[-1.3,0,.72],[1.3,.05,.72],[0,-.85,.78],[.35,.85,.62],[0,0,.9]]
+];
+const _hex=h=>[(h>>16)&255,(h>>8)&255,h&255];
+// Mây 3D: đưa hình cầu chuẩn về mặt "hợp mượt" (smooth-union) của các cầu bằng cách chiếu tia từ tâm; pháp tuyến lấy từ gradient nên bóng mịn, không lộ đường nối
+function cloudGeometry(sh){
+  const B=sh.map(([x,z,r])=>[x,0,z,r]),K=.7;
+  const sdf=(x,y,z)=>{let d=1e9;for(const b of B){const q=Math.hypot(x-b[0],y-b[1],z-b[2])-b[3],h=Math.max(K-Math.abs(d-q),0)/K;d=Math.min(d,q)-h*h*K/4}return d};
+  const cx=B.reduce((a,b)=>a+b[0],0)/B.length,cz=B.reduce((a,b)=>a+b[2],0)/B.length;
+  const g=new THREE.SphereGeometry(1,56,36),p=g.attributes.position,n=g.attributes.normal,e=.01;
+  for(let i=0;i<p.count;i++){
+    const dx=p.getX(i),dy=p.getY(i),dz=p.getZ(i);let lo=0,hi=6;
+    for(let k=0;k<20;k++){const m=(lo+hi)/2;if(sdf(cx+dx*m,dy*m,cz+dz*m)<0)lo=m;else hi=m}
+    const x=cx+dx*lo,y=dy*lo,z=cz+dz*lo;p.setXYZ(i,x,y,z);
+    const gx=sdf(x+e,y,z)-sdf(x-e,y,z),gy=sdf(x,y+e,z)-sdf(x,y-e,z),gz=sdf(x,y,z+e)-sdf(x,y,z-e),l=Math.hypot(gx,gy,gz)||1;
+    n.setXYZ(i,gx/l,gy/l,gz/l);
+  }
+  return g;
+}
+// ---- Trần các tầng 1-3: sương mù trắng đặc thành nhiều lớp sát trần + mây nhỏ lơ lửng bên dưới ----
+const SKYFOG={
+  layers:[[.05,.97],[.5,.9],[1.1,.78],[1.9,.64],[2.9,.5],[4.1,.34]],   // [cách trần (m), độ đặc 0..1]: lớp trên đặc, lớp dưới loãng dần
+  layers2:[[.05,.98],[.4,.95],[.8,.9],[1.3,.84],[1.9,.76],[2.6,.67],[3.4,.57],[4.3,.47],[5.4,.36],[6.8,.24]],   // tầng 2 (núi cao ~21m, trần cách sàn 29.6m): nhiều lớp hơn, dày hơn để che hẳn trần
+  f2K:.85,           // tầng 2: nhân độ đặc các lớp sương với số này (trước đây .3 nên lộ trần)
+  tile:30,           // 1 ô họa tiết sương rộng bao nhiêu mét
+  speed:.6,          // tốc độ trôi của các lớp (m/s; mỗi lớp nhân hệ số riêng, xen kẽ chiều)
+  clouds:9,          // số mây nhỏ lơ lửng mỗi tầng
+  cMin:1,cMax:2.2,   // cỡ mây nhỏ (m; đám mây rộng khoảng 4 lần số này)
+  cLo:7.6,cHi:9.4,   // độ cao mây nhỏ so với sàn tầng (m): cao hơn khối chắn, thấp hơn lớp sương
+  cDrift:.9,         // tốc độ trôi mây nhỏ (m/s)
+  topK:.6            // tầng cao nhất (không có trần, thấy bầu trời): nhân độ đặc các lớp sương với số này (1 = đặc như tầng 1-3, nhỏ hơn = thấy trời rõ hơn)
+};
+let _fogTex=null;
+// họa tiết sương: nhiễu fBm liền mạch (wrap), trắng, độ trong suốt loang lổ
+function fogTexture(){
+  if(_fogTex)return _fogTex;
+  const N=256,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d'),id=x.createImageData(N,N),d=id.data;
+  let sd=11;const rnd=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296,ss=(a,b,v)=>{v=Math.min(1,Math.max(0,(v-a)/(b-a)));return v*v*(3-2*v)};
+  const oc=[];for(let o=0;o<4;o++){const g=4<<o,lat=new Float32Array(g*g);for(let i=0;i<lat.length;i++)lat[i]=rnd();oc.push([g,lat])}
+  const val=(g,L,u,v)=>{const X=u*g,Y=v*g,x0=Math.floor(X),y0=Math.floor(Y),fx=X-x0,fy=Y-y0,sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy),
+    a=L[(y0%g)*g+x0%g],b=L[(y0%g)*g+(x0+1)%g],cc=L[((y0+1)%g)*g+x0%g],e=L[((y0+1)%g)*g+(x0+1)%g];return a+(b-a)*sx+(cc-a)*sy+(a-b-cc+e)*sx*sy};
+  for(let y=0;y<N;y++)for(let xx=0;xx<N;xx++){
+    let n=0,am=.5,tt=0;for(const [g,L] of oc){n+=am*val(g,L,xx/N,y/N);tt+=am;am*=.5}n/=tt;
+    const o=(y*N+xx)*4;d[o]=236+19*n;d[o+1]=241+14*n;d[o+2]=250+5*n;d[o+3]=255*(.42+.58*ss(.28,.72,n));
+  }
+  x.putImageData(id,0,0);_fogTex=new THREE.CanvasTexture(c);_fogTex.wrapS=_fogTex.wrapT=THREE.RepeatWrapping;_fogTex.anisotropy=4;return _fogTex;
+}
+// mặt dưới tấm sàn (= trần tầng dưới) tô trắng để không lộ màu xám sau lớp sương (level.js gọi)
+function ceilWhite(m){m.material[3]=new THREE.MeshBasicMaterial({color:0xf2f6fc,fog:false})}
+// ---- Vòm trời + mây ở tầng cao nhất, sương + mây nhỏ ở tầng 1-3 (dựng lười ở lần gọi đầu, khi NF/FH/AF đã có) ----
+let _sk=null;
+function buildSky(){
+  const gd=new THREE.SphereGeometry(450,32,20),gp=gd.attributes.position,col=[],H=_hex(SKY.horizon),Mi=_hex(SKY.mid),To=_hex(SKY.top);
+  for(let i=0;i<gp.count;i++){
+    const u=Math.pow(Math.max(0,gp.getY(i)/450),.55),A=u<.5?H:Mi,B=u<.5?Mi:To,k=u<.5?u*2:(u-.5)*2;
+    for(let c=0;c<3;c++)col.push((A[c]+(B[c]-A[c])*k)/255);
+  }
+  gd.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  const dome=new THREE.Mesh(gd,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
+  dome.renderOrder=-1;dome.frustumCulled=false;S.add(dome);
+  const geos=CLOUD_SHAPES.map(cloudGeometry),
+    mat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0x8c98ae,specular:0xffffff,shininess:70,fog:false}),cl=new THREE.Group(),list=[],top=FY(NF);
+  for(let i=0;i<SKY.clouds;i++){
+    const m=new THREE.Mesh(geos[i%4],mat),s=SKY.sMin+Math.random()*(SKY.sMax-SKY.sMin),a=Math.random()*6.283,r=SKY.spread*Math.pow(Math.random(),.8);
+    m.scale.set(s,s*.55,s);m.rotation.y=Math.random()*6.283;
+    m.position.set(Math.cos(a)*r,top+SKY.hMin+Math.random()*(SKY.hMax-SKY.hMin),Math.sin(a)*r);
+    m.userData.v=SKY.drift*(.5+Math.random());m.frustumCulled=false;cl.add(m);list.push(m);
+  }
+  S.add(cl);
+  // tầng 1..NF-1: mỗi tầng 1 nhóm (sương nhiều lớp + mây nhỏ), chỉ hiện khi người chơi đang ở tầng đó
+  const FT=fogTexture(),cmat=new THREE.MeshPhongMaterial({color:0xffffff,emissive:0x8c98ae,specular:0xffffff,shininess:70}),fl=[];
+  for(let f=0;f<NF;f++){
+    const A=AF(f),yc=FY(f+1)-SLAB,sz=2*A+2,g=new THREE.Group(),lay=[],cs=[];
+    (f===1?SKYFOG.layers2:SKYFOG.layers).forEach(([dy,op],i)=>{
+      const t=FT.clone();t.needsUpdate=true;t.repeat.set(sz/SKYFOG.tile,sz/SKYFOG.tile);t.offset.set(Math.random(),Math.random());
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*SKYFOG.f2K:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+      m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,k:(i%2?-1:1)*(.6+i*.25)});
+    });
+    for(let i=0;i<SKYFOG.clouds;i++){
+      const m=new THREE.Mesh(geos[i%4],cmat),s=SKYFOG.cMin+Math.random()*(SKYFOG.cMax-SKYFOG.cMin);
+      m.scale.set(s,s*.55,s);m.rotation.y=Math.random()*6.283;m.frustumCulled=false;
+      m.position.set((Math.random()*2-1)*(A-5),FY(f)+SKYFOG.cLo+Math.random()*(SKYFOG.cHi-SKYFOG.cLo),(Math.random()*2-1)*(A-5));
+      m.userData.v=SKYFOG.cDrift*(.5+Math.random());g.add(m);cs.push(m);
+    }
+    g.visible=false;S.add(g);fl.push({f,g,lay,cs,A});
+  }
+  return {dome,cl,list,fl};
+}
+// gọi mỗi khung (main.js, sau khi đặt camera)
+function tickSky(dt){
+  if(!_sk)_sk=buildSky();
+  const up=P.y>FY(NF-1)-2,sk=up;_sk.dome.visible=_sk.cl.visible=sk;   // tầng 3 nay rộng bằng tầng 2 nên tầng 2 có trần kín: chỉ tầng cao nhất mới thấy trời
+  if(S.fog&&!(window.Nature&&Nature.wading)&&!P.under){const tn=curFl===1?40:18,tf=curFl===1?150:55,k=Math.min(1,dt*3);S.fog.near+=(tn-S.fog.near)*k;S.fog.far+=(tf-S.fog.far)*k}   // tầng 2: sương xa hơn để thấy núi
+  if(sk){_sk.dome.position.copy(C.position);for(const c of _sk.list){c.position.x+=c.userData.v*dt;if(c.position.x>SKY.spread)c.position.x-=2*SKY.spread}}
+  for(const q of _sk.fl){
+    const on=curFl===q.f&&(!up||q.f===NF-1);   // tầng cao nhất luôn có sương (dù đang ở vùng thấy vòm trời)
+    q.g.visible=on;if(!on)continue;
+    for(const l of q.lay)l.t.offset.x+=SKYFOG.speed*l.k*dt/SKYFOG.tile;
+    for(const c of q.cs){c.position.x+=c.userData.v*dt;if(c.position.x>q.A-3)c.position.x=-(q.A-3);c.rotation.y+=dt*.05}
+  }
+}
