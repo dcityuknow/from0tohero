@@ -10,7 +10,7 @@
     // Lõi: renderer/scene/camera
     'core/core.js',
     // Thế giới: bản đồ tầng 1, 4 tầng của tòa nhà, vật lý va chạm
-    'world/world.js','world/sky.js','world/level.js','world/physics.js',
+    'world/common/world.js','world/common/sky.js','world/common/level.js','world/common/physics.js',
     // Cấu hình + trạng thái người chơi
     'core/config.js','core/state.js',
     // Đa ngôn ngữ
@@ -20,12 +20,22 @@
     // Người chơi (góc nhìn thứ nhất): tay, vũ khí, viewmodel
     'player/player.js','player/weapons.js','player/viewmodel.js',
     // Thiên nhiên (phải nạp SAU viewmodel, TRƯỚC bot)
-    'world/floors.js',   // nạp / dỡ tầng theo yêu cầu - phải nạp TRƯỚC house.js
-    'world/house.js','world/pavilion.js','world/statues.js',
-    'world/teaset.js',
-    'world/bath.js',
-    'world/greatwall.js',   // Vạn Lý Trường Thành tầng 2 (dựng lười qua floors.js)
-    'world/nature.js',
+    'world/common/floors.js',   // nạp / dỡ tầng theo yêu cầu - phải nạp TRƯỚC house.js
+    'world/floor1/house.js','world/floor1/pavilion.js','world/floor1/statues.js',
+    'world/floor1/teaset.js',
+    'world/floor1/bath.js',
+    'world/floor2/greatwall.js',   // Vạn Lý Trường Thành tầng 2 (dựng lười qua floors.js)
+    // nature/: thiên nhiên dùng chung mọi tầng. THỨ TỰ quan trọng (file sau dùng thứ file trước định nghĩa qua NatureKit)
+    'world/nature/kit.js',
+    'world/nature/placement.js',
+    'world/nature/plants.js',
+    'world/nature/lake.js',
+    'world/nature/state.js',
+    'world/nature/fx.js',
+    'world/nature/fish.js',
+    'world/nature/swim.js',
+    'world/nature/build.js',
+    'world/nature/runtime.js',
     // Kẻ địch: mô hình bot/boss, di chuyển, boss, bộ sinh quái, thoại boss, quản lý tầng
     'entities/bot-model.js','entities/boss-model.js','entities/boss2-model.js','entities/steering.js','entities/boss.js',
     'entities/spawner.js','entities/ai-talk.js','entities/boss-talk.js','entities/floor-manager.js',
