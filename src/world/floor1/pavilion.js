@@ -4,7 +4,8 @@
 (function(){
 const PX=7,PZ=-19.5;               // tâm chòi (x,z) trên sàn tầng 1 (chỗ tường hồng cũ: bk(0,0,-13,...) * MAPK)
 const FL=.875, RY=3.9;             // mặt sàn · chân mái
-const HX=9.5, HZ=3.25;             // nửa rộng (dài gấp đôi bản đầu) / nửa sâu của sàn
+const HX=14.25, HZ=3.25;            // nửa rộng (9.5 x 1.5 = dài gấp 1.5 lần bản trước) / nửa sâu của sàn
+const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 cột / trụ đá trên mỗi hàng (đều nhau, 8 thay vì 6)
 
 const POST=0x6b2d1c, RED=0x8a3b22, RED2=0x9c4a2c, DARK=0x2a1a10;
 const STONE=[0x5a5a5a,0x6a6a6a,0x4c4c4c,0x777777,0x3e3e3e];
@@ -12,23 +13,95 @@ const ROOF=[0x2b2b33,0x22222a,0x1c1c22], TRIM=[0x8a8a8a,0x767676,0x9a9a9a];
 const DECK=[0x8a5a3a,0x7c4f32,0x94643f];
 const PLANK1=0x3f2618;
 
-// ---------- LOGO (giống house.js) ----------
-const mix=(a,b,t)=>{const r=((a>>16)&255)*(1-t)+((b>>16)&255)*t,g=((a>>8)&255)*(1-t)+((b>>8)&255)*t,l=(a&255)*(1-t)+(b&255)*t;return((r|0)<<16)|((g|0)<<8)|(l|0)};
+// ---------- LOGO (lấy mẫu từ ảnh gốc, cùng dữ liệu với house.js) ----------
+// Lưới 120x66, '.' = trống, ký tự khác = độ sáng xám 0..63 -> đúng hình dạng, độ cong, độ dày và sắc độ của logo.
+const LOGO_W=120,LOGO_H=66,LOGO_ASPECT=1.8207,LOGO_B64='0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
+const LOGO_PX=[
+  '............................hjklmmmkj..............................................jkllmmnk.............................',
+  '........................jkmqsuwyyyxwutspok....................................imortvxxyyzzxwvsqn........................',
+  '.....................jlqvBGKMOPPPPPPOMKGBxson..............................kmpuAGKMPQQQQQQPOMKFBxup.....................',
+  '...................jnvDJMMJHFDDCDDEFIJMOPOKEzto..........................kovCJOQONMMMMNNOOPQRRRQNJEyro..................',
+  '.................jntCKKGBzxxxxyyyzzAABCEGKPQPGxtm......................intENQOKIIJKLMNNNOOPPQRSSTTQKFAs.................',
+  '................kqAGGCywwwwxxxxyyyzzzzAABDGJMPMExrl...................lsBKOLIHIJKLLMMNNOOOPPQQRSTUUTRMFwo...............',
+  '..............imuCBywvvvwwwxxxxyyyyzzzzzABCDFIMPLEwo................jozKMJGGHJKLLLMMMMNNOOPPPQQRRSUVXWSLDv..............',
+  '.............kpwzwuvvvvwwwwxxxyyyyyzzzzzzAABCDGJNPKAuo............jmuGMIEFHIJKLLMMMMNNNNNOOPPQQRRRSTUWYWRJBq............',
+  '...........hkrwwuuuvvvvvwwwxxyyzzzyyyyyyyyzAACDEHKOOJCvqok.....kmpwELKFFGIJKLMNNNNNMMMMMNNOOPPQQQRSTTUVYYWPFu...........',
+  '...........kqvutuuuuvvvwwwxyzAAzzzyxxwwwwwwyzABCEGJNPPKCxvtrqrstzGNNIDEHIJLMNOOONMLJJJIJJKLNOOPPQQRSTUUVY+YQHr..........',
+  '..........jottttuuuuvvwxxyABBBBBCDEFEDCBywvuvwyABDFIKMPPOLIHGHKMONJFDFHJKNPQQPNLKJJIHHGFEEFIJLNPQQRSTUUUVYZYQFq.........',
+  '........ginrsttuuvvvvwxzBDEDEGKNPQQPPPPPNKFAwtuwyABDEGHJLMNONMLJGFEFHJKOQSRPNMNPQQQQQQQOLIECCDHLNPQRSTUUVVXZYRIu........',
+  '........imqrsttuuvvwwyBFGGHLOPNJEByvuuwyCHMOLEwtuwzBCCEEFFFGFFFFFGHIJMQTTQOPQPMHDAyxzBDGKOOMICADHLPQRSUUVVVX+ZTKs.......',
+  '.......hlpqsttuuvvwxzDIJJMPNIBtr..........puCKKBvtuyACDDEEFFFFGGHIJKNSTRPPPJBtr.........qtAHMNHAzDIOQRTUVVVWX++UG.......',
+  '......gjnqrstuuvvwwzEJLMOPIzqk..............jqDLGyttwzBDDEEFFGGHHJMPSSQPPLym..............lpwFOIByBINQSUVVVWWY+ZQz......',
+  '......hlprsstuuvvwzFKMNPMDv...................myIJBvuvyACDEEFGHIJLOQQPQNCs...................qALKCxBHNRTUVVWWXZ+XLs.....',
+  '.....gjnqssstuvvwzHNOOPGyq......................ozJIEzwwyzBCEFGHJLMOPPFs......................mtDJCwzFNRTVWWWWX+/VF.....',
+  '....ghlprsstuvvwzGPRPODu..........................qDLMJGDCBCDFHJMPRPJw..........................owGAwyGOSUVWWWXY++Qy....',
+  '....hjnqssstuvvxEOTQPDu............................krBKONMLMNPRSSOHyo............................nvEyvAJRTVWWWXX+/WLr...',
+  '...ghkorssstuvwAKTRPGw................................quBFIJKJHEzt................................nwBwvDNSTVWXXXY+ZSA...',
+  '...gimpsssstuvyHTUPFy..............................................................................ntytxGPSUWXXXXZ+ZM...',
+  '...hknrrssstvxEPWRGyq..............................................................................jmsvtAJRTVWXXXY++Tw..',
+  '..gilprrsstuvALWWLAp................................................................................jmutvENSTVWXXY+/YG..',
+  '..gjmqrrsstuwFSYSDw..................................................................................kputzJRTUWXXY+/+Pp.',
+  '..gknqrrsstuyKWYNzr..................................................................................jltrvEPTUVWXYZ//Tw.',
+  '..hlprrrsstvBRZWGw....................................................................................jptsAMSTUWXYY+/XA.',
+  '.gilprrrstuwFW+TBs....................................................................................ilurwISTUVWXYZ/ZH.',
+  '.gimqrrrstuxKYZOzp.....................................................................................jtrtFQTUVWXYZ/+O.',
+  '.gjnqrrrstvyN+YKy......................................................................................jrtsCPSUVWXYZ//Qp',
+  '.gjnqrrrttvAQ+XHw......................................................................................ipvsBOTTUVXXY+/St',
+  '.gjoqrrstuvBS+VFu......................................................................................hnwrzMSTUVXYY+/Ux',
+  'fgjoqrrstuvCU+UDs......................................................................................ilxryLSTUVXYY+/Vw',
+  'ggjoqqrstuvDU+TCt......................................................................................ilxsxLSTUWXYY+/Wv',
+  'fgjoqrrttuvCU+UDs......................................................................................ilxsxKSTUWXYY+/Wv',
+  'ggjoqrsttuvCT+UDs......................................................................................hlxsxLSUVWXYY+/Vv',
+  'hginqrsttuvBS+VEt......................................................................................hnxsyMSUVXYYY+/Vw',
+  'hginqrsttuvzQ+XHw......................................................................................ipwsANTUWXYYY+/Tv',
+  '.gimqrsstuvyO+ZKy......................................................................................irvtCOTVWXXYY++Qq',
+  '.gimqrrstuvxLZ+Ozo.....................................................................................jutuEQTVWXYYZ/+Om',
+  '.hhlprrstuuwGW+TBr....................................................................................hkvswHRUWXXYYZ/ZK.',
+  '.hhkoqrsttuvCS+XFv....................................................................................hovtzKSVWXXYY+/XC.',
+  '.hhjnqrrstuvzNYZNyq...................................................................................jttwDOUVWXXYY+/Ty.',
+  '..hilprrsstuxHUZTBt..................................................................................hmwtyHRUVWXXYZ/+Pq.',
+  '..hikorrrrtuvCOYWIxl.................................................................................jsvwBLSUVXXXY+/YJ..',
+  '..gijmqrrrstvyGTYQBv................................................................................inxvAHPTUWXXXY++Uz..',
+  '...iikprrrrsuvAKWWKyt..............................................................................ilxxyFNSTVWXXXZ+YNr..',
+  '...hijnqrrrstuwCPXSIyr.................................lnortutrqo.................................imxzyCLQSUVWXXY+ZTD...',
+  '...hijlprrrrstvxHTWQFwp.............................klqtyCFIJJIFAxrn.............................hlwAzBHPRSUVWXXZ+WMu...',
+  '....ijknrrrrssuvAKUUNCvn..........................jnsyCHKNOPPQQQOLFztn..........................iltBBBFMRSTUVWXX+ZRE....',
+  '.....jklprrrsstuwCMSTMCwq........................luCHKONMLKKLMOQRSQNIBs........................knvDDDELQRSTUWWXZ+UIq....',
+  '.....ikknprrssstuwCJQRMExuo....................lsAEHIGEDDEEFGHJKNPSTSNGyq....................jlsAFGEFKQRSTTVWXY+XNv.....',
+  '......kllnqssssstvxCIPRMHyurl................jnxEEFCAABCDEEFFGGHJLPSVVPJBvm.................lnuEHJGGLPRRSTUVWY+YRF......',
+  '......immmorsssstuvxBINQNJDwtqn............lnuCFEDAyABCDDEEFFFFGGIKNRVWSMFzsq............klorAGLKHHMPRSSTUUVXZZULu......',
+  '.......lnnmorsssstuvxAFKOPOJEzvtqpqonmnonquyDHHEAyyBBCCDDDDDDDEEFGHIKPUWWRMFByurronmmopoqtyCHLNKHJNPQRSTUUVWZYTNy.......',
+  '........nponprsssttuvwyCFINQPNKGDBAyyyzBDGJLLHCyyzBCDEEDCCBBAAAzACEFHJMRUVUROLHEBAzzyzACFJMOPMJJLOQRRSTUUVWYYSOC........',
+  '.........nrqoprssttuvvwxyAEHKNPQPONMMMNNONKHCzyzBBDEFEEFHJKLLJHEAyyzCFILNQSTUTSQPONNNNOPQQOMKKMOPQRSSTTUVWYWSPB.........',
+  '..........pvroprstttuvwwxxyBCDFILMNONNMKGCAzzzABCDFGGGLQUUVVVVUTPHAwxAEHIKNPQRRSSSSSRQQONLLLMNPQRRSSTTTUWYWRRC..........',
+  '...........rxtppqstttuvvwwxxyzABBCCCCCBAzzzzzABCEFGIMRTOFACyyCAGOSOHAwzDGHJLMNOPOPOOONMMMMNOPPQQRRSSTTUWWUSRE...........',
+  '............rBztqqsttuvvvwwwwxxxyyyyyzzzzzzzABCEFHLSTJx..........vJSQGyxAEGIJKLMMMMNNNNNNOOPPPQQRRSSTUVURRSE............',
+  '.............rDHAtqqsttuvvvvwwwwxxxxyyyyzzAABDEGJPTIv..............tGSNCyyBFHIJKLLMMMMMNNNOOPPQQQRSTUTRQSNy.............',
+  '...............vJJAvrrstuuvvvwwwwxxxyyyyzAABCEJPTQy..................wNRLEzyBDGIJKLLLMMMNNOOPPQQRRRQPPSRD...............',
+  '................oJQMEwsrsstuvvwwwwxxxxyyzABCGMTTHs....................pJTSLDzzADGHJKLLMMNNOOOPPPPNMNRUOu................',
+  '..................zLQNGAwutttuuvvvwwxxyzBEJOSTKv........................wISRNIDBBCEFHIJKKLLLMLLLLNRTPD..................',
+  '....................vFQSQMHECAzzzAABCFILQTUPFw............................vEOTSPMIGFEEEFGGHIKMPSUTHz....................',
+  '.......................yAKQSSSRRRSSSTTSQKBu..................................tBJPTTTSRRRRSTTTRMDCq......................',
+  '............................vxABAzzzyv............................................wzBDEEFCyxy...........................'
+].join('');
+const LOGO_CACHE={};
+function logoGrid(nx,ny){
+  const key=nx+'x'+ny;if(LOGO_CACHE[key])return LOGO_CACHE[key];
+  const out=new Array(nx*ny).fill(-1);
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
+    const ya=Math.floor(j*LOGO_H/ny),yb=Math.max(Math.floor((j+1)*LOGO_H/ny),ya+1),
+          xa=Math.floor(i*LOGO_W/nx),xb=Math.max(Math.floor((i+1)*LOGO_W/nx),xa+1);
+    let cnt=0,tot=0,sum=0;
+    for(let r=ya;r<yb;r++)for(let c=xa;c<xb;c++){tot++;const ch=LOGO_PX[r*LOGO_W+c];if(ch!=='.'){cnt++;sum+=LOGO_B64.indexOf(ch)}}
+    if(cnt/tot>=.5)out[j*nx+i]=Math.round(sum/cnt/63*255);
+  }
+  return LOGO_CACHE[key]=out;
+}
 function logo(v,cx,cy,cz,LW){
-  const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
-    so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),
-    si=(x,y)=>sm(Math.hypot(x-.5,y)-.26,Math.hypot(x+.5,y)-.26,1.0);
-  const LS=.05,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2;
-  for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){
-    const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
-    if(o>0||n<=0)continue;
-    const w=-o/(-o+n),sg=x<0?-1:1,a=Math.atan2(y,x-sg*.52),br=.5+.5*Math.cos(a-(sg<0?2.4:Math.PI-2.4));
-    let hex;
-    if(w<.06)hex=0xffffff;
-    else if(w<.55)hex=mix(0xdfe6ee,0xffffff,br);
-    else hex=mix(0xaab6c6,0xf1f4f8,1-br);
-    v.cube(cx+x*u,cy+y*u,cz,LS*.95,LS*.95,.12,hex,i,j,0);
-    v.cube(cx+x*u+.07,cy+y*u-.07,cz-.09,LS*.95,LS*.95,.02,0x0a0a0a,i,j,1);
+  const LS=.05,nx=Math.round(LW/LS),ny=Math.round(nx/LOGO_ASPECT),LH=LW/LOGO_ASPECT,g=logoGrid(nx,ny);
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
+    const l=g[j*nx+i];if(l<0)continue;
+    v.cube(cx+(-.5+(i+.5)/nx)*LW,cy+(.5-(j+.5)/ny)*LH,cz,LS*.95,LS*.95,.12,(l<<16)|(l<<8)|l,i,j,0);
   }
 }
 // ---------- FONT pixel 5x7 (chỉ các chữ cần cho "OPTIMUM") ----------
@@ -68,21 +141,21 @@ function build(hx,hz){
   const cb=(x0,x1,y0,y1,z0,z1)=>boxes.push({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1});
 
   // ---- trụ đá + khung dầm + sàn gỗ ----
-  for(const x of[-8.75,-5.25,-1.75,1.75,5.25,8.75])for(const z of[-2.75,0,2.75])
+  for(const x of POSX)for(const z of[-2.75,0,2.75])
     fb(x-.4,x+.4,0,.5,z-.4,z+.4,(i,j,k)=>STONE[(i*3+j*5+k*7)%5],.2);
   fb(-HX,HX,.5,.75,-HZ,HZ,(i,j,k)=>(i+k)&1?0x3a2412:0x2f1c0e,.25);
   fb(-HX,HX,.75,FL,-HZ,HZ,(i,j,k)=>(k&1)?DECK[(i>>2)%3]:DECK[((i>>2)+1)%3],.125);
   cb(-HX,HX,0,FL,-HZ,HZ);
 
   // ---- 8 cột đỏ nâu (4 x 2) ----
-  for(const x of[-8.75,-5.25,-1.75,1.75,5.25,8.75])for(const z of[-2.5,2.5]){
+  for(const x of POSX)for(const z of[-2.5,2.5]){
     fb(x-.2,x+.2,FL,RY,z-.2,z+.2,(i,j,k)=>(j&1)?POST:0x7a3520,.1);
     fb(x-.25,x+.25,FL,FL+.15,z-.25,z+.25,0x3a2412,.1);      // đế cột
     cb(x-.2,x+.2,FL,RY,z-.2,z+.2);
   }
   // ---- dầm ngang quanh mái ----
   for(const z of[-2.5,2.5])fb(-HX+.15,HX-.15,RY-.4,RY,z-.2,z+.2,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
-  for(const x of[-8.75,8.75])fb(x-.2,x+.2,RY-.4,RY,-2.7,2.7,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
+  for(const x of[-PXO,PXO])fb(x-.2,x+.2,RY-.4,RY,-2.7,2.7,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
   fb(-HX+.15,HX-.15,RY-.4,RY,-.2,.2,0x431d10,.2);                  // xà giữa
 
   // ---- mái ngói đá phiến 4 mái (hip), nhiều tầng, viền đá ----
@@ -120,7 +193,7 @@ function build(hx,hz){
     fb(HX+.6*k,HX+.6*(k+1),0,top,-1.25,1.25,(i,j,kk)=>DECK[(j+kk)%3],.1);cb(HX+.6*k,HX+.6*(k+1),0,top,-1.25,1.25);
   }
   // ---- đèn lồng treo dưới hiên trước ----
-  for(const x of[-7,-2.7,2.7,7]){
+  for(const x of[-12,-7.5,-2.7,2.7,7.5,12]){
     fb(x-.15,x+.15,2.7,3.1,2.85,3.15,(i,j,k)=>(j===0||j===3)?DARK:0xffc860,.1);
     fb(x-.025,x+.025,3.1,RY-.4,2.975,3.025,DARK,.05);
   }
@@ -130,10 +203,10 @@ function build(hx,hz){
   cb(-3.25,-2.55,0,1.3,4.95,5.65);
 
   // ---- BIỂN HIỆU góc trước-trái: LOGO + "OPTIMUM" (cùng kiểu với nhà) ----
-  const SX0=-9.3, SX1=-6.7, SCX=(SX0+SX1)/2;         // biển rộng 2.6, tâm SCX
+  const SX0=-14.05, SX1=-11.45, SCX=(SX0+SX1)/2;         // biển rộng 2.6, tâm SCX
   fb(SX0,SX0+.2,0,2.75,5.1,5.3,PLANK1,.1);fb(SX1-.2,SX1,0,2.75,5.1,5.3,PLANK1,.1);   // 2 trụ
   fp(SX0,SX1,.65,2.75,5.15,5.25,.1,(x,y,z,i,j)=>(i<2||i>=24||j<2||j>=19)?POST:0x2b1c12); // bảng + viền
-  logo(v,SCX,2.1,5.35,2.2);
+  logo(v,SCX,2.07,5.35,1.85);
   text(v,'OPTIMUM',SCX,1.35,5.261,.055,0xffffff);
   text(v,'EXHIBITION',SCX,.98,5.261,.03,0xffd070);
   cb(SX0,SX1,0,2.75,5.1,5.3);
@@ -164,7 +237,14 @@ function build(hx,hz){
     seg(cx-.56,F+1.95,cz+.06,cx+.56,F+1.95,cz+.06,WHITE);  // thanh ngang trên
     fb(cx-.6,cx+.6,F+.68,F+.74,cz+.16,cz+.34,0xf0f0f0,.06); // gờ đỡ tranh
     cb(cx-.65,cx+.65,F,F+2.0,cz-.62,cz+.47);
-    const P=PORTRAITS[pi];if(!P)return;                    // kệ trống: không treo tranh
+    const P=PORTRAITS[pi];
+    if(!P){                                                // kệ trống: khung tranh trống (tranh trắng chưa vẽ)
+      const FR=0x5a3418;
+      fb(cx-.52,cx+.52,F+.73,F+1.77,cz+.19,cz+.21,0xf4f4f4,.02);                       // nền
+      fb(cx-.5,cx+.5,F+.75,F+1.75,cz+.21,cz+.225,0xfaf8f0,.05);                        // vải toan trắng
+      fb(cx-.58,cx+.58,F+1.75,F+1.83,cz+.18,cz+.27,FR,.04);fb(cx-.58,cx+.58,F+.67,F+.75,cz+.18,cz+.27,FR,.04);   // khung trên / dưới
+      fb(cx-.58,cx-.5,F+.67,F+1.83,cz+.18,cz+.27,FR,.04);fb(cx+.5,cx+.58,F+.67,F+1.83,cz+.18,cz+.27,FR,.04);     // khung trái / phải
+      return}
     fb(cx-.52,cx+.52,F+.73,F+1.77,cz+.19,cz+.21,0xf4f4f4,.02);   // nền tranh
     fp(cx-.5,cx+.5,F+.75,F+1.75,cz+.21,cz+.235,.025,(x,y,z,i,j)=>pcol(P.d,i,j));
     for(const s of[-.3,.3])fb(cx+s-.06,cx+s+.06,F+1.75,F+1.85,cz+.19,cz+.27,0xbdbdbd,.06); // kẹp trên
@@ -174,7 +254,7 @@ function build(hx,hz){
     text(v,P.n2,cx,F+.13,cz+.771,.017,0xffd070);
     cb(cx-.8,cx+.8,F,F+.45,cz+.7,cz+.76);
   };
-  for(const sx of[-1,1])for(const ax of[1.3,3.1,4.9,6.7,8.5]){const x=sx*ax;easel(x,-1.2,PORT[String(x)])}
+  for(const sx of[-1,1])for(const ax of[1.3,3.1,4.9,6.7,8.5,10.3,12.1]){const x=sx*ax;easel(x,-1.2,PORT[String(x)])}
 
   const m=v.mesh();m.position.set(hx,0,hz);S.add(m);meshes.push(m);
 }
