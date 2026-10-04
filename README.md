@@ -77,11 +77,11 @@ block-arena/
   In the browser console: `OC.log()` shows how many objects are hidden, `OC.set(false)` turns it off.
 - New scenery pieces that belong to floor 1 must expose a `rebuild()` and be added to `buildSet0()` in `floors.js`, otherwise they will not come back when you return to floor 1.
 
-## Chọn ngôn ngữ + tên, khắc tên lên tường (mới)
-- `src/ui/profile.js`: màn đầu game: chọn ngôn ngữ -> nhập tên (tối đa 20 ký tự; nhận chữ Latin + chữ của ngôn ngữ đã chọn). Đọc tên qua `PROFILE.name`.
-- `src/gameplay/engrave.js`: thắng boss = 1 lượt khắc. Nhìn vào tường (trong 8 m), bấm **E**. Dưới tên có dòng nhỏ "Đã vinh danh tầng N" (ngôn ngữ của người khắc). Chỗ đã khắc không khắc chồng được. Chỉnh nhanh ở `CFG`.
-- Dùng chung giữa người chơi bằng **Firebase Realtime Database** (không cần máy chủ riêng, game gọi REST trực tiếp). Cài đặt 1 lần:
-  1. https://console.firebase.google.com -> tạo project -> **Build -> Realtime Database -> Create database**.
-  2. Tab **Rules**: dán nội dung `firebase/database.rules.json` -> **Publish** (cho phép đọc, chỉ cho tạo bảng mới có dữ liệu hợp lệ, không cho sửa / xóa).
-  3. Chép địa chỉ database (đầu tab Data, dạng `https://xxx-default-rtdb.firebaseio.com`) dán vào `CFG.db` trong `src/gameplay/engrave.js`.
-  - Để trống `CFG.db` = chỉ lưu trên máy (localStorage). Muốn xóa bảng tên không phù hợp: vào tab Data, xóa mục tương ứng.
+## Language + name selection, names engraved on walls (new)
+- `src/ui/profile.js`: the first screen of the game: pick a language -> enter a name (max 20 characters; accepts Latin letters plus letters of the chosen language). Read the name via `PROFILE.name`.
+- `src/gameplay/engrave.js`: defeating a boss = 1 engraving. Look at a wall (within 8 m) and press **E**. Below the name there is a small line "Honored on floor N" (in the engraver's language). A spot that is already engraved cannot be engraved over. Quick tweaks in `CFG`.
+- Names are shared between players through the **Firebase Realtime Database** (no separate server needed, the game calls the REST API directly). One-time setup:
+  1. Go to https://console.firebase.google.com -> create a project -> **Build -> Realtime Database -> Create database**.
+  2. In the **Rules** tab: paste the contents of `firebase/database.rules.json` -> **Publish** (allows reading, only allows creating new entries with valid data, does not allow editing / deleting).
+  3. Copy the database address (at the top of the Data tab, like `https://xxx-default-rtdb.firebaseio.com`) and paste it into `CFG.db` in `src/gameplay/engrave.js`.
+  - Leave `CFG.db` empty = save on this machine only (localStorage). To remove an inappropriate name from the board: open the Data tab and delete the matching entry.
