@@ -334,6 +334,23 @@ function glowTex(){
   return glowTexCache=new THREE.CanvasTexture(cv);
 }
 const prevObjs=[];   // sprite / light của lần dựng trước (để rebuild không bị nhân đôi)
+// ---------- BIỂN HIỆU PHÁT SÁNG TRẮNG KHI TRỜI TỐI ----------
+// Logo + chữ POWERED BY RLNC ở bảng trước nhà có thêm 1 BẢN PHỦ cùng hình dạng, vẽ bằng vật liệu KHÔNG ăn đèn (Basic), giống mắt bot (bot-model.js).
+//   · ban ngày (nightK <= .25): visible=false -> không vẽ, thấy bảng như cũ
+//   · hoàng hôn / rạng đông (.25 -> .9): sáng dần / tắt dần
+//   · đêm (>= .9): sáng TRẮNG trung tính (r=g=b), giữ nguyên sắc độ trắng như ban ngày
+// Đổi độ chói: sửa SIGNG (r=g=b để giữ màu trắng). Đổi lúc bắt đầu sáng: tham số .25 / .9.
+const SIGNG=[1.2,1.2,1.2];
+const SIGNGLOW=new THREE.MeshBasicMaterial({vertexColors:true,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+SIGNGLOW.visible=false;
+if(window.DayCycle&&DayCycle.glow)DayCycle.glow(SIGNGLOW,[1,1,1],SIGNG,.25,.9);
+else(function signLoop(){
+  requestAnimationFrame(signLoop);
+  const dc=window.DayCycle,k=dc&&dc.cur?dc.cur.lamp:0;
+  if(!(k>.25)){SIGNGLOW.visible=false;return}
+  const t=Math.min(1,(k-.25)/.65),s=t*t*(3-2*t);
+  SIGNGLOW.visible=true;SIGNGLOW.color.setRGB(1+(SIGNG[0]-1)*s,1+(SIGNG[1]-1)*s,1+(SIGNG[2]-1)*s);
+})();
 
 function buildHouse(hx,hz){
   for(const o of prevObjs){try{S.remove(o)}catch(e){}const k=meshes.indexOf(o);if(k>=0)meshes.splice(k,1)}
@@ -582,6 +599,11 @@ function buildHouse(hx,hz){
   logo(v,-5.5,2.23,5.35,2.0,false);
   text(v,'POWERED',-5.5,1.47,5.261,.04,0xffffff);
   text(v,'BY RLNC',-5.5,1.15,5.261,.04,0xffffff);
+  {const E=new VB();   // bản phủ phát sáng: cùng hình, nhích ra trước 1.2cm (cộng polygonOffset ở SIGNGLOW)
+    logo(E,-5.5,2.23,5.35+.012,2.0,false);
+    text(E,'POWERED',-5.5,1.47,5.261+.012,.04,0xffffff);
+    text(E,'BY RLNC',-5.5,1.15,5.261+.012,.04,0xffffff);
+    const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);S.add(gm);prevObjs.push(gm);}   // không vào meshes -> không ảnh hưởng va chạm / bắn
   fp(-2.0,2.0,1.15,3.35,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=38||j<2||j>=20)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4]);   // bảng gỗ đen, y chang mặt trước
   logo(v,0,2.25,-3.25-.18,3.0,true);
 
