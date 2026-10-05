@@ -100,7 +100,7 @@ function frame(now){
   if(reviveT>0)reviveT-=dt;
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
-  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);
+  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);VLOD.tick();
   {const gr=cur==='grenade';   // chỉ ghi vào DOM khi giá trị thật sự đổi (tránh dựng lại chữ / layout mỗi khung)
     if(P.hp!==H.hp){H.hp=P.hp;H.eHp.style.width=P.hp+'%'}
     const am=gr?gren:rel>0?'…':ammos[cur],mg=gr?GMAX:reserve[cur];
