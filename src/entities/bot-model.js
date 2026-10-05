@@ -89,8 +89,8 @@ function botLogoGrid(nx,ny){
 //   · nightK <= .25 (ban ngày / sáng / chiều): material.visible=false -> KHÔNG vẽ, không tốn thêm draw call; thấy logo thường như cũ
 //   · .25 -> .9 (hoàng hôn / rạng đông): màu nội suy từ trắng thường sang màu EYEG nên mắt sáng dần lên (và tắt dần khi bình minh)
 //   · >= .9 (đêm): sáng rực màu EYEG. Sương mù vẫn che như vật thường, nên bot ở xa trong sương không lộ chấm sáng.
-// Đổi màu mắt: sửa EYEG (r,g,b có thể > 1 để chói). Ví dụ đỏ [2.2,.5,.4] · vàng [2.2,1.7,.5] · xanh lá [.6,2.1,.8]. Đổi lúc bắt đầu sáng: tham số .25 / .9 bên dưới.
-const EYEG=[.7,1.8,2.1];
+// Đổi màu mắt: sửa EYEG (r,g,b có thể > 1 để chói). Hiện tại: TRẮNG trung tính, giữ nguyên sắc độ logo như ban ngày (r=g=b nên không ngả màu). Ví dụ khác: xanh [.7,1.8,2.1] · đỏ [2.2,.5,.4] · vàng [2.2,1.7,.5]. Đổi lúc bắt đầu sáng: tham số .25 / .9 bên dưới.
+const EYEG=[1.2,1.2,1.2];
 const BOTEYE=new THREE.MeshBasicMaterial({vertexColors:true,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});   // polygonOffset: bản phủ thắng logo thường trong depth test, không nhấp nháy
 BOTEYE.visible=false;
 // Điều khiển BOTEYE: ưu tiên DayCycle.glow (daycycle.js bản mới). Nếu thiếu (daycycle.js bản cũ / chưa nạp / bị cache) thì tự đọc "độ tối" DayCycle.cur.lamp mỗi khung, vẫn chạy được
