@@ -256,6 +256,7 @@ function build(hx,hz){
   const PORT={'-8.5':0,'-4.9':1,'-1.3':2,'3.1':3,'6.7':4,'8.5':5,'1.3':6,'-3.1':7};   // x của kệ -> ảnh (trái -> phải)
   const pcol=(d,i,j)=>{const o=((39-j)*40+i)*3;
     return (parseInt(d[o],16)*17<<16)|(parseInt(d[o+1],16)*17<<8)|(parseInt(d[o+2],16)*17)};
+  const GUIDE_EASELS=[];   // vị trí + tên các tranh thật, cho guide-bot.js
   const easel=(cx,cz,pi)=>{
     const F=FL;
     seg(cx-.64,F,cz+.45,cx-.56,F+2.0,cz+.05,WHITE);        // 2 chân trước
@@ -273,6 +274,7 @@ function build(hx,hz){
       fb(cx-.58,cx+.58,F+1.75,F+1.83,cz+.18,cz+.27,FR,.04);fb(cx-.58,cx+.58,F+.67,F+.75,cz+.18,cz+.27,FR,.04);   // khung trên / dưới
       fb(cx-.58,cx-.5,F+.67,F+1.83,cz+.18,cz+.27,FR,.04);fb(cx+.5,cx+.58,F+.67,F+1.83,cz+.18,cz+.27,FR,.04);     // khung trái / phải
       return}
+    GUIDE_EASELS.push({x:hx+cx,z:hz+cz,y:F+1.25,n1:P.n1,n2:P.n2});
     fb(cx-.52,cx+.52,F+.73,F+1.77,cz+.19,cz+.21,0xf4f4f4,.02);   // nền tranh
     fp(cx-.5,cx+.5,F+.75,F+1.75,cz+.21,cz+.235,.025,(x,y,z,i,j)=>pcol(P.d,i,j));
     for(const s of[-.3,.3])fb(cx+s-.06,cx+s+.06,F+1.75,F+1.85,cz+.19,cz+.27,0xbdbdbd,.06); // kẹp trên
@@ -285,6 +287,7 @@ function build(hx,hz){
   for(const sx of[-1,1])for(const ax of[1.3,3.1,4.9,6.7,8.5,10.3,12.1]){const x=sx*ax;easel(x,-1.2,PORT[String(x)])}
 
   for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
+  window.PavilionGuide={cx:hx,cz:hz,FL,HX,HZ,easels:GUIDE_EASELS};   // guide-bot.js đọc mỗi khung hình (rebuild tự cập nhật)
   // ban đêm: 6 đèn lồng dưới hiên + đèn đá cạnh bậc thang sáng lên (daycycle.js); 2 đèn giữa có thêm PointLight
   if(window.DayCycle){
     for(const x of[-12,-7.5,-2.7,2.7,7.5,12])DayCycle.lamp(hx+x,2.9,hz+3.0,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
