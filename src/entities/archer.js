@@ -25,7 +25,11 @@ const Archer=(function(){
     calm:32,        // người chơi xa hơn mức này thì lính thôi chạy
     scale:.92,      // tỉ lệ thân (1 = ~2,7m kể cả mũ)
     respawn:45,     // giây để có lính mới thay lính bị hạ
-    show:95         // chỉ vẽ / tính lính trong bán kính này quanh người chơi (m): nhẹ máy
+    show:95,        // chỉ vẽ / tính lính trong bán kính này quanh người chơi (m): nhẹ máy
+    torchOn:.3,     // trời tối hơn mức này (DayCycle.cur.lamp, 0 = sáng, 1 = tối) thì cung thủ đi thắp đuốc ở các tháp canh
+    walk:3.4,       // tốc độ đi bộ khi đi thắp đuốc (m/s); đi xuyên được qua tháp (cửa đã cao hơn mũ cung thủ)
+    lightR:75,      // chỉ nhận thắp đuốc cách mình không quá ngần này (m dọc tường), cùng nhánh tường
+    lightT:[.5,.9,.5]   // giây: giơ tay tới đuốc · giữ tay sát đuốc (hết giây này đuốc bùng cháy) · hạ tay. Thắp xong lính đi bộ về chỗ tuần tra cũ
   };
   const TWR=6+.9;   // nửa cạnh tháp canh (6) + lề: lính không bước vào phạm vi này
   const list=[],arrows=[];let placed=false,on=false,TPL=null;
@@ -191,10 +195,14 @@ const Archer=(function(){
     return out;
   }
   const _q={x:0,y:0,z:0},_q2={x:0,y:0,z:0};
-  // Tháp canh là hình vuông song song trục x/z (cạnh 12m), KHÔNG xoay theo đường tường. Trước đây chỉ chừa 6.9m dọc ĐƯỜNG ĐI nên ở đoạn tường chéo
-  // (góc tháp nằm xa tới 8.5m) + lệch ngang lat, lính bị đặt/chạy vào trong thân tháp = xuyên tường. Kiểm tra trực tiếp theo hình vuông, cho mọi tháp (kể cả tháp ngã ba của nhánh kia).
+  // Tháp canh là hình vuông cạnh 12m, xoay theo hướng đường tường (greatwall.js). Kiểm tra trực tiếp theo hình vuông đã xoay, cho mọi tháp (kể cả tháp ngã ba của nhánh kia).
   const TMARG=6+.9;
-  function inTower(x,z,pad){const m=TMARG+(pad||0),T=GP.towers;for(let i=0;i<T.length;i++){const t=T[i];if(Math.abs(x-t.cx)<m&&Math.abs(z-t.cz)<m)return true}return false}
+  function inTower(x,z,pad){   // tháp giờ xoay theo tường: kiểm tra trong hệ trục riêng của tháp (tx,tz = dọc đường, nx,nz = ngang)
+    const m=TMARG+(pad||0),T=GP.towers;
+    for(let i=0;i<T.length;i++){const t=T[i],dx=x-t.cx,dz=z-t.cz;
+      if(t.tx===undefined){if(Math.abs(dx)<m&&Math.abs(dz)<m)return true}
+      else if(Math.abs(dx*t.tx+dz*t.tz)<m&&Math.abs(dx*t.nx+dz*t.nz)<m)return true}
+    return false}
   // vị trí s (và lệch lat) có đứng được không: không trong tháp + không đụng khối đặc ở ngang thân (lan can, thân tháp, đồi...)
   const _p={x:0,y:0,z:0};
   function okAt(b,s){
@@ -224,7 +232,7 @@ const Archer=(function(){
       at(b,b.s,_q);const sy=surf(_q.x,_q.z,_q.y);b.yo=sy-_q.y;at(b,b.s,_q);
       // lệch ngang làm điểm đặt rơi vào tháp -> thu về giữa đường
       if(inTower(_q.x,_q.z,0)){b.lat=0;b.yo=0;at(b,b.s,_q);const sy2=surf(_q.x,_q.z,_q.y);b.yo=sy2-_q.y;at(b,b.s,_q)}
-      b.x=_q.x;b.y=_q.y;b.z=_q.z;b.hp=CFG.hp;b.dd=undefined;b.vy=0;b.g.position.set(b.x,b.y,b.z)});
+      b.x=_q.x;b.y=_q.y;b.z=_q.z;b.hp=CFG.hp;b.dd=undefined;b.vy=0;b.g.position.set(b.x,b.y,b.z);b.home={lo:b.lo,hi:b.hi,s:b.s,lat:b.lat};b.job=null});
     list.length=slots.length;placed=true;
   }
 
@@ -254,25 +262,60 @@ const Archer=(function(){
     }
   }
 
+  // ---------- THẮP ĐUỐC ----------
+  // Trời tối (lamp > CFG.torchOn): cung thủ nào đang rảnh (người chơi không ở gần) nhận ngọn đuốc chưa thắp + chưa ai nhận gần nhất trên cùng nhánh tường,
+  // đi bộ tới (xuyên qua tháp nếu cần), quay mặt về đuốc, giơ tay phải, đuốc bùng cháy, rồi đi về chỗ tuần tra cũ. Đuốc tự tắt khi trời sáng (greatwall.js).
+  const lamp=()=>{const dc=window.DayCycle;return dc&&dc.cur&&typeof dc.cur.lamp==='number'?dc.cur.lamp:0};
+  function pickTorch(b){
+    const T=window.GreatWall&&GreatWall.torches;if(!T)return null;
+    let best=null,bd=CFG.lightR;
+    for(const t of T){if(t.lit||t.claim||t.b!==b.bi)continue;const d=Math.abs(t.s-b.s);if(d<bd){bd=d;best=t}}
+    return best;
+  }
+  function dropJob(b){if(b.job&&b.job.t.claim===b)b.job.t.claim=null;b.job=null}
+  function walkTo(b,s,lat,dt){   // đi bộ tới (s,lat); trả về true nếu đã tới
+    const ds=s-b.s,st=Math.min(Math.abs(ds),CFG.walk*dt);
+    if(st>0){b.s+=Math.sign(ds)*st;b.dir=Math.sign(ds)}
+    b.lat+=(lat-b.lat)*Math.min(1,dt*3);
+    return Math.abs(s-b.s)<.05&&Math.abs(lat-b.lat)<.15;
+  }
+  function jobStep(b,dt,day){   // trả về 1 nếu đang đi bộ (để chạy hoạt cảnh chân)
+    const J=b.job,T=J.t;let mv=0;
+    if(J.ph<2&&(day||(T.lit&&J.ph===0))){if(T.claim===b)T.claim=null;J.ph=2}   // trời sáng hoặc đuốc đã có lửa: về
+    if(J.ph===0){mv=1;if(walkTo(b,T.s,T.lat,dt)){J.ph=1;J.tm=0}}
+    else if(J.ph===1){
+      J.tm+=dt;const [a,h,l]=CFG.lightT;
+      if(!T.lit&&J.tm>=a+h){GreatWall.lightTorch(T);snd(420,.18,'sawtooth',.05*GV,{x:T.x,y:T.y,z:T.z});snd(180,.3,'triangle',.04*GV,{x:T.x,y:T.y,z:T.z})}
+      if(J.tm>=a+h+l){if(T.claim===b)T.claim=null;J.ph=2}
+    }else{
+      const H=b.home;
+      if(walkTo(b,H.s,H.lat,dt)){b.lo=H.lo;b.hi=H.hi;b.dir=0;b.job=null}else mv=1;
+    }
+    return mv;
+  }
+
   // ---------- VÒNG LẶP ----------
   const turn=(b,ty,k)=>{if(b.ry===undefined)b.ry=ty;let da=ty-b.ry;da=Math.atan2(Math.sin(da),Math.cos(da));b.ry+=da*Math.min(1,k)};
   function tick(dt){
     const act=curFl===1&&window.FM&&FM.has(1);
-    if(!act){if(on){on=false;show(false);clearArrows()}return}
+    if(!act){if(on){on=false;show(false);clearArrows();for(const b of list)dropJob(b);if(window.GreatWall&&GreatWall.torchIdle)GreatWall.torchIdle()}return}
     if(!placed)place();
     if(!on){on=true;for(const b of list)if(b.dd===undefined&&b.hp>0){b.cd=1+Math.random()*2;b.ph=0}}
+    const lampV=lamp(),night=lampV>CFG.torchOn;
     for(const b of list){
       let dx=P.x-b.x,dz=P.z-b.z,d=Math.hypot(dx,dz);
       if(b.hp<=0){   // bị hạ: chờ lính thay (chỉ khi người chơi đứng xa để không "hiện hình" trước mặt)
-        b.on=false;b.g.visible=false;if(b.dd===undefined)b.dd=CFG.respawn;
-        if((b.dd-=dt)<=0&&d>40){b.hp=CFG.hp;b.dd=undefined;b.cd=2;b.ph=0;b.mv=0;b.hold.visible=b.nock.visible=false}
+        b.on=false;b.g.visible=false;if(b.job)dropJob(b);if(b.dd===undefined)b.dd=CFG.respawn;
+        if((b.dd-=dt)<=0&&d>40){b.hp=CFG.hp;b.dd=undefined;b.cd=2;b.ph=0;b.mv=0;b.hold.visible=b.nock.visible=false;if(b.home){b.s=b.home.s;b.lat=b.home.lat;b.lo=b.home.lo;b.hi=b.home.hi}}
         continue;
       }
       if(d>CFG.show){b.on=false;b.g.visible=false;continue}
       b.on=true;b.g.visible=true;
       // ---- chạy dọc tường ra xa người chơi ----
       const dyp=P.y-b.y;let mv=0;
-      if(!dead&&Math.abs(dyp)<30){
+      if(!b.job&&!dead&&night&&d>CFG.flee&&b.home){const t=pickTorch(b);if(t){t.claim=b;b.job={t,ph:0,tm:0};b.dir=0}}   // tối rồi + người chơi không ở gần: nhận đi thắp đuốc
+      if(b.job)mv=jobStep(b,dt,lampV<.15);
+      else if(!dead&&Math.abs(dyp)<30){
         if(d<CFG.flee){
           b.dT-=dt;
           if(b.dT<=0||b.dir===0){   // chọn hướng làm tăng khoảng cách tới người chơi (giữ hướng ~.6s cho khỏi giật)
@@ -292,7 +335,8 @@ const Archer=(function(){
       // ---- ngắm / bắn ----
       const aim=!dead&&d<CFG.range&&dyp>-26&&dyp<22,rk=mv?CFG.runK:1;
       b.cd-=dt;
-      if(b.ph===0){if(aim&&b.cd<=0&&sight(b)){b.ph=1;b.pt=CFG.phase[0]*rk}}
+      const lighting=b.job&&b.job.ph===1;   // đang giơ tay thắp đuốc: không rút tên
+      if(b.ph===0){if(aim&&!lighting&&b.cd<=0&&sight(b)){b.ph=1;b.pt=CFG.phase[0]*rk}}
       else{
         b.pt-=dt;
         if(b.pt<=0){
@@ -304,7 +348,9 @@ const Archer=(function(){
       }
       // ---- hướng người: đang giương cung thì quay mặt về phía người chơi; đang chạy thì nhìn theo hướng chạy ----
       const toP=Math.atan2(dx,dz);
-      if(b.ph>0||!mv)turn(b,toP,dt*8);
+      if(lighting&&b.ph===0)turn(b,Math.atan2(b.job.t.x-b.x,b.job.t.z-b.z),dt*8);   // quay mặt về ngọn đuốc đang thắp
+      else if(b.ph>0||!mv)turn(b,toP,dt*8);
+      else if(b.job){at(b,b.s+b.dir*2,_q2);turn(b,Math.atan2(_q2.x-b.x,_q2.z-b.z),dt*10)}   // đi thắp đuốc: nhìn theo hướng đi (không bị kẹp trong đoạn tường tuần tra)
       else{at(b,Math.max(b.lo,Math.min(b.hi,b.s+b.dir)),_q2);turn(b,Math.atan2(_q2.x-b.x,_q2.z-b.z),dt*10)}
       b.g.rotation.y=b.ry;
       // ---- hoạt cảnh: chân chạy, tay trái giơ cung, tay phải kéo dây ----
@@ -318,6 +364,10 @@ const Archer=(function(){
       else if(ph===2){tL=-1.5;tRx=L(2.4,-1.3,pr);tRy=L(-.2,-.55,pr)}
       else if(ph===3){tL=-1.5;tRx=L(-1.3,-.9,pr);tRy=L(-.55,-.8,pr)}
       else if(ph===4){tL=L(-1.5,-.9,pr);tRx=L(-.9,.15,pr);tRy=L(-.8,0,pr)}
+      if(lighting&&ph===0){   // tay phải giơ chếch lên phía trước tới ngọn đuốc, run nhẹ lúc châm lửa
+        const [ta,th,tl]=CFG.lightT,tm=b.job.tm,u=tm<ta?tm/ta:tm<ta+th?1:Math.max(0,1-(tm-ta-th)/tl);
+        tRx=L(.15,-2.3,u)+(u>=1?Math.sin(tm*38)*.06:0);
+      }
       const k=Math.min(1,dt*14);b.pL+=(tL-b.pL)*k;b.pRx+=(tRx-b.pRx)*k;b.pRy+=(tRy-b.pRy)*k;
       b.aL.rotation.x=b.pL;b.aR.rotation.x=b.pRx;b.aR.rotation.z=b.pRy;   // z (không phải y): xoay y quanh trục cánh tay sẽ không thấy gì
       
@@ -326,7 +376,8 @@ const Archer=(function(){
       if(b.mv>.5&&Math.sin(b.t)*Math.sin(b.t-dt*10*b.mv)<0&&d<16)botStepSnd(b.g.position,false);
     }
     tickArrows(dt);
+    if(window.GreatWall&&GreatWall.torchTick)GreatWall.torchTick(dt);   // lửa đuốc nhấp nháy + đèn thật (greatwall.js); chỉ chạy khi người chơi ở tầng 2
   }
-  function reset(){clearArrows();for(const b of list){b.hp=CFG.hp;b.dd=undefined;b.ph=0;b.dir=0;b.mv=0;b.hold.visible=b.nock.visible=false}on=false;show(false)}
+  function reset(){clearArrows();if(window.GreatWall&&GreatWall.torchReset)GreatWall.torchReset();for(const b of list){dropJob(b);if(b.home){b.s=b.home.s;b.lat=b.home.lat;b.lo=b.home.lo;b.hi=b.home.hi}b.hp=CFG.hp;b.dd=undefined;b.ph=0;b.dir=0;b.mv=0;b.hold.visible=b.nock.visible=false}on=false;show(false)}
   return {tick,reset,cfg:CFG,list};
 })();
