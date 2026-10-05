@@ -93,7 +93,15 @@ function botLogoGrid(nx,ny){
 const EYEG=[.7,1.8,2.1];
 const BOTEYE=new THREE.MeshBasicMaterial({vertexColors:true,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});   // polygonOffset: bản phủ thắng logo thường trong depth test, không nhấp nháy
 BOTEYE.visible=false;
+// Điều khiển BOTEYE: ưu tiên DayCycle.glow (daycycle.js bản mới). Nếu thiếu (daycycle.js bản cũ / chưa nạp / bị cache) thì tự đọc "độ tối" DayCycle.cur.lamp mỗi khung, vẫn chạy được
 if(window.DayCycle&&DayCycle.glow)DayCycle.glow(BOTEYE,[1,1,1],EYEG,.25,.9);
+else(function eyeLoop(){
+  requestAnimationFrame(eyeLoop);
+  const dc=window.DayCycle,k=dc&&dc.cur?dc.cur.lamp:0;
+  if(!(k>.25)){BOTEYE.visible=false;return}
+  const t=Math.min(1,(k-.25)/.65),s=t*t*(3-2*t);   // cùng đường cong với DayCycle.glow: .25 -> .9
+  BOTEYE.visible=true;BOTEYE.color.setRGB(1+(EYEG[0]-1)*s,1+(EYEG[1]-1)*s,1+(EYEG[2]-1)*s);
+})();
 // bản phủ chỉ cần mặt TRƯỚC (+z, là mặt thứ 5 trong FACES của voxel.js) của mỗi khối logo; 5 mặt còn lại bị kính che hoặc quay đi -> bỏ, giảm 6 lần số tam giác
 function frontOnly(vb){
   const P=[],N=[],C=[],I=[],nC=(vb.k/24)|0;let k=0;
