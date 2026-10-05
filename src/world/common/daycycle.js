@@ -23,8 +23,8 @@ const CFG={
   stars:420,
   shadows:qsShadow(),        // bóng đổ thật (mặt trời). ?shadow=0 để tắt
   shadowSize:/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)?1024:2048,   // độ phân giải bản đồ bóng
-  shadowRange:/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)?30:44,      // nửa cạnh vùng đổ bóng quanh người chơi (m)
-  shadowStride:2,            // cập nhật bóng mỗi N khung (2 = nửa tải; vật đứng yên không thấy khác)
+  shadowRange:/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)?30:32,      // nửa cạnh vùng đổ bóng quanh người chơi (m). Trước là 44; sương mù đã che dần từ 18m (kín ở 55m)
+  shadowStride:3,            // cập nhật bóng mỗi N khung (3 = còn 1/3 tải; vật đứng yên không thấy khác, chỉ bóng bot trễ chút). Trước là 2
   dist:400                   // khoảng cách vẽ mặt trời / mặt trăng / sao quanh camera (vòm trời bán kính 450, far=600)
 };
 const hx=h=>[(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];
@@ -266,7 +266,11 @@ function tick(dt){
   // --- đèn ---
   for(let i=lamps.length-1;i>=0;i--){
     const l=lamps[i];if(!l.sp.parent){lamps.splice(i,1);continue}   // tầng đã dỡ -> bỏ
-    l.sp.material.opacity=l.op*(.16+.9*nightK);if(l.pl)l.pl.intensity=l.pI*(.08+1.55*nightK);
+    l.sp.material.opacity=l.op*(.16+.9*nightK);
+    if(l.pl){
+      l.pl.intensity=l.pI*(.08+1.55*nightK);
+      l.pl.visible=nightK>.03;   // ban ngày gỡ hẳn PointLight khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh). Đổi số đèn làm three biên dịch lại shader 1 lần mỗi biến thể, sau đó dùng lại từ cache
+    }
   }
   // --- đồng hồ ---
   if(X.bd){X.bdT-=dt;if(X.bdT<=0){X.bdT=.5;const hh=Math.floor(h),mm=Math.floor((h-hh)*60),t=emoji(h)+' '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+(country?' · '+country:'');if(t!==X.bdTxt){X.bdTxt=t;X.bd.textContent=t;X.bd.title=tz}}}
