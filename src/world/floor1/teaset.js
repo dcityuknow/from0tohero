@@ -107,6 +107,7 @@ function build(){
   for(const sx of[-1,1]){
     const x=sx*TEA.x,z=TEA.z,{v,L,hit}=buildSet(sx);
     const m=v.mesh();m.position.set(x,0,z);add(m);
+    if(window.DayCycle)DayCycle.lamp(x+sx*1.0,2.3,z+1.2,2.4,{light:true,I:.9,dist:7});   // đèn lồng treo trên cành: ban đêm sáng, rọi xuống bàn trà
     const lf=L.mesh();lf.position.set(x,0,z);S.add(lf);   // tán lá: KHÔNG đưa vào meshes -> đạn bay xuyên tán (giống cây ở nature/)
     // va chạm: nền + bàn + thân cây (tán ở trên đầu, không chặn)
     boxes.push({x0:x-1.6,x1:x+1.6,y0:0,y1:TT,z0:z-1.6,z1:z+1.6});

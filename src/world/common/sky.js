@@ -23,6 +23,7 @@ const CLOUD_SHAPES=[
 const CLOUD_FLAT=.8;   // nhân độ dày mây theo chiều nhìn (từ người chơi tới mây): 1 = dày như ảnh mẫu, nhỏ hơn = mỏng hơn
 const CLOUD_LAYERS=[[1,.50],[.8,.45],[.6,.40]];   // các lớp lồng nhau của 1 đám mây: [tỉ lệ cỡ, độ đặc 0..1]; giữa đám dày (các lớp chồng nhau), mép loãng dần
 const _hex=h=>[(h>>16)&255,(h>>8)&255,h&255];
+const HAZE=[],CEILMATS=[];   // vật liệu mây / sương / mặt dưới sàn: daycycle.js nhân màu theo giờ trong ngày
 // Mây 3D: viền 2D là "hợp mượt" (smooth-union) của các giọt tròn, rồi "bơm phồng" thành khối có mép bo tròn (mặt giữa phẳng, mép cong như giọt thủy ngân).
 // Dựng lưới bằng cách chiếu tia từ tâm ra mặt SDF; pháp tuyến lấy từ gradient nên bóng mịn, không lộ đường nối.
 function cloudGeometry(sh){
@@ -50,9 +51,9 @@ function cloudGeometry(sh){
 // Chất liệu mây: trắng mờ như lớp sương trên trần. Đặc ở phần giữa, loãng dần ra mép (mép mềm, không viền); đỉnh trắng, đáy hơi xanh xám để có khối.
 // fog=true cho mây nhỏ ở các tầng (chịu sương của cảnh), false cho mây tầng cao nhất.
 function hazeMaterial(fog,alpha){
-  return new THREE.ShaderMaterial({
+  const hm=new THREE.ShaderMaterial({
     fog:fog,transparent:true,depthWrite:false,
-    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uA:{value:alpha}}]),
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uA:{value:alpha},uT:{value:new THREE.Color(1,1,1)}}]),
     vertexShader:`varying vec3 vN;varying vec3 vP;
 #include <fog_pars_vertex>
 void main(){
@@ -61,7 +62,7 @@ void main(){
   gl_Position=projectionMatrix*mvPosition;
 #include <fog_vertex>
 }`,
-    fragmentShader:`uniform float uA;varying vec3 vN;varying vec3 vP;
+    fragmentShader:`uniform float uA;uniform vec3 uT;varying vec3 vN;varying vec3 vP;
 #include <fog_pars_fragment>
 float ss(float a,float b,float x){x=clamp((x-a)/(b-a),0.0,1.0);return x*x*(3.0-2.0*x);}
 void main(){
@@ -69,10 +70,11 @@ void main(){
   float c=clamp(dot(N,-V),0.0,1.0);                        // độ hướng về người chơi: 1 = chính diện, 0 = mép
   float a=uA*ss(0.0,0.8,c);                                // mép trong suốt, giữa đặc dần
   vec3 col=mix(vec3(0.90,0.94,0.99),vec3(1.0),ss(-0.7,0.2,N.y));   // chỉ đáy mây hơi xanh nhạt, còn lại trắng
-  gl_FragColor=vec4(col,a);
+  gl_FragColor=vec4(col*uT,a);
 #include <fog_fragment>
 }`
   });
+  HAZE.push(hm);return hm;
 }
 function cloudMats(fog){return CLOUD_LAYERS.map(l=>hazeMaterial(fog,l[1]))}
 // 1 đám mây = nhiều lớp cùng hình, lồng nhau, mỗi lớp nhỏ hơn và mờ: chồng lên nhau thành mây trắng mờ nhiều lớp
@@ -112,16 +114,22 @@ function fogTexture(){
   x.putImageData(id,0,0);_fogTex=new THREE.CanvasTexture(c);_fogTex.wrapS=_fogTex.wrapT=THREE.RepeatWrapping;_fogTex.anisotropy=4;return _fogTex;
 }
 // mặt dưới tấm sàn (= trần tầng dưới) tô trắng để không lộ màu xám sau lớp sương (level.js gọi)
-function ceilWhite(m){m.material[3]=new THREE.MeshBasicMaterial({color:0xf2f6fc,fog:false})}
+function ceilWhite(m){const cm=new THREE.MeshBasicMaterial({color:0xf2f6fc,fog:false});CEILMATS.push(cm);m.material[3]=cm}
+// tô gradient vòm trời: chân trời H -> giữa Mi -> đỉnh To (mỗi màu [r,g,b] 0..255). daycycle.js gọi lại khi giờ trong ngày đổi.
+function paintDome(gd,H,Mi,To){
+  const gp=gd.attributes.position,col=new Float32Array(gp.count*3);let o=0;
+  for(let i=0;i<gp.count;i++){
+    const u=Math.pow(Math.max(0,gp.getY(i)/450),.55),A=u<.5?H:Mi,B=u<.5?Mi:To,k=u<.5?u*2:(u-.5)*2;
+    for(let c=0;c<3;c++)col[o++]=(A[c]+(B[c]-A[c])*k)/255;
+  }
+  if(gd.attributes.color){gd.attributes.color.array.set(col);gd.attributes.color.needsUpdate=true}
+  else gd.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+}
 // ---- Vòm trời + mây ở tầng cao nhất, sương + mây nhỏ ở tầng 1-3 (dựng lười ở lần gọi đầu, khi NF/FH/AF đã có) ----
 let _sk=null;
 function buildSky(){
-  const gd=new THREE.SphereGeometry(450,32,20),gp=gd.attributes.position,col=[],H=_hex(SKY.horizon),Mi=_hex(SKY.mid),To=_hex(SKY.top);
-  for(let i=0;i<gp.count;i++){
-    const u=Math.pow(Math.max(0,gp.getY(i)/450),.55),A=u<.5?H:Mi,B=u<.5?Mi:To,k=u<.5?u*2:(u-.5)*2;
-    for(let c=0;c<3;c++)col.push((A[c]+(B[c]-A[c])*k)/255);
-  }
-  gd.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  const gd=new THREE.SphereGeometry(450,32,20);
+  paintDome(gd,_hex(SKY.horizon),_hex(SKY.mid),_hex(SKY.top));
   const dome=new THREE.Mesh(gd,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
   dome.renderOrder=-1;dome.frustumCulled=false;S.add(dome);
   const geos=CLOUD_SHAPES.map(cloudGeometry),
@@ -140,7 +148,7 @@ function buildSky(){
     (f===1?SKYFOG.layers2:SKYFOG.layers).forEach(([dy,op],i)=>{
       const t=FT.clone();t.needsUpdate=true;t.repeat.set(sz/SKYFOG.tile,sz/SKYFOG.tile);t.offset.set(Math.random(),Math.random());
       const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*SKYFOG.f2K:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
-      m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,k:(i%2?-1:1)*(.6+i*.25)});
+      m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,m,k:(i%2?-1:1)*(.6+i*.25)});
     });
     for(let i=0;i<SKYFOG.clouds;i++){
       const m=cloudObj(geos[i%4],cmat),s=SKYFOG.cMin+Math.random()*(SKYFOG.cMax-SKYFOG.cMin);
@@ -164,4 +172,5 @@ function tickSky(dt){
     for(const l of q.lay)l.t.offset.x+=SKYFOG.speed*l.k*dt/SKYFOG.tile;
     for(const c of q.cs){c.position.x+=c.userData.v*dt;if(c.position.x>q.A-3)c.position.x=-(q.A-3);_face(c)}
   }
+  if(window.DayCycle)DayCycle.tick(dt);   // mặt trời / trăng / ánh sáng theo giờ thật (world/common/daycycle.js)
 }

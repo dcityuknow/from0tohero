@@ -64,6 +64,7 @@ function tintOverlay(T){
 function fogApply(k,T){
   const F=S.fog;if(!F)return;
   if(!fog0)fog0={c:F.color.clone(),n:F.near,f:F.far,d:F.density};
+  if(!fogOn&&window.DayCycle)fog0.c.copy(DayCycle.fog);   // màu sương gốc đổi theo giờ trong ngày (daycycle.js)
   if(k<.005){
     if(fogOn){F.color.copy(fog0.c);if(F.near!==undefined){F.near=fog0.n;F.far=fog0.f}else if(F.density!==undefined)F.density=fog0.d;fogOn=false}
     return;

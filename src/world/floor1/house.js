@@ -760,10 +760,12 @@ function buildHouse(hx,hz){
       for(const l of lamps){
         const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));
         sp.scale.set(l.s,l.s,1);sp.position.set(hx+l.x,l.y,hz+l.z);S.add(sp);prevObjs.push(sp);
+        let pl=null;
         if(GLOW_LIGHTS&&l.light){
-          const pl=new THREE.PointLight(0xffc860,1.0,9,2);
+          pl=new THREE.PointLight(0xffc860,1.0,9,2);
           pl.position.set(hx+l.x,l.y-.1,hz+l.z);S.add(pl);prevObjs.push(pl);
         }
+        if(window.DayCycle)DayCycle.reg(sp,pl);   // ban đêm đèn sáng rực, ban ngày chỉ còn quầng mờ
       }
     }
   }catch(e){}

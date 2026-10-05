@@ -173,6 +173,10 @@ function buildBath(b,idx){
   for(const [x,z,rx,ry,rz] of [[X0+.4,-4.3,.9,.7,.8],[X0+.5,4.2,.8,.6,.9],[X0+1.2,-5.2,.7,.55,.6]]){ell(x,ry*.5,z,rx,ry,rz,.2);col(x-rx*.7,x+rx*.7,0,ry*1.3,z-rz*.7,z+rz*.7)}
 
   const m=v.mesh();m.position.set(b.x,0,b.z);m.rotation.y=rot;S.add(m);meshes.push(m);
+  if(window.DayCycle)for(const sz of[-1,1]){   // 2 cột đèn lối vào sáng lên ban đêm (toạ độ cục bộ x=-6.4,z=±2.6 -> thế giới, theo góc xoay rot)
+    const lx=-6.4,lz=sz*2.6,wx=b.x+lx*Math.cos(rot)+lz*Math.sin(rot),wz=b.z-lx*Math.sin(rot)+lz*Math.cos(rot);
+    DayCycle.lamp(wx,3.45,wz,2.4,{light:true,I:.9,dist:9});
+  }
 
   // ---- suối + thác chảy theo bề mặt vách (bám từng bậc), bọt chân thác ----
   g.position.set(b.x,0,b.z);g.rotation.y=rot;
@@ -198,6 +202,7 @@ function buildBath(b,idx){
 // ---------- giọt nước + bọt tóe (giống bọt khi bắn súng xuống nước): rơi dọc mặt thác, tóe lên ở chân từng bậc và chỗ thác đổ xuống hồ ----
 const sprays=[];
 const dropMats=[0xffffff,0x9fd8ff,0xdff6ff].map(c=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.92}));
+if(window.DayCycle)[flowMat,fallMat,foamMat,...dropMats].forEach(DayCycle.unlit);   // MeshBasic không ăn đèn: nhân màu theo giờ để ban đêm thác không trắng sáng
 function mkSpray(b,g,em){
   const geo=new THREE.BoxGeometry(1,1,1),pool=[];
   for(let i=0;i<450;i++){const m=new THREE.Mesh(geo,dropMats[i%3]);m.visible=false;g.add(m);pool.push({m,on:false,vx:0,vy:0,vz:0,t:0,life:0,fy:0})}
