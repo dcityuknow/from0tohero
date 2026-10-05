@@ -19,7 +19,7 @@ block-arena/
    ├─ main.js                 main loop, damage handling, restart
    ├─ core/                   core.js (renderer/camera) · config.js (weapon stats, drops) · state.js
    ├─ world/
-   │  ├─ common/              world.js (floor 1, MAPK, FHT) · sky.js · level.js (4 floors, stairs, gates) · physics.js · floors.js (lazy load / unload)
+   │  ├─ common/              world.js (floor 1, MAPK, FHT) · sky.js · level.js (4 floors, stairs, gates) · physics.js · floors.js (lazy load / unload) · daycycle.js
    │  ├─ nature/              shared nature engine for every floor (split from the old nature.js, shares state via window.NatureKit):
    │  │                       kit.js (CFG, THM themes, RNG) · placement.js (keep-out zones) · plants.js (trees, rocks, logs, butterflies)
    │  │                       lake.js (rivers: depth, carving) · state.js (FL, lakeAt, isWater, wetAt) · fx.js (splash, ripples, bullets in water)
