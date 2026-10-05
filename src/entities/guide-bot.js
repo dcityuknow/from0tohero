@@ -32,7 +32,9 @@ const FACTS={
   'MURIEL MEDARD':'Giáo sư Muriel Médard, đồng sáng lập và CEO của Optimum. Sinh ngày 1 tháng 2 năm 1968, quốc tịch Pháp–Mỹ, là nhà lý thuyết thông tin và kỹ sư điện. Bà là NEC Professor of Software Science and Engineering tại khoa EECS của MIT và dẫn dắt nhóm Network Coding and Reliable Communications tại Research Laboratory of Electronics. Học vấn toàn bộ tại MIT: cử nhân EECS và toán (1989), cử nhân nhân văn / Russian studies cùng thạc sĩ kỹ thuật điện (1991), tiến sĩ Sc.D. kỹ thuật điện (1995) dưới sự hướng dẫn của Robert G. Gallager. Sự nghiệp: nghiên cứu sau tiến sĩ tại MIT Lincoln Laboratory, trợ lý giáo sư tại University of Illinois Urbana–Champaign (1998), về MIT từ năm 2000; chủ tịch IEEE Information Theory Society (2012), từng là tổng biên tập IEEE Journal on Selected Areas in Communications. Bà đồng phát minh RLNC: các nút mạng gửi tổ hợp tuyến tính ngẫu nhiên của gói tin, không cần điều phối trung tâm, giúp truyền dữ liệu chịu mất gói và dùng băng thông hiệu quả hơn; Optimum áp dụng kỹ thuật này vào gossip và truyền block trên blockchain. Danh hiệu: thành viên US National Academy of Engineering (2020), American Academy of Arts and Sciences (2021), Leopoldina của Đức (2022); Fellow IEEE (2008), US National Academy of Inventors (2018), Royal Academy of Engineering (2025). Tiến sĩ danh dự từ Technical University of Munich (2020), Aalborg (2022), Budapest University of Technology and Economics (2023). Giải IEEE Richard W. Hamming Medal 2026 cho đóng góp về mã hóa cho truyền thông tin cậy. Bà đồng sáng lập CodeOn, Steinwurf (Chief Scientist) và các công ty chuyển giao công nghệ khác; Optimum là lần gần nhất, nơi bà làm CEO.',
   'KENT LIN':'Kent Lin, đồng sáng lập Optimum (một số nguồn ghi thêm COO). Theo trang chính thức của Optimum, ông phụ trách adoption và tăng trưởng hệ sinh thái: business development, tokenomics và gọi vốn. Lý lịch: cử nhân kỹ thuật hàng không vũ trụ tại Nanyang Technological University (Singapore); MBA Harvard Business School nhưng bỏ giữa chừng để làm Optimum toàn thời gian. Từng là Partner tại GSRV, nhánh crypto của GSR Ventures, quỹ được Optimum mô tả khoảng 4 tỷ USD; Chủ tịch Harvard Blockchain Club, tổ chức Harvard Blockchain Conference 2024; sáng lập McKinsey Crypto DAO với hơn 200 cựu McKinsey hoạt động trong Web3. Từ khoảng 2019 ông tham gia ủy ban Crypto và Web3 của Singapore FinTech Association. Ông kể đã gặp giáo sư Médard khi đang học MBA, thấy RLNC giải được lớp bộ nhớ còn thiếu của blockchain, vì gossip và nhân bản full node chậm và tốn băng thông. Ba người, Médard, Kishori Konwar và ông, dừng công việc cũ để thành lập Optimum; ông bỏ Harvard, còn Médard xin nghỉ phép ở MIT. Ông thường xuất hiện cùng David Song tại các sự kiện châu Á như Token2049, BUIDL Asia Seoul, Nanyang Blockchain Conference.',
   'ELI LAIPSON':'Eli Laipson, CMO của Optimum. Trên sơ đồ tổ chức ông mang chức CMO; bio trên X ghi Head of Marketing tại Optimum, ở Boston. Vai trò công khai: xây đội marketing cốt lõi (từng tuyển Social Media Lead, Community Lead, community mods), truyền thông các sản phẩm như flexnode và mump2p, và khuếch đại các cột mốc kỹ thuật, ví dụ giải Hamming của giáo sư Médard. Tiểu sử trước Optimum ít được công bố chính thức; bài viết cũ của ông khoảng 2016–2017 nói về product management và partnership cho startup B2B SaaS, và ông có chứng chỉ Pragmatic Marketing. Không được suy diễn thêm về các công ty trước đây của ông.',
-  'DAVID SONG':'David Song, APAC Growth Lead của Optimum. Bio tự ghi: trước đó là Head of BD tại Cosmostation; cựu sinh viên Binghamton University. Optimum xác nhận vai trò này trên các bài đăng chính thức: APAC Tour (Singapore, Hong Kong, Shenzhen, khoảng tháng 8/2026), có mặt tại Nanyang Blockchain Conference cùng hai co-founder; recap BUIDL Asia Seoul (tháng 4/2026) cùng Kent Lin, gặp builder và trình bày. Nhiệm vụ thực tế là tăng trưởng khu vực châu Á–Thái Bình Dương: sự kiện, quan hệ builder và validator, và làm cầu nối giữa nghiên cứu RLNC với hệ sinh thái APAC.'
+  'DAVID SONG':'David Song, APAC Growth Lead của Optimum. Bio tự ghi: trước đó là Head of BD tại Cosmostation; cựu sinh viên Binghamton University. Optimum xác nhận vai trò này trên các bài đăng chính thức: APAC Tour (Singapore, Hong Kong, Shenzhen, khoảng tháng 8/2026), có mặt tại Nanyang Blockchain Conference cùng hai co-founder; recap BUIDL Asia Seoul (tháng 4/2026) cùng Kent Lin, gặp builder và trình bày. Nhiệm vụ thực tế là tăng trưởng khu vực châu Á–Thái Bình Dương: sự kiện, quan hệ builder và validator, và làm cầu nối giữa nghiên cứu RLNC với hệ sinh thái APAC.',
+  'CHANDLER OTTERBEIN':'Chandler Otterbein, phụ trách Strategy & Operations (chiến lược và vận hành) của Optimum. Anh ở Optimum từ khá sớm, khoảng năm 2024. Trước đó anh là chủ tịch NEU Blockchain, từng làm tại Brown Brothers Harriman và từng ở student advisory board của Enterprise Ethereum Alliance. Mảng của anh gồm vận hành, nghiên cứu và cách dự án đi ra bên ngoài.',
+  'HAR PREET SINGH':'Har Preet Singh, VP Engineering (Phó chủ tịch kỹ thuật) của Optimum. Anh dẫn dắt đội kỹ thuật, phụ trách phần đưa mump2p chạy thật trên mạng. Trước khi vào Optimum, anh làm blockchain và hệ thống phân tán khoảng mười năm, từng ở Umee, Ignite (tức Tendermint) và FIWARE. Nói ngắn gọn, anh là người biến nghiên cứu RLNC thành sản phẩm mà validator đang dùng.'
 };   // thêm / sửa dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi, khóa = tên in trên bảng, viết hoa, bỏ dấu, bỏ "PROF."). Người không có mục: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
 const COMMON='Optimum (x.com/get_optimum) là hạ tầng bộ nhớ hiệu năng cao / mạng tăng tốc dữ liệu cho mọi blockchain, xây trên RLNC, công nghệ ra đời từ nghiên cứu ở MIT. Sản phẩm đầu tiên mump2p tăng tốc lan truyền dữ liệu Ethereum; kế tiếp là deRAM (bộ nhớ phi tập trung) và deROM; Flexnode là node ai cũng chạy được. Tháng 4/2025 Optimum huy động 11 triệu USD, có 1kx, Spartan, Robot Ventures, Triton Capital, Finality Capital, SNZ ủng hộ. Đội ngũ công khai danh tính, nhiều người từ MIT, Harvard và Meta.';
 const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko; ngôn ngữ khác tự dịch bằng trLine)
@@ -51,7 +53,15 @@ const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko
   'DAVID SONG':{
     vi:'Anh từng là Head of BD tại Cosmostation và phụ trách tăng trưởng khu vực châu Á – Thái Bình Dương: sự kiện, quan hệ với builder và validator, làm cầu nối giữa nghiên cứu RLNC và hệ sinh thái APAC.',
     en:'He was Head of BD at Cosmostation and drives growth in Asia-Pacific: events, builder and validator relations, and bridging RLNC research with the APAC ecosystem.',
-    ko:'Cosmostation의 BD 총괄을 지냈으며, 이벤트와 빌더·검증자 관계를 통해 아시아·태평양 지역의 성장을 이끌고 RLNC 연구와 APAC 생태계를 연결합니다.'}
+    ko:'Cosmostation의 BD 총괄을 지냈으며, 이벤트와 빌더·검증자 관계를 통해 아시아·태평양 지역의 성장을 이끌고 RLNC 연구와 APAC 생태계를 연결합니다.'},
+  'CHANDLER OTTERBEIN':{
+    vi:'Anh ở Optimum từ khá sớm, khoảng năm 2024. Trước đó anh là chủ tịch NEU Blockchain, từng làm tại Brown Brothers Harriman và ở student advisory board của Enterprise Ethereum Alliance. Anh phụ trách vận hành, nghiên cứu và cách dự án đi ra bên ngoài.',
+    en:'He joined Optimum early, around 2024. Before that he was president of NEU Blockchain, worked at Brown Brothers Harriman, and served on the student advisory board of the Enterprise Ethereum Alliance. He handles operations, research and how the project reaches the outside world.',
+    ko:'2024년경 비교적 초기에 옵티멈에 합류했습니다. 그 전에는 NEU Blockchain 회장을 지냈고 Brown Brothers Harriman에서 일했으며 Enterprise Ethereum Alliance 학생 자문위원회에도 참여했습니다. 운영, 리서치, 그리고 프로젝트를 외부에 알리는 일을 맡고 있습니다.'},
+  'HAR PREET SINGH':{
+    vi:'Anh dẫn dắt đội kỹ thuật, phần đưa mump2p chạy thật trên mạng. Trước Optimum, anh làm blockchain và hệ thống phân tán khoảng mười năm, từng ở Umee, Ignite tức Tendermint, và FIWARE. Anh là người biến nghiên cứu RLNC thành sản phẩm mà validator đang dùng.',
+    en:'He leads the engineering team, the part that makes mump2p run for real on the network. Before Optimum he spent about ten years in blockchain and distributed systems, at Umee, Ignite (formerly Tendermint) and FIWARE. He turned the RLNC research into a product that validators actually use.',
+    ko:'엔지니어링 팀을 이끌며 mump2p가 실제 네트워크에서 돌아가게 만드는 일을 맡고 있습니다. 옵티멈 이전에는 약 10년간 블록체인과 분산 시스템 분야에서 Umee, Ignite(Tendermint), FIWARE 등을 거쳤습니다. RLNC 연구를 검증자들이 실제로 쓰는 제품으로 만든 사람입니다.'}
 };
 const T={
   vi:{greet:['Xin chào, tôi là hướng dẫn viên của khu triển lãm Optimum.','Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu bức tranh đó.'],
@@ -60,6 +70,8 @@ const T={
       founder:'{n} là đồng sáng lập của Optimum, người cùng đặt nền móng cho dự án.',
       cmo:'{n} là CMO của Optimum, phụ trách marketing và truyền thông.',
       apac:'{n} là APAC Growth Lead của Optimum, phụ trách tăng trưởng khu vực châu Á – Thái Bình Dương.',
+      eng:'{n} là VP Engineering của Optimum, dẫn dắt đội kỹ thuật.',
+      ops:'{n} phụ trách Strategy & Operations của Optimum, tức chiến lược và vận hành.',
       team:'{n} là thành viên trong đội ngũ Optimum.',
       proj:'Optimum là hạ tầng bộ nhớ hiệu năng cao cho mọi blockchain, xây trên công nghệ RLNC đến từ MIT.',
       outro:['Mời bạn xem tiếp các bức tranh bên cạnh.','Bạn có thể bước tiếp để xem thêm.'],
@@ -70,6 +82,8 @@ const T={
       founder:'{n} is a co-founder of Optimum, who helped lay the foundation of the project.',
       cmo:'{n} is the CMO of Optimum, in charge of marketing and communications.',
       apac:'{n} is the APAC Growth Lead of Optimum, driving growth across Asia-Pacific.',
+      eng:'{n} is the VP of Engineering at Optimum, leading the engineering team.',
+      ops:'{n} is in charge of Strategy and Operations at Optimum.',
       team:'{n} is a member of the Optimum team.',
       proj:'Optimum is high-performance memory infrastructure for any blockchain, built on RLNC technology from MIT.',
       outro:['Feel free to continue to the next paintings.','Step along to see more.'],
@@ -80,6 +94,8 @@ const T={
       founder:'{n}님은 옵티멈의 공동 창업자로서 프로젝트의 토대를 함께 만들었습니다.',
       cmo:'{n}님은 옵티멈의 CMO로서 마케팅과 커뮤니케이션을 맡고 있습니다.',
       apac:'{n}님은 옵티멈의 APAC 성장 리드로서 아시아·태평양 지역의 성장을 이끌고 있습니다.',
+      eng:'{n}님은 옵티멈의 엔지니어링 총괄 VP로서 개발팀을 이끌고 있습니다.',
+      ops:'{n}님은 옵티멈의 전략 및 운영을 맡고 있습니다.',
       team:'{n}님은 옵티멈 팀의 일원입니다.',
       proj:'옵티멈은 MIT에서 나온 RLNC 기술로 만든, 모든 블록체인을 위한 고성능 메모리 인프라입니다.',
       outro:['다음 그림도 둘러보세요.'],
@@ -92,8 +108,8 @@ const tr1=async(lang,s)=>(NATIVE[lang]||typeof trLine!=='function')?s:await trLi
 const trAll=(lang,a)=>Promise.all(a.map(x=>tr1(lang,x)));
 const langName=lang=>{try{return LN.find(x=>x[0]===lang)[1]}catch(e){return lang}};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
-const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\b(Ceo|Cmo|Apac)\b/g,m=>m.toUpperCase());
-const kindOf=r=>/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':'team';
+const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\b(Ceo|Cmo|Apac|Vp)\b/g,m=>m.toUpperCase());
+const kindOf=r=>/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
 function getLang(){return typeof L!=='undefined'?L:'vi'}   // L = ngôn ngữ đang chọn (i18n.js)
 function template(info,lang){
   const k=keyOf(info),t=TT(lang),n=SPOKEN[k]||title(info.n1),bio=BIO[k]&&(BIO[k][lang]||BIO[k].en);
