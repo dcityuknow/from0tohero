@@ -17,6 +17,7 @@ const CFG={
   dwell:.5,                   // nhìn liên tục bao lâu thì bắt đầu đọc (s)
   cooldown:25,                // không đọc lại cùng 1 tranh trong khoảng này (s)
   tts:true,                   // đọc thành tiếng
+  showText:false,             // false = chỉ ĐỌC, không hiện chữ trên màn hình (nếu máy không đọc được thì tự hiện chữ thay thế)
   rate:1.2,                   // tốc độ đọc (1 = bình thường; 1.1–1.3 nhanh vừa; tăng nữa dễ khó nghe)
   cloudTTS:true,              // nếu máy KHÔNG có giọng tự nhiên đúng ngôn ngữ -> dùng giọng Google Dịch (cần mạng). false = chỉ dùng giọng có sẵn trong máy; không có giọng đúng ngôn ngữ thì chỉ hiện chữ, không đọc bằng giọng sai
   ai:null                     // async (info, lang) => string | null — mặc định gắn AITalk (Groq) ở dưới; null/lỗi => kịch bản mẫu
@@ -24,14 +25,28 @@ const CFG={
 
 // ---------- DỮ LIỆU ĐỌC ----------
 const SPOKEN={ 'BLOCKCHAINJEFF':'Blockchain Jeff','MURIEL MEDARD':'Muriel Médard' };   // tên đọc khác với tên in trên bảng
-const FACTS={ 'MURIEL MEDARD':'Giáo sư tại MIT, người phát triển RLNC (Random Linear Network Coding) mà mump2p của Optimum dựa vào.' };   // dữ kiện thật cho AI (lấy từ prompt trong ai-talk.js); thêm dữ kiện chắc chắn của người khác tại đây   // tên đọc khác với tên in trên bảng
-const BIO={};   // thêm tiểu sử thật tại đây, vd BIO['KENT LIN']={vi:'...',en:'...',ko:'...'} — AI/kịch bản sẽ chỉ dùng dữ kiện có trong đây
+const FACTS={   // dữ kiện ĐÃ XÁC THỰC (tiếng Việt; AI tự đọc sang ngôn ngữ đang chọn). Nguồn: trang MIT, Consensus 2025 (CoinDesk), Blocmates, thông cáo huy động vốn 04/2025.
+  'MURIEL MEDARD':'Đồng sáng lập và CEO của Optimum. Giáo sư tại MIT, giữ ghế NEC Chair về Khoa học và Kỹ thuật Phần mềm, lãnh đạo nhóm Network Coding and Reliable Communications tại MIT. Là đồng phát minh RLNC (Random Linear Network Coding), công nghệ nền tảng của Optimum, đúc kết từ hơn hai thập kỷ nghiên cứu ở MIT. Thành viên Viện Hàn lâm Kỹ thuật Quốc gia Hoa Kỳ, Viện Hàn lâm Nghệ thuật và Khoa học Hoa Kỳ và Viện Hàn lâm Khoa học Quốc gia Đức; Fellow của Viện Hàn lâm Nhà phát minh Quốc gia Hoa Kỳ và của IEEE. Nhận giải IEEE Kobayashi Computers and Communications năm 2022, từng là chủ tịch IEEE Information Theory Society năm 2012 và giữ hơn tám mươi bằng sáng chế.',
+  'KENT LIN':'Đồng sáng lập Optimum, tập trung vào go-to-market, tức đưa sản phẩm ra thị trường. Được giới thiệu là người thiên về crypto nhất trong nhóm sáng lập.'
+};   // thêm dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi). Người không có mục ở đây: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
+const COMMON='Optimum (x.com/get_optimum) là hạ tầng bộ nhớ hiệu năng cao / mạng tăng tốc dữ liệu cho mọi blockchain, xây trên RLNC, công nghệ ra đời từ nghiên cứu ở MIT. Sản phẩm đầu tiên mump2p tăng tốc lan truyền dữ liệu Ethereum; kế tiếp là deRAM (bộ nhớ phi tập trung) và deROM; Flexnode là node ai cũng chạy được. Tháng 4/2025 Optimum huy động 11 triệu USD, có 1kx, Spartan, Robot Ventures, Triton Capital, Finality Capital, SNZ ủng hộ. Đội ngũ công khai danh tính, nhiều người từ MIT, Harvard và Meta.';
+const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko; ngôn ngữ khác tự dịch bằng trLine)
+  'MURIEL MEDARD':{
+    vi:'Cô là giáo sư tại MIT và là đồng phát minh RLNC, công nghệ nền tảng của Optimum. Cô là thành viên Viện Hàn lâm Kỹ thuật Quốc gia Hoa Kỳ, từng nhận giải IEEE Kobayashi năm 2022 và giữ hơn tám mươi bằng sáng chế.',
+    en:'She is a professor at MIT and co-inventor of RLNC, the technology behind Optimum. She is a member of the US National Academy of Engineering, won the IEEE Kobayashi award in 2022 and holds over eighty patents.',
+    ko:'MIT 교수이자 옵티멈의 핵심 기술인 RLNC의 공동 발명자입니다. 미국 공학한림원 회원이며 2022년 IEEE 고바야시상을 받았고 80개가 넘는 특허를 보유하고 있습니다.'},
+  'KENT LIN':{
+    vi:'Anh phụ trách go-to-market, tức đưa sản phẩm Optimum ra thị trường, và được xem là người thiên về crypto nhất trong nhóm sáng lập.',
+    en:'He focuses on go-to-market, bringing Optimum to the market, and is considered the most crypto-native of the founders.',
+    ko:'시장 진출(go-to-market)을 맡고 있으며, 창업자 중 가장 크립토에 정통한 사람으로 소개됩니다.'}
+};   // thêm tiểu sử thật tại đây, vd BIO['KENT LIN']={vi:'...',en:'...',ko:'...'} — AI/kịch bản sẽ chỉ dùng dữ kiện có trong đây
 const T={
   vi:{greet:['Xin chào, tôi là hướng dẫn viên của khu triển lãm Optimum.','Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu bức tranh đó.'],
       intro:['Đây là {n}.','Bức chân dung này là của {n}.','Bạn đang xem chân dung của {n}.'],
       ceo:'{n} là CEO của Optimum, người dẫn dắt định hướng của cả đội ngũ.',
       founder:'{n} là đồng sáng lập của Optimum, người cùng đặt nền móng cho dự án.',
       team:'{n} là thành viên trong đội ngũ Optimum.',
+      proj:'Optimum là hạ tầng bộ nhớ hiệu năng cao cho mọi blockchain, xây trên công nghệ RLNC đến từ MIT.',
       outro:['Mời bạn xem tiếp các bức tranh bên cạnh.','Bạn có thể bước tiếp để xem thêm.'],
       name:'Hướng dẫn viên', langName:'tiếng Việt', tts:'vi-VN'},
   en:{greet:['Hello, I am the guide of the Optimum exhibition.','Look at any painting and I will tell you about it.'],
@@ -39,6 +54,7 @@ const T={
       ceo:'{n} is the CEO of Optimum, leading the direction of the whole team.',
       founder:'{n} is a co-founder of Optimum, who helped lay the foundation of the project.',
       team:'{n} is a member of the Optimum team.',
+      proj:'Optimum is high-performance memory infrastructure for any blockchain, built on RLNC technology from MIT.',
       outro:['Feel free to continue to the next paintings.','Step along to see more.'],
       name:'Guide', langName:'English', tts:'en-US'},
   ko:{greet:['안녕하세요, 옵티멈 전시관의 안내원입니다.','보고 싶은 그림을 바라보시면 제가 소개해 드릴게요.'],
@@ -46,6 +62,7 @@ const T={
       ceo:'{n}님은 옵티멈의 CEO로서 팀 전체의 방향을 이끌고 있습니다.',
       founder:'{n}님은 옵티멈의 공동 창업자로서 프로젝트의 토대를 함께 만들었습니다.',
       team:'{n}님은 옵티멈 팀의 일원입니다.',
+      proj:'옵티멈은 MIT에서 나온 RLNC 기술로 만든, 모든 블록체인을 위한 고성능 메모리 인프라입니다.',
       outro:['다음 그림도 둘러보세요.'],
       name:'안내원', langName:'한국어', tts:'ko-KR'}
 };
@@ -60,9 +77,10 @@ const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).r
 const kindOf=r=>/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':'team';
 function getLang(){return typeof L!=='undefined'?L:'vi'}   // L = ngôn ngữ đang chọn (i18n.js)
 function template(info,lang){
-  const t=TT(lang),n=SPOKEN[info.n1]||title(info.n1),bio=BIO[info.n1]&&BIO[info.n1][lang];
+  const t=TT(lang),n=SPOKEN[info.n1]||title(info.n1),bio=BIO[info.n1]&&(BIO[info.n1][lang]||BIO[info.n1].en);
   const out=[pick(t.intro).replace('{n}',n),t[kindOf(info.n2)].replace('{n}',n)];
   if(bio)out.push(bio);
+  out.push(t.proj);
   if(Math.random()<.5)out.push(pick(t.outro));
   return out;
 }
@@ -71,17 +89,25 @@ function template(info,lang){
 // sys được dựng ĐỒNG BỘ ngay đầu line() (trước await đầu tiên) nên gán AIP.guide rồi gọi liền là an toàn khi có nhiều yêu cầu chạy cùng lúc.
 CFG.ai=async(info,lang)=>{
   if(typeof AITalk==='undefined'||typeof AIP==='undefined')return null;
-  const n=SPOKEN[info.n1]||title(info.n1),f=FACTS[info.n1]||'',bio=BIO[info.n1]&&BIO[info.n1].vi||'';
+  const n=SPOKEN[info.n1]||title(info.n1),f=FACTS[info.n1],bio=BIO[info.n1]&&BIO[info.n1].vi||'';
+  // "FORM" gửi cho AI phân tích: tên + chức vụ + dữ kiện đã xác thực -> AI viết lời thuyết minh
   AIP.guide={
-    head:`Bạn là hướng dẫn viên thân thiện của khu triển lãm Optimum trong game Block Arena, đang giới thiệu bức chân dung của "${n}", chức vụ "${title(info.n2)}".
-Nói tối đa 3 câu ngắn, tổng không quá 40 từ, giọng ấm áp, lịch sự. Mỗi câu phải trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji.
-Câu đầu phải nêu tên và chức vụ. CHỈ dùng tên, chức vụ và các thông tin dưới đây, TUYỆT ĐỐI không bịa tiểu sử, thành tích hay số liệu.
-${f||bio?'Thông tin thêm: '+(f+' '+bio).trim()+'\n':''}`,
+    head:`Bạn là hướng dẫn viên chuyên nghiệp của khu triển lãm Optimum, đang đứng trước bức chân dung của một thành viên dự án Optimum và thuyết minh cho khách tham quan. Giọng ấm áp, tự tin, mạch lạc như một người dẫn tour thật.
+Hãy PHÂN TÍCH FORM sau rồi viết lời thuyết minh 5-7 câu (tổng 70-110 từ): (1) giới thiệu tên và chức vụ, (2) nói người này là thành viên của dự án Optimum và vai trò, (3) kể tiểu sử / thành tựu có trong form, (4) nối với dự án Optimum bằng 1 câu.
+[FORM]
+Tên: ${n}
+Chức vụ: ${title(info.n2)}
+Dự án: Optimum (x.com/get_optimum)
+Dữ kiện đã xác thực về người này: ${f||bio||'(chưa có dữ kiện cá nhân nào)'}
+Dữ kiện về dự án: ${COMMON}
+[/FORM]
+QUY TẮC: chỉ dùng dữ kiện có trong FORM. Nếu mục "Dữ kiện đã xác thực về người này" trống thì TUYỆT ĐỐI không bịa tiểu sử, trường học, công ty cũ, tuổi hay thành tích; chỉ nói tên, chức vụ, người đó là thành viên dự án Optimum và giới thiệu dự án từ "Dữ kiện về dự án". Mỗi câu trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji, không gạch đầu dòng. Chỉ trả về lời thuyết minh.
+`,
     combat:'',info:''};
   return AITalk.line('guide',{hp:1,maxhp:1,x:0,z:0,fl:0});   // trả null khi hết key / hết hạn mức / mất mạng
 };
 const CACHE={},PEND={};
-const splitS=t=>{const a=t.replace(/\s+/g,' ').trim().match(/[^.!?。！？]+[.!?。！？…]?/g);return a?a.map(x=>x.trim()).filter(Boolean).slice(0,4):[]};
+const splitS=t=>{const a=t.replace(/\s+/g,' ').trim().match(/[^.!?。！？]+[.!?。！？…]?/g);return a?a.map(x=>x.trim()).filter(Boolean).slice(0,9):[]};
 function ensure(info,lang){   // tạo (hoặc dùng lại) yêu cầu AI cho 1 tranh + ngôn ngữ; kết quả vào CACHE
   const key=info.n1+'|'+lang;
   if(CACHE[key])return Promise.resolve(CACHE[key]);
@@ -98,8 +124,8 @@ function ensure(info,lang){   // tạo (hoặc dùng lại) yêu cầu AI cho 1 
   PEND[key]=p;p.then(()=>{delete PEND[key]});
   return p;
 }
-// Lấy lời đọc: AI nếu kịp (mặc định chờ 6s), không thì kịch bản mẫu (đã dịch bằng trLine nếu không phải vi/en/ko)
-const getLines=(info,lang,wait)=>Promise.race([ensure(info,lang),new Promise(r=>setTimeout(()=>r(null),wait||6000))])
+// Lấy lời đọc: AI nếu kịp (mặc định chờ 9s), không thì kịch bản mẫu (đã dịch bằng trLine nếu không phải vi/en/ko)
+const getLines=(info,lang,wait)=>Promise.race([ensure(info,lang),new Promise(r=>setTimeout(()=>r(null),wait||9000))])
   .then(r=>r||trAll(lang,template(info,lang)));
 // Làm nóng trước: khi người chơi bước lên sảnh, nhờ AI viết sẵn lời cho cả 8 tranh (cách nhau 0.7s) -> nhìn vào tranh là đọc ngay
 function warm(g){
@@ -200,11 +226,11 @@ function cancelTTS(){
   if(curAudio){curAudio.onended=curAudio.onerror=null;try{curAudio.pause()}catch(e){}curAudio=null}
 }
 const chunks=(t,n)=>{const out=[];while(t.length>n){let i=t.lastIndexOf(' ',n);if(i<n*.4)i=n;out.push(t.slice(0,i).trim());t=t.slice(i).trim()}if(t)out.push(t);return out};
-function startTTS(text,lang,tk,onDone){   // gọi onDone khi đọc xong (hoặc không đọc được)
+function startTTS(text,lang,tk,onDone,onNoVoice){   // gọi onDone khi đọc xong (hoặc không đọc được)
   const t2=pron(text,lang),pv=window.speechSynthesis?pickVoice(lang):null;
   let finished=false;const done=()=>{if(!finished){finished=true;onDone()}};
   const local=()=>{
-    if(!pv)return done();                           // không có giọng đúng ngôn ngữ: chỉ hiện chữ
+    if(!pv){if(onNoVoice)onNoVoice();return done()}   // không có giọng đúng ngôn ngữ: hiện chữ thay thế
     try{const u=new SpeechSynthesisUtterance(t2);u.voice=pv.v;u.lang=pv.v.lang;u.rate=CFG.rate;u.pitch=1;u.onend=u.onerror=done;speechSynthesis.speak(u)}catch(e){done()}
   };
   if(CFG.cloudTTS&&(!pv||!pv.neural)){
@@ -225,10 +251,11 @@ function startTTS(text,lang,tk,onDone){   // gọi onDone khi đọc xong (hoặ
 function say(text,tk,head,lang){
   return new Promise(res=>{
     if(tk!==token)return res();
-    setHead(head);setBody('');showing=true;
+    setHead(head);setBody('');showing=CFG.showText;   // mặc định chỉ đọc; không đọc được thì startTTS gọi lại để hiện chữ
     const dur=Math.max(1400,text.length*(CFG.tts?70/CFG.rate:55));
     let ttsDone=!CFG.tts,timeDone=false,shown=0;const t0=performance.now();
-    if(CFG.tts)startTTS(text,lang,tk,()=>{ttsDone=true});
+    if(CFG.tts)startTTS(text,lang,tk,()=>{ttsDone=true},()=>{showing=true});
+    else showing=true;
     const iv=setInterval(()=>{
       if(tk!==token){clearInterval(iv);return res()}
       const el=performance.now()-t0,n=Math.min(text.length,Math.floor(text.length*Math.min(1,el/(dur*.85))));

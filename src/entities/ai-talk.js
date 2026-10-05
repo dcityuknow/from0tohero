@@ -88,13 +88,13 @@ const AITalk=(function(){
   }
   const fill=(s,v)=>s.replace(/\{(\w+)\}/g,(m,k)=>v[k]!==undefined?v[k]:m);
   // làm sạch: bỏ emoji / ngoặc kép / markdown, chỉ giữ tối đa 3 câu TRỌN VẸN trong giới hạn số từ (không cắt giữa câu)
-  function clean(s,maxW){
+  function clean(s,maxW,maxS){
     s=String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join(' ');
     s=s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,'').replace(/["“”„«»`*#_~]/g,'').replace(/^[\-–—:>\s]+/,'').replace(/\s+/g,' ').trim();
     const cnt=x=>L==='zh'?Math.ceil(x.length/2):x.split(' ').length;         // tiếng Trung không có dấu cách: đếm theo ký tự
     const parts=s.split(/(?<=[.!?])\s+|(?<=[。！？])/).map(x=>x.trim()).filter(Boolean);
     const out=[];let w=0;
-    for(const p of parts.slice(0,3)){const n=cnt(p);if(w+n>maxW)break;out.push(p);w+=n}   // chỉ giữ CÂU TRỌN VẸN, không cắt giữa câu
+    for(const p of parts.slice(0,maxS||3)){const n=cnt(p);if(w+n>maxW)break;out.push(p);w+=n}   // chỉ giữ CÂU TRỌN VẸN, không cắt giữa câu
     if(out.length>1&&!/[.!?。！？…]$/.test(out[out.length-1]))out.pop();       // câu cuối bị cụt (hết token) thì bỏ
     if(!out.length&&parts.length){                                             // câu đầu đã dài quá mức: cắt ở dấu phẩy gần nhất rồi chấm dứt
       let t=parts[0];const ws=t.split(' ');if(L!=='zh'&&ws.length>maxW)t=ws.slice(0,maxW).join(' ');else if(L==='zh')t=t.slice(0,maxW*2);
@@ -108,15 +108,16 @@ const AITalk=(function(){
   async function line(kind,b){
     const boss=kind==='boss';
     if(!K.ready||Date.now()<K.netT||!anyKey())return null;
-    if(!boss&&K.busy>=AIT.maxBusy)return null;
-    const maxW=boss?55:45,
+    if(!boss&&kind!=='guide'&&K.busy>=AIT.maxBusy)return null;   // hướng dẫn viên không bị chặn bởi giới hạn bot thường
+    const guide=kind==='guide',maxW=guide?130:boss?55:45,   // guide: lời thuyết minh dài hơn (tối đa 7 câu / 130 từ)
+     
       v={floor:boss?(b.fl||0)+1:curFl+1,hpPercent:Math.max(0,Math.min(100,Math.round(b.hp/(b.maxhp||100)*100))),dist:Math.round(Math.hypot(P.x-b.x,P.z-b.z)),weapon:AI_WPN[cur]||cur,lang:AI_LANG[L]||'English'},
-      usr='Nói câu của bạn bây giờ.'+(K.recent.length?' Phải khác các câu này: '+K.recent.join(' | '):'');
+      usr='Nói câu của bạn bây giờ.'+(K.recent.length&&!guide?' Phải khác các câu này: '+K.recent.join(' | '):'');
     K.busy++;
     try{
       const AP=AIP[kind],sys=fill(AP.head+(Math.random()<AIT.infoRate?AP.info:AP.combat)+'Ngôn ngữ: {lang}.',v);   // chọn nhánh bằng code
-      const out=clean(await groq(sys,usr,boss?'medium':'low'),maxW);
-      if(out){K.recent.push(out);if(K.recent.length>6)K.recent.shift()}
+      const out=clean(await groq(sys,usr,boss?'medium':'low'),maxW,guide?7:3);
+      if(out&&!guide){K.recent.push(out);if(K.recent.length>6)K.recent.shift()}
       return out;
     }catch(x){return null}
     finally{K.busy--}
