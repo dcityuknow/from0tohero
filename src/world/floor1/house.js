@@ -751,7 +751,7 @@ function buildHouse(hx,hz){
   v.ell(-7.9,.3,-3.4,.6,.35,.5,G,.1);v.ell(7.9,.3,-3.4,.6,.35,.5,G,.1);
   v.ell(3.5,.25,5.6,.45,.25,.4,G,.1);v.ell(-2.6,.25,5.7,.4,.2,.35,P,.1);
 
-  const m=v.mesh();m.position.set(hx,0,hz);S.add(m);meshes.push(m);
+  for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
 
   // ================= QUẦNG SÁNG + ÁNH SÁNG VÀNG =================
   try{

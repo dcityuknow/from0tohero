@@ -247,12 +247,13 @@ const add=m=>{S.add(m);meshes.push(m)};   // meshes: để đạn để lại v�
 function build(){
   for(const [sx,mk] of[[-1,statueA],[1,statueB]]){
     const x=sx*STA.x,z=STA.z;
-    const pm=pedestal().mesh();pm.position.set(x,0,z);add(pm);
+    for(const pm of pedestal().meshLOD()){pm.position.set(x,0,z);add(pm)}
     const k=STA.k;
-    const sm=mk().mesh();
-    sm.scale.set(k,k,k);
-    sm.position.set(x,Y*(1-k),z);          // phóng to quanh mặt bệ: chân tượng vẫn đứng đúng trên bệ
-    sm.rotation.y=-sx*STA.turn;add(sm);
+    for(const sm of mk().meshLOD()){
+      sm.scale.set(k,k,k);
+      sm.position.set(x,Y*(1-k),z);          // phóng to quanh mặt bệ: chân tượng vẫn đứng đúng trên bệ
+      sm.rotation.y=-sx*STA.turn;add(sm);
+    }
     // va chạm: bệ 3x3 + thân tượng (đã nhân hệ số k)
     boxes.push({x0:x-1.5,x1:x+1.5,y0:0,y1:Y,z0:z-1.5,z1:z+1.5});
     boxes.push({x0:x-1.0*k,x1:x+1.0*k,y0:Y,y1:Y+4*k,z0:z-.8*k,z1:z+.9*k});

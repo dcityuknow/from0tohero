@@ -172,7 +172,7 @@ function buildBath(b,idx){
   // tảng đá lớn dựa chân vách (cạnh hồ, không đè lên suối)
   for(const [x,z,rx,ry,rz] of [[X0+.4,-4.3,.9,.7,.8],[X0+.5,4.2,.8,.6,.9],[X0+1.2,-5.2,.7,.55,.6]]){ell(x,ry*.5,z,rx,ry,rz,.2);col(x-rx*.7,x+rx*.7,0,ry*1.3,z-rz*.7,z+rz*.7)}
 
-  const m=v.mesh();m.position.set(b.x,0,b.z);m.rotation.y=rot;S.add(m);meshes.push(m);
+  for(const m of v.meshLOD()){m.position.set(b.x,0,b.z);m.rotation.y=rot;S.add(m);meshes.push(m)}
   if(window.DayCycle)for(const sz of[-1,1]){   // 2 cột đèn lối vào sáng lên ban đêm (toạ độ cục bộ x=-6.4,z=±2.6 -> thế giới, theo góc xoay rot)
     const lx=-6.4,lz=sz*2.6,wx=b.x+lx*Math.cos(rot)+lz*Math.sin(rot),wz=b.z-lx*Math.sin(rot)+lz*Math.cos(rot);
     DayCycle.lamp(wx,3.45,wz,2.4,{light:true,I:.9,dist:9});

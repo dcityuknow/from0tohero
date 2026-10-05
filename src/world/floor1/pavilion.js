@@ -259,7 +259,7 @@ function build(hx,hz){
   };
   for(const sx of[-1,1])for(const ax of[1.3,3.1,4.9,6.7,8.5,10.3,12.1]){const x=sx*ax;easel(x,-1.2,PORT[String(x)])}
 
-  const m=v.mesh();m.position.set(hx,0,hz);S.add(m);meshes.push(m);
+  for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
   // ban đêm: 6 đèn lồng dưới hiên + đèn đá cạnh bậc thang sáng lên (daycycle.js); 2 đèn giữa có thêm PointLight
   if(window.DayCycle){
     for(const x of[-12,-7.5,-2.7,2.7,7.5,12])DayCycle.lamp(hx+x,2.9,hz+3.0,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
