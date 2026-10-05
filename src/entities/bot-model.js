@@ -83,6 +83,26 @@ function botLogoGrid(nx,ny){
   }
   return out;
 }
+// ---------- MẮT PHÁT SÁNG KHI TRỜI TỐI ----------
+// "Mắt" của bot = logo vô cực trên kính đen. Ngoài logo thường (ăn đèn nên tối thui về đêm), mỗi bot có thêm 1 BẢN PHỦ cùng hình dạng, vẽ bằng
+// vật liệu KHÔNG ăn đèn (Basic). daycycle.js điều khiển vật liệu này theo cùng đường cong "độ tối" (nightK) với đèn lồng:
+//   · nightK <= .25 (ban ngày / sáng / chiều): material.visible=false -> KHÔNG vẽ, không tốn thêm draw call; thấy logo thường như cũ
+//   · .25 -> .9 (hoàng hôn / rạng đông): màu nội suy từ trắng thường sang màu EYEG nên mắt sáng dần lên (và tắt dần khi bình minh)
+//   · >= .9 (đêm): sáng rực màu EYEG. Sương mù vẫn che như vật thường, nên bot ở xa trong sương không lộ chấm sáng.
+// Đổi màu mắt: sửa EYEG (r,g,b có thể > 1 để chói). Ví dụ đỏ [2.2,.5,.4] · vàng [2.2,1.7,.5] · xanh lá [.6,2.1,.8]. Đổi lúc bắt đầu sáng: tham số .25 / .9 bên dưới.
+const EYEG=[.7,1.8,2.1];
+const BOTEYE=new THREE.MeshBasicMaterial({vertexColors:true,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});   // polygonOffset: bản phủ thắng logo thường trong depth test, không nhấp nháy
+BOTEYE.visible=false;
+if(window.DayCycle&&DayCycle.glow)DayCycle.glow(BOTEYE,[1,1,1],EYEG,.25,.9);
+// bản phủ chỉ cần mặt TRƯỚC (+z, là mặt thứ 5 trong FACES của voxel.js) của mỗi khối logo; 5 mặt còn lại bị kính che hoặc quay đi -> bỏ, giảm 6 lần số tam giác
+function frontOnly(vb){
+  const P=[],N=[],C=[],I=[],nC=(vb.k/24)|0;let k=0;
+  for(let c=0;c<nC;c++){
+    for(let v=0;v<4;v++){const s=(c*24+4*4+v)*3;P.push(vb.p[s],vb.p[s+1],vb.p[s+2]);N.push(vb.n[s],vb.n[s+1],vb.n[s+2]);C.push(vb.c[s],vb.c[s+1],vb.c[s+2])}
+    I.push(k,k+1,k+2,k,k+2,k+3);k+=4;
+  }
+  vb.p=P;vb.n=N;vb.c=C;vb.i=I;vb.k=k;
+}
 function buildBot(){
   const b={x:0,y:0,z:0,vy:0,r:.4,h:1.7,hp:100,ground:false,respawn:0,t:0,mv:0,parts:[],g:new THREE.Group()};
   // mỗi bộ phận = 1 mesh gộp (VB nhớ lại từng khối để vỡ mảnh); head=true để tính headshot
@@ -104,19 +124,23 @@ function buildBot(){
   add(b.g,T,false);
   // đầu (to hơn ~27%): kính đen chắn mắt + logo trắng như boss, miệng có răng, má hồng, tai nghe, mũ nhiều màu, ăng-ten
   const H=new VB(true),HY=1.6,VY=1.65,VF=.32;
+  const E=new VB();E.seed=2;   // E = bản phủ phát sáng của logo mắt (seed=2 như H lúc dựng logo -> sắc độ từng khối giống hệt logo thường)
   H.box(0,HY,0,.56,.56,.56,PINK,.05,true);
   H.box(0,VY,.27,.6,.28,.1,(i,j,k)=>(i+j+k)&1?0x14141b:0x1e1e27,.04,true);   // kính đen
   // logo vô cực trên kính: lấy mẫu trực tiếp từ ảnh logo gốc (cùng dữ liệu với house.js) -> đúng hình dạng, độ cong, sắc độ
   {const LW=.46,LS=.0139,nx=Math.round(LW/LS),ny=Math.round(nx/BLG_ASPECT),LH=LW/BLG_ASPECT,lg=botLogoGrid(nx,ny);
     for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
       const l=lg[j*nx+i];if(l<0)continue;
-      H.cube((-.5+(i+.5)/nx)*LW,VY+(.5-(j+.5)/ny)*LH,VF+.01,LS*.95,LS*.95,.02,(l<<16)|(l<<8)|l,i,j,0)}}
+      const px=(-.5+(i+.5)/nx)*LW,py=VY+(.5-(j+.5)/ny)*LH,lc=(l<<16)|(l<<8)|l;
+      H.cube(px,py,VF+.01,LS*.95,LS*.95,.02,lc,i,j,0);
+      E.cube(px,py,VF+.012,LS*.95,LS*.95,.02,lc,i,j,0)}}   // bản phủ nhích ra trước 2mm (cộng polygonOffset ở BOTEYE)
   H.box(0,1.4,.292,.28,.06,.02,0x2b2a3a,.01);H.box(0,1.4,.305,.25,.035,.01,(i)=>i&1?0xffffff:-1,.02);
   for(const sx of[-.2,.2])H.box(sx,1.45,.286,.07,.04,.012,0xff9fbf,.02);
   for(const sx of[-1,1]){H.cyl(sx*.3,1.6,0,.08,.05,0xffd23f,.02,'x');H.cyl(sx*.325,1.6,0,.045,.02,0x3a3850,.015,'x')}
   H.box(0,1.91,0,.4,.06,.4,tri(0xffd23f,0x4d9dff,0x7fe0a0),.04,true);H.box(0,1.89,.26,.4,.03,.14,0xff9a3c,.03);
   H.cyl(.1,2.0,0,.012,.12,0x3a3850,.012,'y');H.ell(.1,2.09,0,.035,.035,.035,0xff2a4d,.015);
   add(b.g,H,true);
+  {frontOnly(E);const eye=E.mesh();eye.material=BOTEYE;b.g.add(eye);b.eyes=eye}   // mắt phát sáng: cố ý KHÔNG đưa vào parts / botMeshes (không ảnh hưởng bắn trúng, headshot, vỡ mảnh)
   b.lL=pivot(-.17,.6);b.lR=pivot(.17,.6);b.aL=pivot(-.46,1.27);b.aR=pivot(.46,1.27);
   // chân: đầu gối vàng, giày trắng viền xanh, đế đen
   for(const l of[b.lL,b.lR]){
@@ -150,6 +174,7 @@ function mkBot(){
   b.lL=pv(-.17,.6);b.lR=pv(.17,.6);b.aL=pv(-.46,1.27);b.aR=pv(.46,1.27);
   const mp=new Map([[p.g,b.g],[p.lL,b.lL],[p.lR,b.lR],[p.aL,b.aL],[p.aR,b.aR]]);
   for(const pt of p.parts){const m=new THREE.Mesh(pt.mesh.geometry,VMAT);m.userData.bot=b;if(pt.mesh.userData.head)m.userData.head=true;mp.get(pt.mesh.parent).add(m);botMeshes.push(m);b.parts.push({mesh:m,vb:pt.vb})}
+  if(p.eyes){const e=new THREE.Mesh(p.eyes.geometry,BOTEYE);b.g.add(e);b.eyes=e}   // dùng chung geometry mắt với bot đầu tiên
   S.add(b.g);bots.push(b);spawnBot(b);return b;
 }
 for(let i=0;i<4;i++)mkBot();
