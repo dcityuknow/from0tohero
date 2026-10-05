@@ -61,3 +61,99 @@ const chk=(a,b)=>(i,j,k)=>((i+j+k)&1)?a:b;
 const DKC=chk(0x3a3850,0x2b2a3a),YLC=chk(0xf2b84b,0xffd76a);
 
 const tri=(a,b,c)=>(i,j,k)=>[a,b,c][(i+j+k)%3];
+
+// ============================================================================
+// VOXEL LOD: mesh voxel LỚN (nhà, chòi, tượng, bể tắm) được cắt thành các ô ~6m. Mỗi ô có 2 bản hình học:
+//   · GẦN: y hệt cũ (đủ mặt, có khe 7% giữa các khối) -> chất lượng gần không đổi.
+//   · XA : CHỈ giữ mặt lộ ra ngoài (bỏ mặt giữa 2 khối kề nhau), đồng thời PHÓNG khối ra 1/.93 để BỊT khe.
+//          (nếu chỉ bỏ mặt mà không bịt khe thì mỗi điểm ảnh rơi vào khe sẽ nhìn xuyên ra nền -> đốm nhấp nháy, vì game không bật antialias)
+//          Khe 7% ở xa nhỏ hơn 1 điểm ảnh nên mắt không thấy khác; thuộc tính bản xa nén (normal Int8, màu Uint8) để bớt VRAM.
+// VLOD.tick() (gọi 1 lần/khung từ main.js) đổi bản gần <-> bản xa theo khoảng cách camera tới ô (có độ trễ để không nhấp nháy ranh giới).
+// Chỉnh: VLOD.cfg.far (m, mặc định 16 ~ sát chỗ sương bắt đầu 18m). Thử nhanh: ?vlod=0 tắt hẳn · ?vlodd=24 đổi khoảng cách · ?vlodc=0 tắt nén thuộc tính.
+// Console: VLOD.log() xem số ô gần / xa và số tam giác tiết kiệm.
+// ============================================================================
+const VLOD=(function(){
+  const qs=new URLSearchParams(location.search);
+  const cfg={on:qs.get('vlod')!=='0',far:parseFloat(qs.get('vlodd'))||16,hyst:3,cell:6,minCubes:2000,compact:qs.get('vlodc')!=='0',K:1.1};
+  const list=[];let VMATF=null;
+  const farMat=()=>{if(!VMATF){VMATF=VMAT.clone();VMATF.color.setRGB(cfg.K,cfg.K,cfg.K)}return VMATF};   // màu Uint8 chỉ tới 1.0 mà màu đỉnh gốc tới 1.07 -> nhân lại ở vật liệu
+  const _s=new THREE.Sphere(),_v=new THREE.Vector3();
+  function tick(){
+    if(!cfg.on||!list.length)return;
+    const cp=C.position;
+    for(let i=list.length-1;i>=0;i--){
+      const e=list[i],m=e.m;
+      if(!m.parent){if(++e.off>1800)list.splice(i,1);continue}   // đã bị dỡ tầng: ~30 giây sau thì quên
+      e.off=0;
+      if(!e.ok){m.updateWorldMatrix(true,false);_s.copy(e.gn.boundingSphere).applyMatrix4(m.matrixWorld);e.cx=_s.center.x;e.cy=_s.center.y;e.cz=_s.center.z;e.r=_s.radius;e.ok=true}
+      const d=Math.hypot(cp.x-e.cx,cp.y-e.cy,cp.z-e.cz)-e.r;
+      const far=e.far?d>cfg.far-cfg.hyst:d>cfg.far;
+      if(far!==e.far){e.far=far;m.geometry=far?e.gf:e.gn;m.material=far?e.mf:VMAT}
+    }
+  }
+  function log(){let n=0,f=0,tn=0,tf=0;for(const e of list){if(!e.m.parent)continue;n++;tn+=e.tn;tf+=e.far?e.tf:e.tn;if(e.far)f++}
+    console.log('[Block Arena] voxel LOD: '+(cfg.on?'BẬT':'TẮT')+' · ô '+n+' (xa: '+f+') · tam giác '+tf+' / '+tn+' (tiết kiệm '+(tn?((1-tf/tn)*100).toFixed(0):0)+'%)');return{cells:n,far:f,tris:tf,full:tn}}
+  return {cfg,list,tick,log,farMat};
+})();
+
+VB.prototype.meshLOD=function(cellSize){
+  const nC=(this.k/24)|0;
+  if(!VLOD.cfg.on||nC<VLOD.cfg.minCubes)return[this.mesh()];   // vật nhỏ / LOD tắt: như cũ
+  const cell=cellSize||VLOD.cfg.cell,P=this.p,N=this.n,Cl=this.c,G=.93,Q=500,OFF=65536,CMP=VLOD.cfg.compact,K=VLOD.cfg.K;
+  // 1) tâm + kích thước từng khối (suy từ 24 đỉnh)
+  const cc=new Float32Array(nC*6);let gx0=1e9,gx1=-1e9,gy0=1e9,gy1=-1e9,gz0=1e9,gz1=-1e9;
+  for(let c=0;c<nC;c++){
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+    for(let v=c*72,e=v+72;v<e;v+=3){const x=P[v],y=P[v+1],z=P[v+2];if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;if(z<z0)z0=z;if(z>z1)z1=z}
+    cc[c*6]=(x0+x1)/2;cc[c*6+1]=(y0+y1)/2;cc[c*6+2]=(z0+z1)/2;cc[c*6+3]=x1-x0;cc[c*6+4]=y1-y0;cc[c*6+5]=z1-z0;
+    if(x0<gx0)gx0=x0;if(x1>gx1)gx1=x1;if(y0<gy0)gy0=y0;if(y1>gy1)gy1=y1;if(z0<gz0)gz0=z0;if(z1>gz1)gz1=z1;
+  }
+  if(Math.max(Math.abs(gx0),Math.abs(gx1),Math.abs(gy0),Math.abs(gy1),Math.abs(gz0),Math.abs(gz1))*Q>=OFF-2)return[this.mesh()];   // ngoài vùng khoá số nguyên: an toàn thì dùng mesh cũ
+  const key=(x,y,z)=>((Math.round(x*Q)+OFF)*131072+(Math.round(y*Q)+OFF))*131072+(Math.round(z*Q)+OFF);
+  const mp=new Map();for(let c=0;c<nC;c++)mp.set(key(cc[c*6],cc[c*6+1],cc[c*6+2]),c);
+  // 2) chia ô theo không gian
+  const grp=new Map();
+  for(let c=0;c<nC;c++){const k=Math.floor(cc[c*6]/cell)+','+Math.floor(cc[c*6+1]/cell)+','+Math.floor(cc[c*6+2]/cell);let a=grp.get(k);if(!a)grp.set(k,a=[]);a.push(c)}
+  const gbox=new THREE.Box3(new THREE.Vector3(gx0,gy0,gz0),new THREE.Vector3(gx1,gy1,gz1));
+  const out=[];
+  for(const cubes of grp.values()){
+    const n=cubes.length;
+    // ---- bản GẦN: sao chép nguyên các khối của ô ----
+    const pn=new Float32Array(n*72),nn=new Float32Array(n*72),cn=new Float32Array(n*72),in_=(n*24>65535)?new Uint32Array(n*36):new Uint16Array(n*36);
+    for(let i=0;i<n;i++){const c=cubes[i];pn.set(P.subarray?P.subarray(c*72,c*72+72):P.slice(c*72,c*72+72),i*72);nn.set(N.slice(c*72,c*72+72),i*72);cn.set(Cl.slice(c*72,c*72+72),i*72);
+      for(let f=0;f<6;f++){const b=i*24+f*4,o=i*36+f*6;in_[o]=b;in_[o+1]=b+1;in_[o+2]=b+2;in_[o+3]=b;in_[o+4]=b+2;in_[o+5]=b+3}}
+    const gn=new THREE.BufferGeometry();
+    gn.setAttribute('position',new THREE.BufferAttribute(pn,3));gn.setAttribute('normal',new THREE.BufferAttribute(nn,3));gn.setAttribute('color',new THREE.BufferAttribute(cn,3));gn.setIndex(new THREE.BufferAttribute(in_,1));
+    gn.computeBoundingSphere();gn.boundingBox=gbox;   // hộp bao = cả mô hình như cũ (floors.js / bóng đổ phân tầng dựa vào hộp bao này)
+    // ---- bản XA: chỉ mặt lộ ra ngoài, phóng 1/.93 quanh tâm khối để bịt khe ----
+    const fp=[],fn=[],fc=[];let fq=0;
+    for(let i=0;i<n;i++){
+      const c=cubes[i],ox=cc[c*6],oy=cc[c*6+1],oz=cc[c*6+2],sx=cc[c*6+3],sy=cc[c*6+4],sz=cc[c*6+5],cx=sx/G,cy=sy/G,cz=sz/G;
+      for(let f=0;f<6;f++){
+        const nv=FACES[f].n,j=mp.get(key(ox+nv[0]*cx,oy+nv[1]*cy,oz+nv[2]*cz));
+        if(j!==undefined&&Math.abs(cc[j*6+3]-sx)<2e-4&&Math.abs(cc[j*6+4]-sy)<2e-4&&Math.abs(cc[j*6+5]-sz)<2e-4)continue;   // có khối cùng cỡ ngay sát -> mặt này bị che
+        for(let v=0;v<4;v++){const s=(c*24+f*4+v)*3;
+          fp.push(ox+(P[s]-ox)/G,oy+(P[s+1]-oy)/G,oz+(P[s+2]-oz)/G);fn.push(N[s],N[s+1],N[s+2]);fc.push(Cl[s],Cl[s+1],Cl[s+2])}
+        fq++;
+      }
+    }
+    const fi=(fq*4>65535)?new Uint32Array(fq*6):new Uint16Array(fq*6);
+    for(let q=0;q<fq;q++){const b=q*4,o=q*6;fi[o]=b;fi[o+1]=b+1;fi[o+2]=b+2;fi[o+3]=b;fi[o+4]=b+2;fi[o+5]=b+3}
+    const gf=new THREE.BufferGeometry();
+    if(CMP){
+      const nb=new Int8Array(fn.length),cb=new Uint8Array(fc.length);
+      for(let i=0;i<fn.length;i++){nb[i]=Math.round(fn[i]*127);cb[i]=Math.min(255,Math.round(fc[i]/K*255))}
+      gf.setAttribute('position',new THREE.BufferAttribute(new Float32Array(fp),3));gf.setAttribute('normal',new THREE.BufferAttribute(nb,3,true));gf.setAttribute('color',new THREE.BufferAttribute(cb,3,true));
+    }else{
+      gf.setAttribute('position',new THREE.BufferAttribute(new Float32Array(fp),3));gf.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(fn),3));gf.setAttribute('color',new THREE.BufferAttribute(new Float32Array(fc),3));
+    }
+    gf.setIndex(new THREE.BufferAttribute(fi,1));gf.boundingSphere=gn.boundingSphere;gf.boundingBox=gbox;
+    // dỡ tầng (floors.js) chỉ dispose hình học đang gắn -> nối để dispose luôn bản kia
+    const dn=gn.dispose,df=gf.dispose;gn.dispose=function(){dn.call(gn);df.call(gf)};gf.dispose=function(){df.call(gf);dn.call(gn)};
+    const m=new THREE.Mesh(gn,VMAT);m.frustumCulled=true;   // ô tĩnh có hình cầu bao chính xác nên cull được an toàn
+    VLOD.list.push({m,gn,gf,mf:CMP?VLOD.farMat():VMAT,far:false,ok:false,off:0,cx:0,cy:0,cz:0,r:0,tn:n*12,tf:fq*2});
+    out.push(m);
+  }
+  this.p=this.n=this.c=this.i=null;   // giải phóng bộ nhớ CPU
+  return out;
+};
