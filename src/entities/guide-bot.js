@@ -24,27 +24,42 @@ const CFG={
 };
 
 // ---------- DỮ LIỆU ĐỌC ----------
-const SPOKEN={ 'BLOCKCHAINJEFF':'Blockchain Jeff','MURIEL MEDARD':'Muriel Médard' };   // tên đọc khác với tên in trên bảng
-const FACTS={   // dữ kiện ĐÃ XÁC THỰC (tiếng Việt; AI tự đọc sang ngôn ngữ đang chọn). Nguồn: trang MIT, Consensus 2025 (CoinDesk), Blocmates, thông cáo huy động vốn 04/2025.
-  'MURIEL MEDARD':'Đồng sáng lập và CEO của Optimum. Giáo sư tại MIT, giữ ghế NEC Chair về Khoa học và Kỹ thuật Phần mềm, lãnh đạo nhóm Network Coding and Reliable Communications tại MIT. Là đồng phát minh RLNC (Random Linear Network Coding), công nghệ nền tảng của Optimum, đúc kết từ hơn hai thập kỷ nghiên cứu ở MIT. Thành viên Viện Hàn lâm Kỹ thuật Quốc gia Hoa Kỳ, Viện Hàn lâm Nghệ thuật và Khoa học Hoa Kỳ và Viện Hàn lâm Khoa học Quốc gia Đức; Fellow của Viện Hàn lâm Nhà phát minh Quốc gia Hoa Kỳ và của IEEE. Nhận giải IEEE Kobayashi Computers and Communications năm 2022, từng là chủ tịch IEEE Information Theory Society năm 2012 và giữ hơn tám mươi bằng sáng chế.',
-  'KENT LIN':'Đồng sáng lập Optimum, tập trung vào go-to-market, tức đưa sản phẩm ra thị trường. Được giới thiệu là người thiên về crypto nhất trong nhóm sáng lập.'
-};   // thêm dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi). Người không có mục ở đây: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
+// Khóa định danh một bức tranh: bỏ dấu, bỏ "PROF." -> 'MURIEL MEDARD' (đổi chữ in trên bảng tên không làm mất tiểu sử)
+const keyOf=i=>String(i.n1).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^PROF\.?\s+/,'');
+const SPOKEN={ 'BLOCKCHAINJEFF':'Blockchain Jeff','MURIEL MEDARD':'Prof. Muriel Médard' };   // tên đọc khác với tên in trên bảng
+// Dữ kiện do bạn cung cấp (tiếng Việt; AI tự đọc sang ngôn ngữ đang chọn). Mỗi lần đọc AI chọn ý chính khác nhau + kiểu kể khác nhau.
+const FACTS={
+  'MURIEL MEDARD':'Giáo sư Muriel Médard, đồng sáng lập và CEO của Optimum. Sinh ngày 1 tháng 2 năm 1968, quốc tịch Pháp–Mỹ, là nhà lý thuyết thông tin và kỹ sư điện. Bà là NEC Professor of Software Science and Engineering tại khoa EECS của MIT và dẫn dắt nhóm Network Coding and Reliable Communications tại Research Laboratory of Electronics. Học vấn toàn bộ tại MIT: cử nhân EECS và toán (1989), cử nhân nhân văn / Russian studies cùng thạc sĩ kỹ thuật điện (1991), tiến sĩ Sc.D. kỹ thuật điện (1995) dưới sự hướng dẫn của Robert G. Gallager. Sự nghiệp: nghiên cứu sau tiến sĩ tại MIT Lincoln Laboratory, trợ lý giáo sư tại University of Illinois Urbana–Champaign (1998), về MIT từ năm 2000; chủ tịch IEEE Information Theory Society (2012), từng là tổng biên tập IEEE Journal on Selected Areas in Communications. Bà đồng phát minh RLNC: các nút mạng gửi tổ hợp tuyến tính ngẫu nhiên của gói tin, không cần điều phối trung tâm, giúp truyền dữ liệu chịu mất gói và dùng băng thông hiệu quả hơn; Optimum áp dụng kỹ thuật này vào gossip và truyền block trên blockchain. Danh hiệu: thành viên US National Academy of Engineering (2020), American Academy of Arts and Sciences (2021), Leopoldina của Đức (2022); Fellow IEEE (2008), US National Academy of Inventors (2018), Royal Academy of Engineering (2025). Tiến sĩ danh dự từ Technical University of Munich (2020), Aalborg (2022), Budapest University of Technology and Economics (2023). Giải IEEE Richard W. Hamming Medal 2026 cho đóng góp về mã hóa cho truyền thông tin cậy. Bà đồng sáng lập CodeOn, Steinwurf (Chief Scientist) và các công ty chuyển giao công nghệ khác; Optimum là lần gần nhất, nơi bà làm CEO.',
+  'KENT LIN':'Kent Lin, đồng sáng lập Optimum (một số nguồn ghi thêm COO). Theo trang chính thức của Optimum, ông phụ trách adoption và tăng trưởng hệ sinh thái: business development, tokenomics và gọi vốn. Lý lịch: cử nhân kỹ thuật hàng không vũ trụ tại Nanyang Technological University (Singapore); MBA Harvard Business School nhưng bỏ giữa chừng để làm Optimum toàn thời gian. Từng là Partner tại GSRV, nhánh crypto của GSR Ventures, quỹ được Optimum mô tả khoảng 4 tỷ USD; Chủ tịch Harvard Blockchain Club, tổ chức Harvard Blockchain Conference 2024; sáng lập McKinsey Crypto DAO với hơn 200 cựu McKinsey hoạt động trong Web3. Từ khoảng 2019 ông tham gia ủy ban Crypto và Web3 của Singapore FinTech Association. Ông kể đã gặp giáo sư Médard khi đang học MBA, thấy RLNC giải được lớp bộ nhớ còn thiếu của blockchain, vì gossip và nhân bản full node chậm và tốn băng thông. Ba người, Médard, Kishori Konwar và ông, dừng công việc cũ để thành lập Optimum; ông bỏ Harvard, còn Médard xin nghỉ phép ở MIT. Ông thường xuất hiện cùng David Song tại các sự kiện châu Á như Token2049, BUIDL Asia Seoul, Nanyang Blockchain Conference.',
+  'ELI LAIPSON':'Eli Laipson, CMO của Optimum. Trên sơ đồ tổ chức ông mang chức CMO; bio trên X ghi Head of Marketing tại Optimum, ở Boston. Vai trò công khai: xây đội marketing cốt lõi (từng tuyển Social Media Lead, Community Lead, community mods), truyền thông các sản phẩm như flexnode và mump2p, và khuếch đại các cột mốc kỹ thuật, ví dụ giải Hamming của giáo sư Médard. Tiểu sử trước Optimum ít được công bố chính thức; bài viết cũ của ông khoảng 2016–2017 nói về product management và partnership cho startup B2B SaaS, và ông có chứng chỉ Pragmatic Marketing. Không được suy diễn thêm về các công ty trước đây của ông.',
+  'DAVID SONG':'David Song, APAC Growth Lead của Optimum. Bio tự ghi: trước đó là Head of BD tại Cosmostation; cựu sinh viên Binghamton University. Optimum xác nhận vai trò này trên các bài đăng chính thức: APAC Tour (Singapore, Hong Kong, Shenzhen, khoảng tháng 8/2026), có mặt tại Nanyang Blockchain Conference cùng hai co-founder; recap BUIDL Asia Seoul (tháng 4/2026) cùng Kent Lin, gặp builder và trình bày. Nhiệm vụ thực tế là tăng trưởng khu vực châu Á–Thái Bình Dương: sự kiện, quan hệ builder và validator, và làm cầu nối giữa nghiên cứu RLNC với hệ sinh thái APAC.'
+};   // thêm / sửa dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi, khóa = tên in trên bảng, viết hoa, bỏ dấu, bỏ "PROF."). Người không có mục: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
 const COMMON='Optimum (x.com/get_optimum) là hạ tầng bộ nhớ hiệu năng cao / mạng tăng tốc dữ liệu cho mọi blockchain, xây trên RLNC, công nghệ ra đời từ nghiên cứu ở MIT. Sản phẩm đầu tiên mump2p tăng tốc lan truyền dữ liệu Ethereum; kế tiếp là deRAM (bộ nhớ phi tập trung) và deROM; Flexnode là node ai cũng chạy được. Tháng 4/2025 Optimum huy động 11 triệu USD, có 1kx, Spartan, Robot Ventures, Triton Capital, Finality Capital, SNZ ủng hộ. Đội ngũ công khai danh tính, nhiều người từ MIT, Harvard và Meta.';
 const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko; ngôn ngữ khác tự dịch bằng trLine)
   'MURIEL MEDARD':{
-    vi:'Cô là giáo sư tại MIT và là đồng phát minh RLNC, công nghệ nền tảng của Optimum. Cô là thành viên Viện Hàn lâm Kỹ thuật Quốc gia Hoa Kỳ, từng nhận giải IEEE Kobayashi năm 2022 và giữ hơn tám mươi bằng sáng chế.',
-    en:'She is a professor at MIT and co-inventor of RLNC, the technology behind Optimum. She is a member of the US National Academy of Engineering, won the IEEE Kobayashi award in 2022 and holds over eighty patents.',
-    ko:'MIT 교수이자 옵티멈의 핵심 기술인 RLNC의 공동 발명자입니다. 미국 공학한림원 회원이며 2022년 IEEE 고바야시상을 받았고 80개가 넘는 특허를 보유하고 있습니다.'},
+    vi:'Bà sinh năm 1968, là giáo sư NEC tại MIT và dẫn dắt nhóm Network Coding and Reliable Communications. Bà đồng phát minh RLNC, công nghệ nền tảng của Optimum, là thành viên Viện Hàn lâm Kỹ thuật Quốc gia Hoa Kỳ và Leopoldina của Đức, và nhận giải IEEE Hamming Medal 2026.',
+    en:'Born in 1968, she is the NEC Professor at MIT and leads the Network Coding and Reliable Communications group. She co-invented RLNC, the technology behind Optimum, is a member of the US National Academy of Engineering and Germany\'s Leopoldina, and received the 2026 IEEE Hamming Medal.',
+    ko:'1968년생으로 MIT의 NEC 석좌 교수이며 네트워크 코딩 및 신뢰 통신 연구 그룹을 이끕니다. 옵티멈의 핵심 기술인 RLNC의 공동 발명자이며 미국 공학한림원과 독일 레오폴디나 회원이고 2026년 IEEE 해밍 메달을 받았습니다.'},
   'KENT LIN':{
-    vi:'Anh phụ trách go-to-market, tức đưa sản phẩm Optimum ra thị trường, và được xem là người thiên về crypto nhất trong nhóm sáng lập.',
-    en:'He focuses on go-to-market, bringing Optimum to the market, and is considered the most crypto-native of the founders.',
-    ko:'시장 진출(go-to-market)을 맡고 있으며, 창업자 중 가장 크립토에 정통한 사람으로 소개됩니다.'}
-};   // thêm tiểu sử thật tại đây, vd BIO['KENT LIN']={vi:'...',en:'...',ko:'...'} — AI/kịch bản sẽ chỉ dùng dữ kiện có trong đây
+    vi:'Anh phụ trách adoption và tăng trưởng hệ sinh thái: business development, tokenomics và gọi vốn. Anh bỏ dở MBA Harvard để làm Optimum toàn thời gian, từng là Partner tại GSRV và sáng lập McKinsey Crypto DAO.',
+    en:'He leads adoption and ecosystem growth: business development, tokenomics and fundraising. He left his Harvard MBA to build Optimum full time, was a Partner at GSRV and founded the McKinsey Crypto DAO.',
+    ko:'생태계 도입과 성장, 즉 비즈니스 개발, 토크노믹스, 투자 유치를 맡고 있습니다. 하버드 MBA를 중단하고 옵티멈에 전념했으며, GSRV 파트너와 McKinsey Crypto DAO 창립자를 지냈습니다.'},
+  'ELI LAIPSON':{
+    vi:'Anh xây đội marketing cốt lõi, truyền thông các sản phẩm như flexnode và mump2p, và khuếch đại các cột mốc kỹ thuật của Optimum.',
+    en:'He built the core marketing team, communicates products like flexnode and mump2p, and amplifies Optimum\'s technical milestones.',
+    ko:'핵심 마케팅 팀을 꾸리고 flexnode와 mump2p 같은 제품을 알리며 옵티멈의 기술적 이정표를 널리 알리고 있습니다.'},
+  'DAVID SONG':{
+    vi:'Anh từng là Head of BD tại Cosmostation và phụ trách tăng trưởng khu vực châu Á – Thái Bình Dương: sự kiện, quan hệ với builder và validator, làm cầu nối giữa nghiên cứu RLNC và hệ sinh thái APAC.',
+    en:'He was Head of BD at Cosmostation and drives growth in Asia-Pacific: events, builder and validator relations, and bridging RLNC research with the APAC ecosystem.',
+    ko:'Cosmostation의 BD 총괄을 지냈으며, 이벤트와 빌더·검증자 관계를 통해 아시아·태평양 지역의 성장을 이끌고 RLNC 연구와 APAC 생태계를 연결합니다.'}
+};
 const T={
   vi:{greet:['Xin chào, tôi là hướng dẫn viên của khu triển lãm Optimum.','Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu bức tranh đó.'],
       intro:['Đây là {n}.','Bức chân dung này là của {n}.','Bạn đang xem chân dung của {n}.'],
       ceo:'{n} là CEO của Optimum, người dẫn dắt định hướng của cả đội ngũ.',
       founder:'{n} là đồng sáng lập của Optimum, người cùng đặt nền móng cho dự án.',
+      cmo:'{n} là CMO của Optimum, phụ trách marketing và truyền thông.',
+      apac:'{n} là APAC Growth Lead của Optimum, phụ trách tăng trưởng khu vực châu Á – Thái Bình Dương.',
       team:'{n} là thành viên trong đội ngũ Optimum.',
       proj:'Optimum là hạ tầng bộ nhớ hiệu năng cao cho mọi blockchain, xây trên công nghệ RLNC đến từ MIT.',
       outro:['Mời bạn xem tiếp các bức tranh bên cạnh.','Bạn có thể bước tiếp để xem thêm.'],
@@ -53,6 +68,8 @@ const T={
       intro:['This is {n}.','This portrait shows {n}.','You are looking at the portrait of {n}.'],
       ceo:'{n} is the CEO of Optimum, leading the direction of the whole team.',
       founder:'{n} is a co-founder of Optimum, who helped lay the foundation of the project.',
+      cmo:'{n} is the CMO of Optimum, in charge of marketing and communications.',
+      apac:'{n} is the APAC Growth Lead of Optimum, driving growth across Asia-Pacific.',
       team:'{n} is a member of the Optimum team.',
       proj:'Optimum is high-performance memory infrastructure for any blockchain, built on RLNC technology from MIT.',
       outro:['Feel free to continue to the next paintings.','Step along to see more.'],
@@ -61,6 +78,8 @@ const T={
       intro:['이분은 {n}님입니다.','이 초상화는 {n}님입니다.'],
       ceo:'{n}님은 옵티멈의 CEO로서 팀 전체의 방향을 이끌고 있습니다.',
       founder:'{n}님은 옵티멈의 공동 창업자로서 프로젝트의 토대를 함께 만들었습니다.',
+      cmo:'{n}님은 옵티멈의 CMO로서 마케팅과 커뮤니케이션을 맡고 있습니다.',
+      apac:'{n}님은 옵티멈의 APAC 성장 리드로서 아시아·태평양 지역의 성장을 이끌고 있습니다.',
       team:'{n}님은 옵티멈 팀의 일원입니다.',
       proj:'옵티멈은 MIT에서 나온 RLNC 기술로 만든, 모든 블록체인을 위한 고성능 메모리 인프라입니다.',
       outro:['다음 그림도 둘러보세요.'],
@@ -73,11 +92,11 @@ const tr1=async(lang,s)=>(NATIVE[lang]||typeof trLine!=='function')?s:await trLi
 const trAll=(lang,a)=>Promise.all(a.map(x=>tr1(lang,x)));
 const langName=lang=>{try{return LN.find(x=>x[0]===lang)[1]}catch(e){return lang}};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
-const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\bCeo\b/g,'CEO');
-const kindOf=r=>/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':'team';
+const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\b(Ceo|Cmo|Apac)\b/g,m=>m.toUpperCase());
+const kindOf=r=>/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':'team';
 function getLang(){return typeof L!=='undefined'?L:'vi'}   // L = ngôn ngữ đang chọn (i18n.js)
 function template(info,lang){
-  const t=TT(lang),n=SPOKEN[info.n1]||title(info.n1),bio=BIO[info.n1]&&(BIO[info.n1][lang]||BIO[info.n1].en);
+  const k=keyOf(info),t=TT(lang),n=SPOKEN[k]||title(info.n1),bio=BIO[k]&&(BIO[k][lang]||BIO[k].en);
   const out=[pick(t.intro).replace('{n}',n),t[kindOf(info.n2)].replace('{n}',n)];
   if(bio)out.push(bio);
   out.push(t.proj);
@@ -87,29 +106,42 @@ function template(info,lang){
 // ---- AI (Groq) qua AITalk của ai-talk.js: tái dùng xoay key / dự phòng / lọc câu (clean) của bạn ----
 // AITalk.line(kind,b) tự dựng prompt từ AIP[kind] và thêm "Ngôn ngữ: {lang}" theo L, nên chỉ cần đăng ký AIP.guide rồi gọi line('guide',...).
 // sys được dựng ĐỒNG BỘ ngay đầu line() (trước await đầu tiên) nên gán AIP.guide rồi gọi liền là an toàn khi có nhiều yêu cầu chạy cùng lúc.
+const STYLES=[
+  'kể như một câu chuyện ngắn, đi từ xuất phát điểm của người này đến Optimum',
+  'mở đầu bằng thành tựu nổi bật nhất rồi quay về vai trò hiện tại trong Optimum',
+  'mở đầu bằng một câu hỏi gợi mở cho khách rồi trả lời bằng thông tin trong form',
+  'súc tích, nhịp nhanh, như điểm nhấn của một hướng dẫn viên bảo tàng',
+  'nhấn mạnh vai trò của người này trong sứ mệnh của Optimum',
+  'đi theo thứ tự: con người, công việc, ý nghĩa đối với dự án'
+];
+const sample=(a,n)=>a.slice().sort(()=>Math.random()-.5).slice(0,n);
 CFG.ai=async(info,lang)=>{
   if(typeof AITalk==='undefined'||typeof AIP==='undefined')return null;
-  const n=SPOKEN[info.n1]||title(info.n1),f=FACTS[info.n1],bio=BIO[info.n1]&&BIO[info.n1].vi||'';
+  const k=keyOf(info),n=SPOKEN[k]||title(info.n1),f=FACTS[k],bio=BIO[k]&&BIO[k].vi||'';
+  const facts=f||bio||'';
+  const focus=f?sample(f.split(/(?<=[.;])\s+/).filter(x=>x.length>25),3):[];   // mỗi lần ưu tiên nhắc 3 ý khác nhau -> lời thuyết minh khác nhau nhưng vẫn đúng ý chính
   // "FORM" gửi cho AI phân tích: tên + chức vụ + dữ kiện đã xác thực -> AI viết lời thuyết minh
   AIP.guide={
     head:`Bạn là hướng dẫn viên chuyên nghiệp của khu triển lãm Optimum, đang đứng trước bức chân dung của một thành viên dự án Optimum và thuyết minh cho khách tham quan. Giọng ấm áp, tự tin, mạch lạc như một người dẫn tour thật.
-Hãy PHÂN TÍCH FORM sau rồi viết lời thuyết minh 5-7 câu (tổng 70-110 từ): (1) giới thiệu tên và chức vụ, (2) nói người này là thành viên của dự án Optimum và vai trò, (3) kể tiểu sử / thành tựu có trong form, (4) nối với dự án Optimum bằng 1 câu.
+Hãy PHÂN TÍCH FORM sau rồi viết lời thuyết minh 5-7 câu (tổng 80-120 từ) theo thứ tự ý chính: giới thiệu tên và chức vụ; người này là thành viên của dự án Optimum và vai trò; 3-4 thông tin nổi bật trong form; nối về dự án Optimum bằng 1 câu.
 [FORM]
 Tên: ${n}
 Chức vụ: ${title(info.n2)}
 Dự án: Optimum (x.com/get_optimum)
-Dữ kiện đã xác thực về người này: ${f||bio||'(chưa có dữ kiện cá nhân nào)'}
+Dữ kiện đã xác thực về người này: ${facts||'(chưa có dữ kiện cá nhân nào)'}
 Dữ kiện về dự án: ${COMMON}
 [/FORM]
-QUY TẮC: chỉ dùng dữ kiện có trong FORM. Nếu mục "Dữ kiện đã xác thực về người này" trống thì TUYỆT ĐỐI không bịa tiểu sử, trường học, công ty cũ, tuổi hay thành tích; chỉ nói tên, chức vụ, người đó là thành viên dự án Optimum và giới thiệu dự án từ "Dữ kiện về dự án". Mỗi câu trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji, không gạch đầu dòng. Chỉ trả về lời thuyết minh.
+MỖI LẦN MỘT KIỂU: lần này kể theo phong cách "${pick(STYLES)}".${focus.length?' Ưu tiên nhắc các ý sau (diễn đạt lại bằng lời của bạn): '+focus.join(' | ')+'.':''} Không cần đọc hết form, hãy chọn ý khác nhau mỗi lần, nhưng PHẢI giữ đúng ý chính (tên, chức vụ, thành viên Optimum, vai trò) và không sai lệch dữ kiện.
+QUY TẮC: chỉ dùng dữ kiện có trong FORM. Nếu mục "Dữ kiện đã xác thực về người này" trống hoặc form dặn không suy diễn thì TUYỆT ĐỐI không bịa tiểu sử, trường học, công ty cũ, tuổi hay thành tích; chỉ nói tên, chức vụ, người đó là thành viên dự án Optimum và giới thiệu dự án từ "Dữ kiện về dự án". Mỗi câu trọn ý và kết thúc bằng dấu chấm. Không markdown, không ngoặc kép, không emoji, không gạch đầu dòng. Chỉ trả về lời thuyết minh.
 `,
     combat:'',info:''};
   return AITalk.line('guide',{hp:1,maxhp:1,x:0,z:0,fl:0});   // trả null khi hết key / hết hạn mức / mất mạng
 };
-const CACHE={},PEND={};
+const CACHE={},PEND={},TPL={};
+const tplLines=(info,lang)=>{const k=keyOf(info)+'|'+lang;return TPL[k]||(TPL[k]=trAll(lang,template(info,lang)))};   // kịch bản mẫu đã dịch, nhớ lại
 const splitS=t=>{const a=t.replace(/\s+/g,' ').trim().match(/[^.!?。！？]+[.!?。！？…]?/g);return a?a.map(x=>x.trim()).filter(Boolean).slice(0,9):[]};
 function ensure(info,lang){   // tạo (hoặc dùng lại) yêu cầu AI cho 1 tranh + ngôn ngữ; kết quả vào CACHE
-  const key=info.n1+'|'+lang;
+  const key=keyOf(info)+'|'+lang;
   if(CACHE[key])return Promise.resolve(CACHE[key]);
   if(PEND[key])return PEND[key];
   const p=(async()=>{
@@ -117,20 +149,22 @@ function ensure(info,lang){   // tạo (hoặc dùng lại) yêu cầu AI cho 1 
       const t=typeof CFG.ai==='function'?await CFG.ai(info,lang):null;
       const l=t&&typeof t==='string'?splitS(t):[];
       if(l.length)return CACHE[key]=l;
-      if(typeof CFG.ai!=='function')return CACHE[key]=await trAll(lang,template(info,lang));
+      if(typeof CFG.ai!=='function')return CACHE[key]=await tplLines(info,lang);
     }catch(e){}
     return null;                                   // AI không khả dụng: không cache, lần sau thử lại
   })();
   PEND[key]=p;p.then(()=>{delete PEND[key]});
   return p;
 }
-// Lấy lời đọc: AI nếu kịp (mặc định chờ 9s), không thì kịch bản mẫu (đã dịch bằng trLine nếu không phải vi/en/ko)
-const getLines=(info,lang,wait)=>Promise.race([ensure(info,lang),new Promise(r=>setTimeout(()=>r(null),wait||9000))])
-  .then(r=>r||trAll(lang,template(info,lang)));
+// Lấy lời đọc: AI nếu kịp (chờ tối đa 2.5s; AI vẫn chạy nền để lần sau có sẵn), không thì kịch bản mẫu (đã dịch bằng trLine nếu không phải vi/en/ko)
+const getLines=(info,lang,wait)=>Promise.race([ensure(info,lang),new Promise(r=>setTimeout(()=>r(null),wait||2500))])
+  .then(r=>r||tplLines(info,lang));
 // Làm nóng trước: khi người chơi bước lên sảnh, nhờ AI viết sẵn lời cho cả 8 tranh (cách nhau 0.7s) -> nhìn vào tranh là đọc ngay
-function warm(g){
-  const lang=GuideBot.getLang();
-  g.easels.forEach((e,i)=>setTimeout(()=>{if(st.onDeck)ensure(e,lang)},i*700));
+let warmLang=null;
+function warm(g){   // gọi khi người chơi lại gần chòi (<45m) hoặc đổi ngôn ngữ: viết sẵn lời bằng AI + dịch sẵn kịch bản mẫu cho cả 8 tranh
+  const lang=GuideBot.getLang();if(warmLang===lang)return;warmLang=lang;
+  g.easels.forEach((e,i)=>setTimeout(()=>{tplLines(e,lang);ensure(e,lang)},i*500));
+  trAll(lang,TT(lang).greet);tr1(lang,TT(lang).name);
 }
 
 // ---------- KHUNG CHỮ ----------
@@ -217,8 +251,8 @@ function pickVoice(lang){
 }
 // Cách đọc riêng cho từ tiếng Anh / viết tắt (chữ hiển thị giữ nguyên)
 const PRON={
-  vi:[[/\bCEO\b/g,'xi i ô'],[/Optimum/gi,'Óp ti mầm'],[/mump2p/gi,'mum pi tu pi'],[/\bRLNC\b/g,'a eo en xi'],[/\bMIT\b/g,'em ai ti'],[/Blockchain/gi,'Blốc chen'],[/Block Arena/gi,'Blốc A ri na']],
-  en:[[/mump2p/gi,'mump two p']]
+  vi:[[/\bProf\.?(?=\s)/g,'Giáo sư'],[/\bAPAC\b/g,'ây pác'],[/\bCMO\b/g,'xi em ô'],[/\bBD\b/g,'bi đi'],[/\bMBA\b/g,'em bi ây'],[/\bCEO\b/g,'xi i ô'],[/Optimum/gi,'Óp ti mầm'],[/mump2p/gi,'mum pi tu pi'],[/\bRLNC\b/g,'a eo en xi'],[/\bMIT\b/g,'em ai ti'],[/Blockchain/gi,'Blốc chen'],[/Block Arena/gi,'Blốc A ri na']],
+  en:[[/\bProf\.?(?=\s)/g,'Professor'],[/mump2p/gi,'mump two p']]
 };
 const pron=(t,lang)=>(PRON[lang]||[]).reduce((x,r)=>x.replace(r[0],r[1]),t);
 function cancelTTS(){
@@ -226,24 +260,51 @@ function cancelTTS(){
   if(curAudio){curAudio.onended=curAudio.onerror=null;try{curAudio.pause()}catch(e){}curAudio=null}
 }
 const chunks=(t,n)=>{const out=[];while(t.length>n){let i=t.lastIndexOf(' ',n);if(i<n*.4)i=n;out.push(t.slice(0,i).trim());t=t.slice(i).trim()}if(t)out.push(t);return out};
+let cloudBadUntil=0;const TTSC={},NOTED={};
+const note=(k,m)=>{if(!NOTED[k+m]){NOTED[k+m]=1;console.info('[GuideBot] '+k+': '+m)}};
+const gUrls=[
+  (q,tl)=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+tl+'&q='+q,
+  (q,tl)=>'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl='+tl+'&q='+q
+];
+function mkAudio(url){const a=new Audio();a.referrerPolicy='no-referrer';a.preload='auto';a.src=url;return a}   // no-referrer: Google hay từ chối khi có Referer
+// Tải trước âm thanh của câu kế tiếp (chỉ khi dùng giọng Google) để không bị hở giữa các câu
+function preloadTTS(text,lang){
+  try{
+    if(!CFG.tts||!CFG.cloudTTS||Date.now()<cloudBadUntil)return;
+    const pv=window.speechSynthesis?pickVoice(lang):null;if(pv&&pv.neural)return;
+    const c=chunks(pron(text,lang),180)[0],k=lang+'|'+c;if(!c||TTSC[k])return;
+    const a=mkAudio(gUrls[0](encodeURIComponent(c),GTTS[lang]||'en'));a.load();TTSC[k]=a;
+  }catch(e){}
+}
 function startTTS(text,lang,tk,onDone,onNoVoice){   // gọi onDone khi đọc xong (hoặc không đọc được)
   const t2=pron(text,lang),pv=window.speechSynthesis?pickVoice(lang):null;
   let finished=false;const done=()=>{if(!finished){finished=true;onDone()}};
   const local=()=>{
-    if(!pv){if(onNoVoice)onNoVoice();return done()}   // không có giọng đúng ngôn ngữ: hiện chữ thay thế
-    try{const u=new SpeechSynthesisUtterance(t2);u.voice=pv.v;u.lang=pv.v.lang;u.rate=CFG.rate;u.pitch=1;u.onend=u.onerror=done;speechSynthesis.speak(u)}catch(e){done()}
+    if(!pv){note('giọng '+lang,'không có giọng đúng ngôn ngữ trong máy và giọng Google không dùng được -> chỉ hiện chữ (gõ GuideBot.voices() trong Console để xem giọng có sẵn)');if(onNoVoice)onNoVoice();return done()}
+    try{note('giọng '+lang,'dùng giọng trong máy: '+pv.v.name);const u=new SpeechSynthesisUtterance(t2);u.voice=pv.v;u.lang=pv.v.lang;u.rate=CFG.rate;u.pitch=1;u.onend=u.onerror=done;speechSynthesis.speak(u)}catch(e){done()}
   };
-  if(CFG.cloudTTS&&(!pv||!pv.neural)){
+  if(CFG.cloudTTS&&(!pv||!pv.neural)&&Date.now()>=cloudBadUntil){
     const parts=chunks(t2,180);let i=0;
     const next=()=>{
-      if(tk!==token)return done();
-      if(i>=parts.length)return done();
-      let bad=false;const fail=()=>{if(bad)return;bad=true;if(i===1)local();else done()};   // chunk đầu lỗi -> thử giọng trong máy
-      try{
-        const a=new Audio('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+(GTTS[lang]||'en')+'&q='+encodeURIComponent(parts[i++]));
-        a.playbackRate=CFG.rate;curAudio=a;a.onended=next;a.onerror=fail;
-        const pl=a.play();if(pl&&pl.catch)pl.catch(fail);
-      }catch(e){fail()}
+      if(tk!==token||i>=parts.length)return done();
+      const c=parts[i++],first=i===1,q=encodeURIComponent(c),tl=GTTS[lang]||'en',pk=lang+'|'+c;let u=0;
+      const tryUrl=()=>{
+        if(tk!==token)return done();
+        let a=null;
+        if(u===0&&TTSC[pk]){a=TTSC[pk];delete TTSC[pk]}                       // đã tải trước
+        if(!a){
+          if(u>=gUrls.length){cloudBadUntil=Date.now()+300000;note('giọng '+lang,'giọng Google lỗi (bị chặn / không có mạng), tạm tắt 5 phút');return first?local():done()}
+          try{a=mkAudio(gUrls[u](q,tl))}catch(e){u++;return tryUrl()}
+        }
+        u++;curAudio=a;let bad=false;
+        const fail=()=>{if(bad)return;bad=true;clearTimeout(to);tryUrl()};
+        const to=setTimeout(fail,4500);                                          // 4.5s chưa phát được -> thử đường khác
+        a.onplaying=()=>{clearTimeout(to);note('giọng '+lang,'dùng giọng Google Dịch')};
+        a.onended=()=>{clearTimeout(to);cloudBadUntil=0;next()};a.onerror=fail;
+        const pl=a.play();
+        if(pl&&pl.catch)pl.catch(e=>{if(e&&e.name==='NotAllowedError'){bad=true;clearTimeout(to);first?local():done()}else fail()});
+      };
+      tryUrl();
     };
     next();
   }else local();
@@ -268,7 +329,8 @@ function say(text,tk,head,lang){
 async function speakLines(lines,head,lang,idx){
   const tk=++token;cancelTTS();
   st.speaking=idx;st.talking=true;
-  for(const l of lines){if(tk!==token)return;await say(l,tk,head,lang);if(tk!==token)return;await new Promise(r=>setTimeout(r,250))}
+  preloadTTS(lines[0],lang);
+  for(let li=0;li<lines.length;li++){const l=lines[li];if(tk!==token)return;if(li+1<lines.length)preloadTTS(lines[li+1],lang);await say(l,tk,head,lang);if(tk!==token)return;await new Promise(r=>setTimeout(r,250))}
   if(tk!==token)return;
   st.talking=false;st.speaking=-1;setTimeout(()=>{if(tk===token)showing=false},1200);
 }
@@ -276,10 +338,13 @@ async function speakPicture(idx,g){
   const info=g.easels[idx],lang=GuideBot.getLang(),mine=++token;   // ngắt câu đang đọc ngay, rồi mới chờ AI
   cancelTTS();
   st.last[idx]=st.t;st.speaking=idx;st.talking=false;
-  const lines=await getLines(info,lang);
-  if(mine!==token)return;                       // trong lúc chờ AI đã bị ngắt / đổi tranh
+  const key=keyOf(info)+'|'+lang,lines=await getLines(info,lang);
+  if(mine!==token)return;
+  // dùng xong bản này thì bỏ đi và viết sẵn 1 bản KHÁC cho lần sau (mỗi lần đọc 1 kiểu)
+  if(CACHE[key]===lines){delete CACHE[key];setTimeout(()=>{if(typeof CFG.ai==='function')ensure(info,lang)},1200)}
+  if(TPL[key]){delete TPL[key];setTimeout(()=>tplLines(info,lang),500)}                       // trong lúc chờ AI đã bị ngắt / đổi tranh
   const nm=await tr1(lang,TT(lang).name);if(mine!==token)return;
-  speakLines(lines,nm+' · '+title(info.n1)+' — '+title(info.n2),lang,idx);
+  speakLines(lines,nm+' · '+(SPOKEN[keyOf(info)]||title(info.n1))+' — '+title(info.n2),lang,idx);
 }
 
 async function greet(){
@@ -320,7 +385,7 @@ function update(dt){
   const P=view();
   const on=!!P&&Math.abs(P.x-g.cx)<g.HX+.2&&Math.abs(P.z-g.cz)<g.HZ+.2&&P.y>g.FL+.8&&P.y<g.FL+3.3;
   if(on&&!st.onDeck&&st.t-st.lastGreet>60){st.lastGreet=st.t;greet()}
-  if(on&&!st.onDeck)warm(g);
+  if(P&&(on||Math.hypot(P.x-g.cx,P.z-g.cz)<45))warm(g);
   if(!on&&st.onDeck)stopSpeech();
   st.onDeck=on;
 
@@ -393,5 +458,6 @@ let prev=performance.now();
 // ---------- API ----------
 // AI: GuideBot.cfg.ai đã gắn sẵn với AITalk (ai-talk.js). Gõ AITalk.status() trong Console để xem tình trạng key.
 // Hết key / hết hạn mức / mất mạng => tự dùng kịch bản mẫu (dịch bằng trLine nếu không phải vi/en/ko).
-window.GuideBot={cfg:CFG,getLang,stop:stopSpeech,speak:i=>window.PavilionGuide&&speakPicture(i,window.PavilionGuide),root};
+const voices=()=>{loadVoices();const l=getLang(),pri=(TTSL[l]||'en').split('-')[0],list=VOICES.filter(v=>normL(v.lang).startsWith(pri)).map(v=>v.name+' ['+v.lang+']');console.log('Ngôn ngữ',l,'| giọng trong máy:',list.length?list:'(KHÔNG có)','| sẽ dùng:',(pickVoice(l)||{v:{name:'(không có -> thử giọng Google)'}}).v.name);return list};
+window.GuideBot={voices,cfg:CFG,getLang,stop:stopSpeech,speak:i=>window.PavilionGuide&&speakPicture(i,window.PavilionGuide),root};
 })();
