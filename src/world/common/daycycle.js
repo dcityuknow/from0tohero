@@ -113,6 +113,9 @@ function lamp(x,y,z,size,o){
 }
 // vật liệu KHÔNG ăn đèn (MeshBasic: thác nước, bọt...) cần nhân thêm màu theo giờ, nếu không ban đêm vẫn trắng sáng
 const unlits=[];function unlit(m){m.userData._dc=m.color.clone();unlits.push(m)}
+// vật liệu PHÁT SÁNG về đêm (mắt bot...): ngược với unlit(). Dùng cùng "độ tối" nightK với đèn lồng. nightK <= lo: material.visible=false (không vẽ, không tốn draw call);
+// lo -> hi: màu nội suy từ day sang night (vẽ ra thì khớp với vật thường ban ngày, sáng dần lên); >= hi: sáng hết cỡ. Mặc định lo=.25, hi=.9
+const glows=[];function glow(m,day,night,lo,hi){m.visible=false;glows.push({m,d:day,n:night,lo:lo==null?.25:lo,hi:hi==null?.9:hi})}
 
 
 // ================= BÓNG ĐỔ THẬT (shadow map bám theo người chơi) =================
@@ -272,10 +275,16 @@ function tick(dt){
       l.pl.visible=nightK>.03;   // ban ngày gỡ hẳn PointLight khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh). Đổi số đèn làm three biên dịch lại shader 1 lần mỗi biến thể, sau đó dùng lại từ cache
     }
   }
+  // --- vật liệu phát sáng về đêm (mắt bot...) ---
+  for(const g of glows){
+    if(nightK<=g.lo){g.m.visible=false;continue}
+    g.m.visible=true;const t=ss(g.lo,g.hi,nightK);
+    g.m.color.setRGB(lerp(g.d[0],g.n[0],t),lerp(g.d[1],g.n[1],t),lerp(g.d[2],g.n[2],t));
+  }
   // --- đồng hồ ---
   if(X.bd){X.bdT-=dt;if(X.bdT<=0){X.bdT=.5;const hh=Math.floor(h),mm=Math.floor((h-hh)*60),t=emoji(h)+' '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+(country?' · '+country:'');if(t!==X.bdTxt){X.bdTxt=t;X.bd.textContent=t;X.bd.title=tz}}}
 }
-window.DayCycle={tick,reg,lamp,unlit,shadows(on){SH.off=!on;if(on){SH.slow=0;SH.ema=.016}},fog:fogCol,hour:nowH,cur,KEYS,
+window.DayCycle={tick,reg,lamp,unlit,glow,shadows(on){SH.off=!on;if(on){SH.slow=0;SH.ema=.016}},fog:fogCol,hour:nowH,cur,KEYS,
   info:()=>({tz,country,hour:nowH()}),
   setHour(h,spd){if(h==null){ovr=false;frozen=false;speed=1;resync();return}baseH=((h%24)+24)%24;baseT=performance.now();ovr=true;speed=spd||0;frozen=!speed}
 };
