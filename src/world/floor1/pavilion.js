@@ -133,7 +133,27 @@ function text(v,str,cx,cy,cz,cs,hex){
     for(let r=0;r<7;r++)for(let b=0;b<5;b++)if(g[r][b]==='#')v.box(x0+(a*6+b+.5)*cs,cy+(3-r)*cs,cz,cs,cs,.02,hex,cs)}
 }
 
+// ---------- BIỂN HIỆU PHÁT SÁNG KHI TRỜI TỐI ----------
+// Logo + chữ OPTIMUM / EXHIBITION ở biển góc trước-trái có thêm 1 BẢN PHỦ cùng hình, vẽ bằng vật liệu KHÔNG ăn đèn (Basic), giống house.js / bot-model.js.
+//   · ban ngày (nightK <= .25): visible=false -> không vẽ, biển trông như cũ
+//   · hoàng hôn / rạng đông (.25 -> .9): sáng dần / tắt dần
+//   · đêm (>= .9): logo + OPTIMUM sáng TRẮNG trung tính, giữ nguyên sắc độ như ban ngày (EXHIBITION giữ màu vàng nhạt gốc)
+// Đổi độ chói: sửa SIGNG (r=g=b để giữ màu trắng). Đổi lúc bắt đầu sáng: tham số .25 / .9.
+const SIGNG=[1.2,1.2,1.2];
+const SIGNGLOW=new THREE.MeshBasicMaterial({vertexColors:true,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+SIGNGLOW.visible=false;
+if(window.DayCycle&&DayCycle.glow)DayCycle.glow(SIGNGLOW,[1,1,1],SIGNG,.25,.9);
+else(function signLoop(){
+  requestAnimationFrame(signLoop);
+  const dc=window.DayCycle,k=dc&&dc.cur?dc.cur.lamp:0;
+  if(!(k>.25)){SIGNGLOW.visible=false;return}
+  const t=Math.min(1,(k-.25)/.65),s=t*t*(3-2*t);
+  SIGNGLOW.visible=true;SIGNGLOW.color.setRGB(1+(SIGNG[0]-1)*s,1+(SIGNG[1]-1)*s,1+(SIGNG[2]-1)*s);
+})();
+let prevGlow=null;   // bản phủ của lần dựng trước (để rebuild không bị nhân đôi)
+
 function build(hx,hz){
+  if(prevGlow){try{S.remove(prevGlow)}catch(e){}prevGlow=null}
   const v=new VB();
   const fb=(x0,x1,y0,y1,z0,z1,c,s=.25)=>v.box((x0+x1)/2,(y0+y1)/2,(z0+z1)/2,x1-x0,y1-y0,z1-z0,c,s);
   const fp=(x0,x1,y0,y1,z0,z1,s,fn)=>fb(x0,x1,y0,y1,z0,z1,
@@ -209,6 +229,11 @@ function build(hx,hz){
   logo(v,SCX,2.07,5.35,1.85);
   text(v,'OPTIMUM',SCX,1.35,5.261,.055,0xffffff);
   text(v,'EXHIBITION',SCX,.98,5.261,.03,0xffd070);
+  {const E=new VB();   // bản phủ phát sáng: cùng hình, nhích ra trước 1.2cm (cộng polygonOffset ở SIGNGLOW)
+    logo(E,SCX,2.07,5.35+.012,1.85);
+    text(E,'OPTIMUM',SCX,1.35,5.261+.012,.055,0xffffff);
+    text(E,'EXHIBITION',SCX,.98,5.261+.012,.03,0xffd070);
+    const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);S.add(gm);prevGlow=gm;}   // không vào meshes -> không ảnh hưởng va chạm / bắn
   cb(SX0,SX1,0,2.75,5.1,5.3);
 
   // ---- KỆ TRANH x10 (chia đều 5 trái + 5 phải): 6 kệ treo ảnh chân dung + bảng tên, 4 kệ còn lại để trống ----
