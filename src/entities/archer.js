@@ -5,6 +5,7 @@
 // - Là "bot" thường (cờ b.arch): bắn trúng / lựu đạn / đồng minh đều hạ được, vỡ mảnh như bot khác. KHÔNG nằm trong bộ sinh quái (spawner.js), không bị "quái thường chết hết" khi hạ boss.
 //   Hạ xong sẽ có lính khác thế chỗ sau CFG.respawn giây (nếu người chơi đứng xa).
 // - Chỉ hoạt động khi người chơi ở tầng 2 và tầng 2 đã dựng xong; rời tầng thì ẩn hết.
+// Phát sáng ban đêm (cùng cơ chế mắt bot): cung nâu, dây cung trắng, logo đai trắng, mắt + ngọc xanh lá. Cần bot-model.js nạp trước (botLogoGrid, BOTEYE). Màu: EG_* trong file.
 // Chỉnh nhanh ở CFG. Nạp SAU boss.js / ally.js (cần sight, hurt, snd, move).
 const Archer=(function(){
   const CFG={
@@ -30,6 +31,48 @@ const Archer=(function(){
   const list=[],arrows=[];let placed=false,on=false,TPL=null;
   const AG=new THREE.BoxGeometry(.045,.045,1.0),AM=new THREE.MeshBasicMaterial({color:0xe8c88a}),AT=new THREE.BoxGeometry(.1,.1,.18),ATM=new THREE.MeshBasicMaterial({color:0xcfd6df});
 
+  // ---------- PHÁT SÁNG BAN ĐÊM ----------
+  // Cùng cơ chế mắt bot (bot-model.js): mỗi bộ phận phát sáng có thêm 1 BẢN PHỦ dùng CHUNG geometry, vẽ bằng vật liệu Basic (không ăn đèn). Vật liệu ẩn hẳn khi trời sáng (không tốn draw call),
+  // từ nightK > .25 sáng dần, >= .9 sáng rực (cùng đường cong DayCycle.glow(.25,.9) của bot). Bản phủ KHÔNG nằm trong parts/botMeshes -> không ảnh hưởng bắn trúng / vỡ mảnh.
+  //   · cung: nâu phát sáng (EG_BOW)  · dây cung: trắng (EG_STR)  · mắt + ngọc + khóa mũ: xanh lá (EG_EYE, kèm quầng sáng)  · logo thắt lưng: trắng như mắt bot (dùng chung BOTEYE)
+  // Đổi màu: sửa 3 mảng EG_* (r,g,b có thể > 1 để chói; màu gốc của khối được NHÂN với mảng này).
+  const EG_BOW=[2.3,1.9,1.5],EG_STR=[1.8,1.8,1.9],EG_EYE=[1.25,1.5,1.25],EG_HALO=[.45,1,.5];
+  const GLS=[];
+  function glowMat(Cls,from,to,opt){
+    const m=new Cls(Object.assign({polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2},opt));
+    m.visible=false;
+    if(window.DayCycle&&DayCycle.glow)DayCycle.glow(m,from,to,.25,.9);else GLS.push({m,from,to});
+    return m;
+  }
+  if(!(window.DayCycle&&DayCycle.glow))(function archGlowLoop(){   // daycycle.js bản cũ / chưa nạp: tự đọc độ tối DayCycle.cur.lamp mỗi khung
+    requestAnimationFrame(archGlowLoop);
+    const dc=window.DayCycle,k=dc&&dc.cur?dc.cur.lamp:0;
+    for(const g of GLS){
+      if(!(k>.25)){g.m.visible=false;continue}
+      const t=Math.min(1,(k-.25)/.65),s=t*t*(3-2*t);
+      g.m.visible=true;g.m.color.setRGB(g.from[0]+(g.to[0]-g.from[0])*s,g.from[1]+(g.to[1]-g.from[1])*s,g.from[2]+(g.to[2]-g.from[2])*s);
+    }
+  })();
+  const BOWGLOW=glowMat(THREE.MeshBasicMaterial,[1,1,1],EG_BOW,{vertexColors:true}),
+        STRGLOW=glowMat(THREE.MeshBasicMaterial,[1,1,1],EG_STR,{vertexColors:true}),
+        EYEGLOW=glowMat(THREE.MeshBasicMaterial,[1,1,1],EG_EYE,{vertexColors:true});
+  let HALO_TEX=null;
+  const HALOMAT=glowMat(THREE.SpriteMaterial,[0,0,0],EG_HALO,{blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,color:0x000000,polygonOffset:false});   // quầng xanh quanh mắt: đen (không thấy) -> xanh
+  function haloTex(){
+    if(HALO_TEX)return HALO_TEX;
+    const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);
+    r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.35,'rgba(255,255,255,.55)');r.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle=r;g.fillRect(0,0,64,64);HALO_TEX=new THREE.CanvasTexture(c);HALOMAT.map=HALO_TEX;HALOMAT.needsUpdate=true;return HALO_TEX;
+  }
+  // giữ lại mặt hướng +z (fi=4) hoặc -z (fi=5) của mỗi khối (24 đỉnh/khối, 6 mặt x 4 đỉnh theo thứ tự FACES của voxel.js) -> bản phủ logo nhẹ gấp 6 lần
+  function keepFace(vb,fi){
+    const P=[],N=[],C=[],I=[],nC=(vb.k/24)|0;let k=0;
+    for(let c=0;c<nC;c++){
+      for(let v=0;v<4;v++){const s=(c*24+fi*4+v)*3;P.push(vb.p[s],vb.p[s+1],vb.p[s+2]);N.push(vb.n[s],vb.n[s+1],vb.n[s+2]);C.push(vb.c[s],vb.c[s+1],vb.c[s+2])}
+      I.push(k,k+1,k+2,k,k+2,k+3);k+=4;
+    }
+    vb.p=P;vb.n=N;vb.c=C;vb.i=I;vb.k=k;
+  }
   // ---------- MÔ HÌNH ----------
   // Bảng màu theo ảnh mẫu: da / áo nâu be loang, da thuộc nâu, mũ đen, xanh lá (dải mũ, ngọc), bạc (khóa thắt lưng)
   const TAN=tri(0xc9a077,0xb48a62,0xdab48c),TAN2=tri(0x8f6c48,0x7c5b3b,0xa2805a),LEA=tri(0x7a4f2c,0x6a4325,0x8c5d36),LEA2=tri(0x3a2619,0x2e1d13,0x47301f),
@@ -38,40 +81,46 @@ const Archer=(function(){
   function buildBody(b){
     const add=(par,vb,head)=>{const m=vb.mesh();m.userData.bot=b;if(head)m.userData.head=true;par.add(m);botMeshes.push(m);b.parts.push({mesh:m,vb});return m};
     const pivot=(x,y)=>{const q=new THREE.Group();q.position.set(x,y,0);b.g.add(q);return q};
+    // fx = các mesh phát sáng (không phải parts) để các lính sau dựng lại cùng geometry: {par: nhóm cha, mk: tạo mesh}
+    const fx=b.fx=[],glow=(par,geo,mat)=>{const mk=()=>new THREE.Mesh(geo,mat);fx.push({par,mk});par.add(mk())},
+      halo=(par,x,y,z,s)=>{haloTex();const mk=()=>{const sp=new THREE.Sprite(HALOMAT);sp.position.set(x,y,z);sp.scale.set(s,s,1);return sp};fx.push({par,mk});par.add(mk())};
     // thân: áo dài hẹp, thắt lưng da + khóa bạc hình số 8, dây chéo, ống tên sau lưng với 3 mũi tên lông vàng
     const T=new VB(true);
     T.box(0,1.52,0,.58,.8,.38,(i,j,k)=>(j<3?LEA2(i,j,k):CLOTH(i,j,k)),.05,true);
     T.box(0,1.2,0,.62,.28,.42,BLK,.04,true);                                                  // thắt lưng dày, cao
-    // LOGO in trên đai (cả mặt trước lẫn mặt sau) = đúng hình "hạt đậu / số 8" như logo trên kính bot (cùng công thức bot-model.js): viền bạc có đổ sáng, lõi đen
-    {const sm=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k/4},
-      so=(x,y)=>sm(Math.hypot(x-.52,y)-.48,Math.hypot(x+.52,y)-.48,.48),
-      si=(x,y)=>sm(Math.hypot(x-.5,y)-.26,Math.hypot(x+.5,y)-.26,1.0);
-      const LW=.5,LS=.0125,nx=Math.round(LW/LS),ny=Math.round(LW/2/LS),u=LW/2,BF=.21;   // BF = mặt trước thắt lưng
-      for(const sd of[1,-1])for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){   // sd=1: logo mặt trước · sd=-1: logo mặt sau lưng
-        const x=-1+(i+.5)/nx*2,y=.5-(j+.5)/ny,o=so(x,y),n=si(x,y);
-        if(o>0)continue;
-        if(n<=0){const g=.75+.25*Math.sin(Math.PI*Math.min(1,-n*3));T.cube(x*u,1.2+y*u,sd*(BF+.012),LS*.97,LS*.97,.024,(Math.round(20*g)<<16)|(Math.round(20*g)<<8)|Math.round(26*g),i,j,0);continue}   // lõi đen
-        const g=Math.round(255*(.6+.4*Math.sin(Math.PI*(-o)/(-o+n))));
-        T.cube(x*u,1.2+y*u,sd*(BF+.03),LS*.97,LS*.97,.06,(g<<16)|((g-6)<<8)|(g+(g<240?10:0)),i,j,0)}   // viền bạc nổi
+    // LOGO in trên đai (mặt trước + mặt sau lưng) = dữ liệu logo lấy mẫu từ ảnh gốc, DÙNG CHUNG với kính bot (botLogoGrid trong bot-model.js): đúng hình dạng, độ cong, sắc độ.
+    // Trắng xám trên nền đai đen (lỗ giữa vòng để lộ đai). Ban đêm bản phủ LF/LB (chỉ mặt trước / mặt sau của khối) sáng trắng bằng BOTEYE, y hệt mắt bot.
+    const LF=new VB(),LB=new VB();LF.seed=LB.seed=2;
+    {const LW=.46,LS=.0125,nx=Math.round(LW/LS),ny=Math.round(nx/BLG_ASPECT),LH=LW/BLG_ASPECT,lg=botLogoGrid(nx,ny),BF=.21;   // BF = mặt trước thắt lưng
+      for(const sd of[1,-1])for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){   // sd=1: mặt trước · sd=-1: mặt sau lưng (lật ngang để logo không bị ngược)
+        const l=lg[j*nx+i];if(l<0)continue;
+        const px=(-.5+(i+.5)/nx)*LW*sd,py=1.2+(.5-(j+.5)/ny)*LH,lc=(l<<16)|(l<<8)|l;
+        T.cube(px,py,sd*(BF+.012),LS*.95,LS*.95,.024,lc,i,j,0);
+        (sd>0?LF:LB).cube(px,py,sd*(BF+.014),LS*.95,LS*.95,.024,lc,i,j,0)}
     }
+    keepFace(LF,4);keepFace(LB,5);
     for(let k=0;k<4;k++)T.box(.15-k*.075,1.8-k*.11,.2,.1,.13,.025,LEA2,.015);                  // dây đeo chéo từ vai phải xuống hông trái
     T.box(0,1.88,.15,.36,.12,.2,TAN2,.04,true);                                                // cổ áo
     T.box(.12,1.67,-.27,.24,.66,.2,LEA,.04,true);T.box(.12,2.02,-.27,.25,.07,.21,LEA2,.03);   // ống tên
     for(const [x,dz] of[[.04,0],[.12,.03],[.2,-.02]]){T.box(x,2.14,-.27+dz,.03,.3,.03,0x3a2619,.015);T.box(x,2.32,-.27+dz,.055,.13,.03,0xf0e04a,.015)}   // cán + lông vàng
     add(b.g,T,false);
+    {const lf=LF.mesh(),lb=LB.mesh();lf.material=lb.material=BOTEYE;fx.push({par:b.g,mk:()=>new THREE.Mesh(lf.geometry,BOTEYE)},{par:b.g,mk:()=>new THREE.Mesh(lb.geometry,BOTEYE)});b.g.add(lf,lb)}   // logo đai phát sáng trắng: dùng chung BOTEYE với mắt bot (cùng màu EYEG, cùng giờ sáng/tắt)
     // đầu: mặt nâu, mắt xanh phát sáng, ngọc xanh ở cổ, mũ phù thủy đen (vành rộng, thân nhọn nhiều tầng, đỉnh cong ra sau) + dải xanh + khóa
     const H=new VB(true),HY=2.13;
     H.box(0,HY,0,.5,.5,.5,TAN,.045,true);
-    H.box(-.11,HY+.03,.255,.12,.11,.02,GLOW,.02);H.box(.11,HY+.03,.255,.12,.11,.02,GLOW,.02);   // mắt
-    H.box(-.11,HY+.03,.268,.06,.06,.012,0xe9ffe9,.012);H.box(.11,HY+.03,.268,.06,.06,.012,0xe9ffe9,.012);
+    const EYE=new VB(true);   // mắt + ngọc miệng + khóa mũ: mesh riêng (cùng 'head' để tính headshot), có bản phủ xanh phát sáng ban đêm
+    EYE.box(-.11,HY+.03,.255,.12,.11,.02,GLOW,.02);EYE.box(.11,HY+.03,.255,.12,.11,.02,GLOW,.02);   // mắt
+    EYE.box(-.11,HY+.03,.268,.06,.06,.012,0xe9ffe9,.012);EYE.box(.11,HY+.03,.268,.06,.06,.012,0xe9ffe9,.012);
     H.box(0,HY-.07,.26,.07,.1,.04,TAN2,.025);                                                  // mũi
     H.box(0,HY-.19,.26,.22,.05,.02,0x3a2619,.015);                                             // miệng
-    H.box(0,HY-.17,.27,.14,.12,.07,GRN,.03);H.box(0,HY-.17,.31,.08,.08,.02,GLOW,.02);         // ngọc xanh ở miệng
+    H.box(0,HY-.17,.27,.14,.12,.07,GRN,.03);EYE.box(0,HY-.17,.31,.08,.08,.02,GLOW,.02);         // ngọc xanh ở miệng
     H.box(0,2.42,0,1.1,.06,1.1,BLK,.05,true);H.box(0,2.48,0,.78,.05,.78,BLK,.05,true);       // vành mũ
-    H.box(0,2.52,0,.56,.08,.56,GRN,.03,true);H.box(0,2.52,.285,.16,.11,.02,SIL,.02);H.box(0,2.52,.295,.08,.06,.01,GLOW,.015);   // dải xanh + khóa
+    H.box(0,2.52,0,.56,.08,.56,GRN,.03,true);H.box(0,2.52,.285,.16,.11,.02,SIL,.02);EYE.box(0,2.52,.295,.08,.06,.01,GLOW,.015);   // dải xanh + khóa
     for(let k=0;k<6;k++){const w=.5-k*.07;H.box(0,2.59+k*.12-k*.0,-k*.014,w,.125,w,BLK,.04,w>.3)}   // thân mũ nhọn dần
     H.box(0,3.32,-.1,.06,.2,.06,BLK,.02);H.box(0,3.45,-.17,.04,.18,.04,BLK,.02);              // đỉnh cong ra sau
     add(b.g,H,true);
+    const em=add(b.g,EYE,true);glow(b.g,em.geometry,EYEGLOW);
+    halo(b.g,-.11,HY+.03,.3,.34);halo(b.g,.11,HY+.03,.3,.34);halo(b.g,0,HY-.17,.34,.26);   // quầng xanh quanh 2 mắt + ngọc
     b.lL=pivot(-.16,1.1);b.lR=pivot(.16,1.1);b.aL=pivot(-.38,1.84);b.aR=pivot(.38,1.84);
     // chân dài và gầy: quần be, bắp chân quấn da, giày da
     for(const l of[b.lL,b.lR]){
@@ -88,12 +137,16 @@ const Archer=(function(){
       v.box(0,.01,0,.24,.12,.24,LEA2,.04,true);
       if(a===b.aL){
         // cung (trục z cục bộ = chiều dọc cung khi tay giơ ngang): thân cong, bụng cung hướng ra trước (y âm), hai đầu cong về phía thân
-        v.box(0,-.9,0,.08,.12,.34,BOWC,.03);
-        v.box(0,-.88,.3,.075,.11,.3,BOWC,.03);v.box(0,-.88,-.3,.075,.11,.3,BOWC,.03);
-        v.box(0,-.82,.58,.07,.11,.28,BOWC,.03);v.box(0,-.82,-.58,.07,.11,.28,BOWC,.03);
-        v.box(0,-.72,.82,.045,.08,.24,BOWC,.03);v.box(0,-.72,-.82,.045,.08,.24,BOWC,.03);
-        v.box(0,-.62,1.0,.04,.07,.18,BOWC,.03);v.box(0,-.62,-1.0,.04,.07,.18,BOWC,.03);
-        v.box(0,-.62,.0,.012,.012,2.1,0xeeeeee,.01);                                          // dây cung
+        // cung + dây cung là MESH RIÊNG (BW / SG) để mỗi cái có bản phủ phát sáng riêng: cung nâu, dây trắng
+        const BW=new VB(true),SG=new VB();
+        BW.box(0,-.9,0,.08,.12,.34,BOWC,.03);
+        BW.box(0,-.88,.3,.075,.11,.3,BOWC,.03);BW.box(0,-.88,-.3,.075,.11,.3,BOWC,.03);
+        BW.box(0,-.82,.58,.07,.11,.28,BOWC,.03);BW.box(0,-.82,-.58,.07,.11,.28,BOWC,.03);
+        BW.box(0,-.72,.82,.045,.08,.24,BOWC,.03);BW.box(0,-.72,-.82,.045,.08,.24,BOWC,.03);
+        BW.box(0,-.62,1.0,.04,.07,.18,BOWC,.03);BW.box(0,-.62,-1.0,.04,.07,.18,BOWC,.03);
+        SG.box(0,-.62,.0,.012,.012,2.1,0xeeeeee,.01);                                          // dây cung
+        const bm=add(a,BW,false),sm=add(a,SG,false);
+        glow(a,bm.geometry,BOWGLOW);glow(a,sm.geometry,STRGLOW);
       }
       add(a,v,false);
     }
@@ -112,6 +165,7 @@ const Archer=(function(){
       b.lL=pv(-.16,1.1);b.lR=pv(.16,1.1);b.aL=pv(-.38,1.84);b.aR=pv(.38,1.84);
       const mp=new Map([[TPL.g,b.g],[TPL.lL,b.lL],[TPL.lR,b.lR],[TPL.aL,b.aL],[TPL.aR,b.aR]]);
       for(const pt of TPL.parts){const m=new THREE.Mesh(pt.mesh.geometry,VMAT);m.userData.bot=b;if(pt.mesh.userData.head)m.userData.head=true;mp.get(pt.mesh.parent).add(m);botMeshes.push(m);b.parts.push({mesh:m,vb:pt.vb})}
+      for(const f of TPL.fx)mp.get(f.par).add(f.mk());   // bản phủ phát sáng dùng chung geometry + vật liệu
     }
     b.hold=arrowMesh();b.hold.position.set(0,-1.0,0);b.hold.visible=false;b.aR.add(b.hold);   // tên đang cầm ở tay phải
     b.nock=arrowMesh();b.nock.position.set(0,-.9,0);b.nock.visible=false;b.aL.add(b.nock);      // tên đã lắp lên dây cung (tay trái giữ cung)
