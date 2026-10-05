@@ -10,7 +10,7 @@
     // Lõi: renderer/scene/camera
     'core/core.js',
     // Thế giới: bản đồ tầng 1, 4 tầng của tòa nhà, vật lý va chạm
-    'world/common/world.js','world/common/sky.js','world/common/level.js','world/common/physics.js',
+    'world/common/world.js','world/common/sky.js','world/common/daycycle.js','world/common/level.js','world/common/physics.js',
     // Cấu hình + trạng thái người chơi
     'core/config.js','core/state.js',
     // Đa ngôn ngữ
