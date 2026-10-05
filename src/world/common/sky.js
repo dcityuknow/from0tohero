@@ -164,7 +164,7 @@ function buildSky(){
 function tickSky(dt){
   if(!_sk)_sk=buildSky();
   const up=P.y>FY(NF-1)-2,sk=up;_sk.dome.visible=_sk.cl.visible=sk;   // tầng 3 nay rộng bằng tầng 2 nên tầng 2 có trần kín: chỉ tầng cao nhất mới thấy trời
-  if(S.fog&&!(window.Nature&&Nature.wading)&&!P.under){const tn=curFl===1?40:18,tf=curFl===1?150:55,k=Math.min(1,dt*3);S.fog.near+=(tn-S.fog.near)*k;S.fog.far+=(tf-S.fog.far)*k}   // tầng 2: sương xa hơn để thấy núi
+  if(S.fog&&!(window.Nature&&Nature.wading)&&!P.under){const wf=window.DayCycle&&DayCycle.worlds&&DayCycle.worlds[curFl],tn=wf?wf.fog[0]:(curFl===1?40:18),tf=wf?wf.fog[1]:(curFl===1?150:55),k=Math.min(1,dt*3);S.fog.near+=(tn-S.fog.near)*k;S.fog.far+=(tf-S.fog.far)*k}   // tầng 2: sương xa hơn để thấy núi
   if(sk){_sk.dome.position.copy(C.position);for(const c of _sk.list){c.position.x+=c.userData.v*dt;if(c.position.x>SKY.spread)c.position.x-=2*SKY.spread;_face(c)}}
   for(const q of _sk.fl){
     const on=curFl===q.f&&(!up||q.f===NF-1);   // tầng cao nhất luôn có sương (dù đang ở vùng thấy vòm trời)

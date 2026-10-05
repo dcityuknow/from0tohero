@@ -3,6 +3,7 @@
 //    Kết quả cache 12h trong localStorage nên lần sau vào game có giờ ngay, không phải chờ mạng.
 //  - Buổi sáng (6-10h): nắng vàng ấm, góc thấp · Trưa (10-14h): nắng gắt, trắng, chói · Chiều (14-18h): nắng dịu dần, ngả cam
 //    · Tối (sau ~19h): TẮT NẮNG, chỉ còn ánh trăng xanh nhạt + đèn lồng / đèn đá sáng lên (có quầng sáng, vài đèn có PointLight).
+//  - MỖI TẦNG LÀ 1 THẾ GIỚI RIÊNG (bảng WORLDS ở dưới): mặt trời / mặt trăng / chu kỳ ngày-đêm / màu trời / sương mù / ánh sáng riêng.
 //  - Ảnh hưởng: DirectionalLight mặt trời + mặt trăng, HemisphereLight, màu vòm trời / sương mù, màu trần sương + mây các tầng, quầng nắng,
 //    mặt trời / mặt trăng / sao ở tầng cao nhất (thấy trời), vệt sáng mặt trời xuyên lớp sương ở các tầng có trần, quầng chói khi nhìn thẳng vào mặt trời.
 //  - BÓNG ĐỔ THẬT: mặt trời là đèn có shadow map bám theo người chơi (vùng ~88m quanh bạn). Mọi khối Lambert đục của tầng hiện tại vừa đổ vừa nhận bóng;
@@ -46,12 +47,73 @@ const KEYS=[
 ].map(a=>({h:a[0],sun:a[1],sunC:hx(a[2]),amb:a[3],hS:hx(a[4]),hG:hx(a[5]),hor:hx(a[6]),mid:hx(a[7]),top:hx(a[8]),moon:a[9],lamp:a[10],tint:hx(a[11]),glare:a[12]}));
 const lerp=(a,b,t)=>a+(b-a)*t,lerpC=(a,b,t)=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];
 const sm=t=>t*t*(3-2*t),clamp=(x,a,b)=>x<a?a:x>b?b:x,ss=(a,b,x)=>sm(clamp((x-a)/(b-a),0,1));
-const cur={sun:0,sunC:[1,1,1],amb:1,hS:[1,1,1],hG:[1,1,1],hor:[1,1,1],mid:[1,1,1],top:[1,1,1],moon:0,lamp:0,tint:[1,1,1],glare:0};
-function sample(h){
+// ================= THẾ GIỚI RIÊNG CỦA TỪNG TẦNG =================
+// WORLDS[f] = bầu trời của tầng f (f = 0..3). SỬA Ở ĐÂY để chỉnh từng thế giới. Chỉ cần ghi các trường muốn khác mặc định.
+//  cycles   : số "ngày-đêm" trong 1 ngày thật (số NGUYÊN). 1 = giống giờ thật · 3 = 1 ngày chỉ dài 8 tiếng · 0 = đứng yên mãi ở giờ `offset`
+//  offset   : lệch giờ của thế giới này so với giờ thật (giờ). 12 = ngược hẳn (bạn chơi ban đêm thì tầng này đang ban ngày)
+//  sunrise / sunset : giờ mặt trời mọc / lặn của thế giới (sunset - sunrise = độ dài ban ngày; vd 8 -> 16 = ngày ngắn, đêm dài)
+//  fog      : [gần, xa] của sương mù (m)
+//  sunTint  : màu nhuộm ánh nắng · hemiTint: màu nhuộm ánh sáng môi trường · ceilMul: màu nhuộm trần sương + mây
+//  skyK     : 0..1 độ ngả sang bảng màu `sky` (0 = bầu trời xanh mặc định). sky = {day:[chân trời,giữa,đỉnh], night:[...]}
+//  ambK / glareK / moonK : nhân độ sáng môi trường / độ chói / độ sáng trăng · moonLight: màu ánh trăng · starCol, starSize: màu + cỡ sao
+//  suns[]   : các mặt trời (cái ĐẦU TIÊN là cái chiếu sáng thật, đổ bóng; các cái sau chỉ để trang trí).
+//             {size nhân cỡ, col màu, style:'glow'|'disc', z lệch hướng ngang, az xoay quỹ đạo (rad), dh lệch giờ so với cái đầu, bright độ sáng}
+//  moons[]  : các mặt trăng. {size, col, phase 0..1 (1 = tròn, nhỏ hơn = lưỡi liềm), ring:true = có vành đai, z, az, dh, bright}
+// Chỉ TẦNG CAO NHẤT (tầng 4) hở trời nên thấy trực tiếp mặt trời / trăng / sao; tầng 1-3 có trần, thấy quầng sáng của chúng xuyên lớp sương trên trần
+// + toàn bộ màu nắng, màu ánh sáng, sương mù, màu trần / mây đều theo thế giới của tầng đó.
+const WORLDS=[
+  {name:'Đồng cỏ'},   // thế giới gốc: giờ thật, nắng vàng, trăng trắng
+  {name:'Rừng anh đào',cycles:1,offset:12,fog:[40,150],
+    sunTint:0xffc4d4,hemiTint:0xfff0f6,ceilMul:0xffe2ec,glareK:.8,moonLight:0xd8b0ff,starCol:0xffd9f0,
+    skyK:.55,sky:{day:[0xffe3ee,0xf7b8da,0xb48ae8],night:[0x45345f,0x2c2150,0x130d2e]},
+    suns:[{size:1.4,col:0xffb8cc}],
+    moons:[{size:1.5,col:0xffe0ee,phase:1},{size:.55,col:0xd6b8ff,phase:.45,dh:5,z:.15,az:.9}]},
+  {name:'Mùa thu',cycles:3,offset:0,
+    sunTint:0xffa860,hemiTint:0xffe6cc,ceilMul:0xffe2c4,ambK:1.05,glareK:.9,moonLight:0xffc890,starCol:0xffd6a8,
+    skyK:.5,sky:{day:[0xffd8a0,0xf2a46e,0xb0606e],night:[0x3c2234,0x26142c,0x0e0818]},
+    suns:[{size:1.7,col:0xff9a50},{size:.5,col:0xff5a34,dh:.7,z:.5,az:.4}],
+    moons:[{size:1.2,col:0xffd08a,phase:.62}]},
+  {name:'Tuyết',cycles:1,offset:0,sunrise:8,sunset:16,fog:[16,52],
+    sunTint:0xcfe6ff,hemiTint:0xe8f4ff,ceilMul:0xe6f2ff,glareK:.5,moonK:1.3,moonLight:0xaad4ff,starCol:0xd8f0ff,starSize:3,
+    skyK:.6,sky:{day:[0xe8f7ff,0xaad6f6,0x5c9ce2],night:[0x17324c,0x0b1d38,0x040a1e]},
+    suns:[{size:.75,col:0xd8ecff,style:'disc'}],
+    moons:[{size:2,col:0xdcecff,phase:1,ring:true},{size:.5,col:0xbfe0ff,phase:.5,dh:-4,z:-.5,az:-.8}]}
+].map(w=>{
+  const hc=a=>hx(a),d={cycles:1,offset:0,sunrise:6,sunset:18,fog:[18,55],sunTint:0xffffff,hemiTint:0xffffff,ceilMul:0xffffff,ambK:1,glareK:1,moonK:1,
+    moonLight:0x9bb4ff,starCol:0xffffff,starSize:2.2,skyK:0,sky:null,suns:[{}],moons:[{}]};
+  const o=Object.assign({},d,w);
+  for(const k of['sunTint','hemiTint','ceilMul','moonLight','starCol'])o[k+'A']=hc(o[k]);
+  if(o.sky)o.sky={day:o.sky.day.map(hc),night:o.sky.night.map(hc)};
+  o.suns=o.suns.slice(0,3).map(b=>Object.assign({size:1,col:0xffffff,style:'glow',z:.33,az:0,dh:0,bright:1},b));
+  o.moons=o.moons.slice(0,3).map(b=>Object.assign({size:1,col:0xffffff,phase:1,ring:false,z:-.3,az:0,dh:0,bright:1},b));
+  for(const b of o.suns.concat(o.moons))b.c=hc(b.col);
+  return o;
+});
+const WN=WORLDS.length;
+// giờ thật -> giờ của thế giới, đã co giãn để mặt trời luôn mọc lúc 6 và lặn lúc 18 (bảng KEYS bên dưới dùng mốc này)
+function worldHour(h,W){
+  let wh=W.cycles===0?W.offset:h*W.cycles+W.offset;wh=((wh%24)+24)%24;
+  const dl=W.sunset-W.sunrise;if(dl===12&&W.sunrise===6)return wh;
+  const t=(((wh-W.sunrise)%24)+24)%24;
+  return (t<dl?6+t/dl*12:18+(t-dl)/(24-dl)*12)%24;
+}
+const mkC=()=>({sun:0,sunC:[1,1,1],amb:1,hS:[1,1,1],hG:[1,1,1],hor:[1,1,1],mid:[1,1,1],top:[1,1,1],moon:0,lamp:0,tint:[1,1,1],glare:0});
+const cur=mkC(),tgt=mkC();   // cur = giá trị đang dùng (làm mượt khi đổi tầng) · tgt = giá trị đích của thế giới hiện tại
+const SC=['sun','amb','moon','lamp','glare'],CC=['sunC','hS','hG','hor','mid','top','tint'];
+const mulC=(a,b)=>{a[0]*=b[0];a[1]*=b[1];a[2]*=b[2]};
+function sample(h,W){
   let i=0;while(i<KEYS.length-2&&h>=KEYS[i+1].h)i++;
   const a=KEYS[i],b=KEYS[i+1],t=sm(clamp((h-a.h)/(b.h-a.h),0,1));
-  for(const k of['sun','amb','moon','lamp','glare'])cur[k]=lerp(a[k],b[k],t);
-  for(const k of['sunC','hS','hG','hor','mid','top','tint'])cur[k]=lerpC(a[k],b[k],t);
+  for(const k of SC)tgt[k]=lerp(a[k],b[k],t);
+  for(const k of CC)tgt[k]=lerpC(a[k],b[k],t);
+  // nhuộm theo thế giới
+  tgt.amb*=W.ambK;tgt.glare*=W.glareK;tgt.moon*=W.moonK;
+  mulC(tgt.sunC,W.sunTintA);mulC(tgt.hS,W.hemiTintA);mulC(tgt.hG,W.hemiTintA);mulC(tgt.tint,W.ceilMulA);
+  if(W.skyK>0&&W.sky){const d=clamp(1-tgt.lamp,0,1);['hor','mid','top'].forEach((n,j)=>{tgt[n]=lerpC(tgt[n],lerpC(W.sky.night[j],W.sky.day[j],d),W.skyK)})}
+}
+function blend(k){
+  for(const n of SC)cur[n]=lerp(cur[n],tgt[n],k);
+  for(const n of CC){const a=cur[n],b=tgt[n];a[0]+=(b[0]-a[0])*k;a[1]+=(b[1]-a[1])*k;a[2]+=(b[2]-a[2])*k}
 }
 
 // ================= GIỜ: IP -> múi giờ -> giờ địa phương =================
@@ -175,20 +237,35 @@ function stepShadow(dt,sl){
 }
 
 // ================= ĐỐI TƯỢNG TRỜI (dựng lười ở khung đầu, khi _sk đã có) =================
-const fogCol=new THREE.Color(),_w=new THREE.Color(1,1,1),_v=new THREE.Vector3(),_d=new THREE.Vector3(),_p=new THREE.Vector3();
+const fogCol=new THREE.Color(),_w=new THREE.Color(1,1,1),_v=new THREE.Vector3(),_d=new THREE.Vector3(),_p=new THREE.Vector3(),_e=new THREE.Vector3(),_f=new THREE.Vector3();
+const MAXB=3,TEXC={};
+function mkTex(key,draw,sz){
+  if(TEXC[key])return TEXC[key];
+  const c=document.createElement('canvas');c.width=c.height=sz||128;draw(c.getContext('2d'),c.width);return TEXC[key]=new THREE.CanvasTexture(c);
+}
+const rg=(g,n,stops,r0)=>{const r=g.createRadialGradient(n/2,n/2,r0||0,n/2,n/2,n/2);for(const[s,c]of stops)r.addColorStop(s,c);g.fillStyle=r;g.fillRect(0,0,n,n)};
+const SUNTEX={
+  glow:()=>mkTex('sun:glow',(g,n)=>rg(g,n,[[0,'rgba(255,255,255,1)'],[.08,'rgba(255,248,225,.95)'],[.2,'rgba(255,225,160,.45)'],[.5,'rgba(255,200,120,.12)'],[1,'rgba(255,190,100,0)']])),
+  disc:()=>mkTex('sun:disc',(g,n)=>rg(g,n,[[0,'rgba(255,255,255,1)'],[.15,'rgba(255,255,255,1)'],[.18,'rgba(255,245,220,.5)'],[.4,'rgba(255,225,170,.16)'],[1,'rgba(255,200,120,0)']]))
+};
+function moonTex(b){
+  return mkTex('moon:'+b.phase+(b.ring?'r':''),(g,n)=>{
+    rg(g,n,[[0,'rgba(190,210,255,.5)'],[1,'rgba(150,175,255,0)']],n*.18);   // quầng
+    const oc=document.createElement('canvas');oc.width=oc.height=n;const o=oc.getContext('2d'),r=n*.2;
+    o.fillStyle='#eef3ff';o.beginPath();o.arc(n/2,n/2,r,0,6.283);o.fill();
+    o.fillStyle='rgba(150,165,205,.35)';for(const[a,bb,c]of[[.46,.46,.045],[.55,.52,.06],[.5,.6,.035],[.42,.55,.03]]){o.beginPath();o.arc(n*a,n*bb,n*c,0,6.283);o.fill()}
+    if(b.phase<.98){o.globalCompositeOperation='destination-out';o.beginPath();o.arc(n/2+2*r*b.phase,n/2-r*.15*b.phase,r*1.02,0,6.283);o.fill()}   // lưỡi liềm
+    g.drawImage(oc,0,0);
+    if(b.ring){g.strokeStyle='rgba(205,225,255,.6)';g.lineWidth=n*.012;g.beginPath();g.ellipse(n/2,n/2,r*1.9,r*.5,-.35,0,6.283);g.stroke()}
+  });
+}
+const ceilSunTex=()=>mkTex('ceil:sun',(g,n)=>rg(g,n,[[0,'rgba(255,252,232,1)'],[.1,'rgba(255,240,175,.95)'],[.28,'rgba(255,214,120,.6)'],[.6,'rgba(255,196,100,.2)'],[1,'rgba(255,190,100,0)']]));
+const ceilMoonTex=()=>mkTex('ceil:moon',(g,n)=>rg(g,n,[[0,'rgba(240,246,255,1)'],[.12,'rgba(225,235,255,.9)'],[.3,'rgba(195,212,255,.5)'],[.6,'rgba(170,190,255,.16)'],[1,'rgba(150,175,255,0)']]));
 let X=null;
 function build(){
-  const mk=(draw,sz)=>{const c=document.createElement('canvas');c.width=c.height=sz;draw(c.getContext('2d'),sz);const t=new THREE.CanvasTexture(c);return t};
-  const spr=(tex,op)=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false,opacity:op||1}));s.renderOrder=0;s.frustumCulled=false;S.add(s);return s};
-  const sunGlow=mk((g,n)=>{const r=g.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.08,'rgba(255,248,225,.95)');r.addColorStop(.2,'rgba(255,225,160,.45)');r.addColorStop(.5,'rgba(255,200,120,.12)');r.addColorStop(1,'rgba(255,190,100,0)');g.fillStyle=r;g.fillRect(0,0,n,n)},128);
-  const moonTex=mk((g,n)=>{
-    let r=g.createRadialGradient(n/2,n/2,n*.18,n/2,n/2,n/2);r.addColorStop(0,'rgba(190,210,255,.5)');r.addColorStop(1,'rgba(150,175,255,0)');g.fillStyle=r;g.fillRect(0,0,n,n);   // quầng
-    g.fillStyle='#eef3ff';g.beginPath();g.arc(n/2,n/2,n*.2,0,6.283);g.fill();
-    g.fillStyle='rgba(150,165,205,.35)';for(const[a,b,c]of[[.46,.46,.045],[.55,.52,.06],[.5,.6,.035],[.42,.55,.03]]){g.beginPath();g.arc(n*a,n*b,n*c,0,6.283);g.fill()}
-  },128);
-  const ceilTex=mk((g,n)=>{const r=g.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);r.addColorStop(0,'rgba(255,252,232,1)');r.addColorStop(.1,'rgba(255,240,175,.95)');r.addColorStop(.28,'rgba(255,214,120,.6)');r.addColorStop(.6,'rgba(255,196,100,.2)');r.addColorStop(1,'rgba(255,190,100,0)');g.fillStyle=r;g.fillRect(0,0,n,n)},128);
-  const sun=spr(sunGlow),moon=spr(moonTex),ceil=new THREE.Sprite(new THREE.SpriteMaterial({map:ceilTex,depthWrite:false,transparent:true,fog:false}));   // đĩa nắng NORMAL blend: cộng sáng lên sương trắng sẽ không thấy
-  ceil.renderOrder=2;ceil.frustumCulled=false;S.add(ceil);
+  const add=(tex,additive)=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false,transparent:true,fog:false}));
+    s.renderOrder=additive?0:2;s.frustumCulled=false;s.visible=false;S.add(s);return s};
+  const pool=(tex,add_)=>Array.from({length:MAXB},()=>add(tex,add_));
   // sao: điểm trên nửa vòm trời, đi theo camera
   const N=CFG.stars,pos=new Float32Array(N*3),col=new Float32Array(N*3);let sd=7;const rn=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
   for(let i=0;i<N;i++){const u=rn()*6.283,y=.05+rn()*.95,r=Math.sqrt(1-y*y),R_=CFG.dist+20;pos.set([Math.cos(u)*r*R_,y*R_,Math.sin(u)*r*R_],i*3);const w=.75+rn()*.25,t=rn();col.set([w*(.85+.15*t),w*.95,w],i*3)}
@@ -202,24 +279,48 @@ function build(){
   // đồng hồ nhỏ
   let bd=null;
   if(CFG.badge&&hud){bd=document.createElement('div');bd.style.cssText='position:absolute;right:16px;top:calc(62px + env(safe-area-inset-top,0px));background:rgba(255,255,255,.85);color:#2b2a3a;border:2px solid #fff;border-radius:12px;padding:3px 10px;font:700 13px "Trebuchet MS",Verdana,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.18)';hud.appendChild(bd)}
-  return {sun,moon,ceil,stars,moonL,gl,bd,sunGlow,lastPaint:'',paintT:0,bdT:0,bdTxt:''};
+  return {sunB:pool(SUNTEX.glow(),true),moonB:pool(moonTex({phase:1}),true),cSun:pool(ceilSunTex(),false),cMoon:pool(ceilMoonTex(),false),
+    stars,moonL,gl,bd,lastPaint:'',paintT:0,bdT:0,bdTxt:'',wi:-1,fade:1};
+}
+// gán kiểu (ảnh) mặt trời / mặt trăng của thế giới W cho các sprite
+function assignWorld(wi,W){
+  X.wi=wi;
+  W.suns.forEach((b,i)=>{X.sunB[i].material.map=SUNTEX[b.style]?SUNTEX[b.style]():SUNTEX.glow()});
+  W.moons.forEach((b,i)=>{X.moonB[i].material.map=moonTex(b)});
+  X.stars.material.color.setRGB(...W.starColA);X.stars.material.size=W.starSize;X.moonL.color.setRGB(...W.moonLightA);
+}
+// hướng của 1 thiên thể trên quỹ đạo: góc th (0 = mọc, π/2 = đỉnh đầu), z = lệch ngang, az = xoay quỹ đạo quanh trục dọc
+function arc(out,th,z,az){
+  out.set(Math.cos(th)*.95,Math.sin(th),z).normalize();
+  if(az){const c=Math.cos(az),s=Math.sin(az),x=out.x;out.x=x*c-out.z*s;out.z=x*s+out.z*c}
+  return out;
 }
 const emoji=h=>h<5.5||h>=19.5?'🌙':h<7?'🌅':h<10?'🌤️':h<14?'☀️':h<17.5?'🌤️':'🌇';
+let lastFl=-1,trans=0;
 
 // ================= MỖI KHUNG (sky.js: tickSky gọi cuối hàm) =================
 function tick(dt){
   if(!_sk)return;
   if(!X)X=build();
-  const h=nowH();sample(h);
-  const th=(h-CFG.sunrise)/(CFG.sunset-CFG.sunrise)*Math.PI,e=Math.sin(th),me=-e;     // e = độ cao mặt trời (1 = đỉnh đầu, <0 = dưới chân trời); trăng ngược pha
-  const nightK=cur.lamp,amb=cur.amb*(1+(CFG.nightLight-1)*nightK);
+  const wi=Math.min(Math.max(curFl,0),WN-1),W=WORLDS[wi];
+  if(X.wi!==wi)assignWorld(wi,W);
+  let k=1;
+  if(lastFl===-1){lastFl=wi}
+  else if(lastFl!==wi){lastFl=wi;trans=1.5;X.fade=0}   // sang thế giới khác: màu trời chuyển mượt, thiên thể hiện dần
+  if(trans>0){trans-=dt;k=Math.min(1,dt*3)}
+  X.fade=Math.min(1,X.fade+dt*1.2);
+  const h=worldHour(nowH(),W);sample(h,W);blend(k);
+  const th=(h-CFG.sunrise)/(CFG.sunset-CFG.sunrise)*Math.PI,e=Math.sin(th),me=-e;     // e = độ cao mặt trời chính (1 = đỉnh đầu, <0 = dưới chân trời); trăng ngược pha
+  const nightK=cur.lamp,amb=cur.amb*(1+(CFG.nightLight-1)*nightK),S0=W.suns[0],M0=W.moons[0];
   // --- ánh sáng ---
   hemi.intensity=amb;hemi.color.setRGB(...cur.hS);hemi.groundColor.setRGB(...cur.hG);
   const sl=_v.set(Math.cos(th)*.9,Math.max(e,.3),.4).normalize();   // hướng đèn nắng: không để chạm đất hẳn (góc thấp tối thiểu) cho mặt đứng vẫn sáng
+  if(S0.az){const c=Math.cos(S0.az),s=Math.sin(S0.az),x=sl.x;sl.x=x*c-sl.z*s;sl.z=x*s+sl.z*c}
   if(!stepShadow(dt,sl))sun.position.copy(sl).multiplyScalar(100);
   scanShadow(dt);
   sun.intensity=cur.sun;sun.color.setRGB(...cur.sunC);
   const ml=_v.set(-Math.cos(th)*.8,Math.max(me,.35),-.3).normalize();
+  if(M0.az){const c=Math.cos(M0.az),s=Math.sin(M0.az),x=ml.x;ml.x=x*c-ml.z*s;ml.z=x*s+ml.z*c}
   X.moonL.position.copy(ml).multiplyScalar(100);X.moonL.intensity=cur.moon*ss(-.05,.25,me);
   // --- màu trời, sương mù ---
   const under=window.Nature&&Nature.wading||P.under;
@@ -238,30 +339,56 @@ function tick(dt){
   for(const m of CEILMATS)m.color.setRGB(.949*T[0],.965*T[1],.988*T[2]);
   for(const q of _sk.fl)for(const l of q.lay)l.m.material.color.setRGB(T[0],T[1],T[2]);
   for(const m of unlits)m.color.setRGB(m.userData._dc.r*T[0],m.userData._dc.g*T[1],m.userData._dc.b*T[2]);
-  // --- mặt trời / mặt trăng / sao (chỉ thấy khi đang ở tầng cao nhất có trời) ---
-  const sky=_sk.dome.visible;
+  // --- mặt trời / mặt trăng / sao ---
+  const sky=_sk.dome.visible;   // chỉ tầng cao nhất thấy trời trực tiếp
   X.stars.position.copy(C.position);X.stars.rotation.y=h*.26;X.stars.material.opacity=sky?ss(.55,1,nightK)*.95:0;X.stars.visible=sky&&nightK>.5;
-  const sd_=_d.set(Math.cos(th)*.95,e,.33).normalize();
-  const sVis=sky&&e>-.1;X.sun.visible=sVis;
-  if(sVis){
-    const low=1-clamp(e,0,1),sz=(34+190*(1+.6*low))*(.9+.25*cur.glare);
-    X.sun.position.copy(C.position).addScaledVector(sd_,CFG.dist);X.sun.scale.set(sz,sz,1);
-    X.sun.material.color.setRGB(...cur.sunC).lerp(_w,.35*cur.glare);X.sun.material.opacity=ss(-.1,.08,e)*(cur.sun>0?1:.6)*clamp(cur.sun*2.2,0,1);
-  }
-  const mVis=sky&&me>-.08&&cur.moon>0;X.moon.visible=mVis;
-  if(mVis){const md=_p.set(-Math.cos(th)*.95,me,-.3).normalize();X.moon.position.copy(C.position).addScaledVector(md,CFG.dist);X.moon.scale.set(70,70,1);X.moon.material.opacity=ss(-.08,.15,me)*clamp(cur.moon*2.4,0,1)}
-  // vệt nắng xuyên sương trần (các tầng có trần: mặt trời không thấy trực tiếp, chỉ thấy quầng sáng trên lớp sương theo hướng nắng)
-  const cg=!sky&&cur.sun>.05&&e>-.05;X.ceil.visible=cg;
-  if(cg){
-    const cy=FY(curFl+1)-SLAB-2.2,R_=12+34*(1-clamp(e,0,1)),hd=Math.hypot(sd_.x,sd_.z)||1;
-    X.ceil.position.set(C.position.x+sd_.x/hd*R_,cy,C.position.z+sd_.z/hd*R_);const s=24+12*(1-clamp(e,0,1));X.ceil.scale.set(s,s,1);
-    X.ceil.material.color.setRGB(1,1,1);X.ceil.material.opacity=clamp(cur.sun*.85,0,.95);
+  const sdp=arc(_d,th,S0.z,S0.az);   // hướng mặt trời chính (dùng cho quầng chói)
+  const sVis=sky&&e>-.1;
+  const ceilY=FY(curFl+1)-SLAB-2.2;
+  for(let i=0;i<MAXB;i++){
+    // ---- mặt trời i ----
+    const b=W.suns[i],sp=X.sunB[i],cs=X.cSun[i];
+    if(!b){sp.visible=cs.visible=false}
+    else{
+      const thb=th+b.dh*Math.PI/12,eb=Math.sin(thb),dir=arc(_e,thb,b.z,b.az);
+      sp.visible=sky&&eb>-.1;
+      if(sp.visible){
+        const low=1-clamp(eb,0,1),sz=(34+190*(1+.6*low))*(.9+.25*cur.glare)*b.size;
+        sp.position.copy(C.position).addScaledVector(dir,CFG.dist);sp.scale.set(sz,sz,1);
+        sp.material.color.setRGB(cur.sunC[0]*b.c[0],cur.sunC[1]*b.c[1],cur.sunC[2]*b.c[2]).lerp(_w,.35*cur.glare);
+        sp.material.opacity=ss(-.1,.08,eb)*(cur.sun>0?1:.6)*clamp(cur.sun*2.2,0,1)*b.bright*X.fade;
+      }
+      // vệt nắng xuyên sương trần (các tầng có trần: không thấy mặt trời trực tiếp, chỉ thấy quầng sáng trên lớp sương theo hướng nắng)
+      cs.visible=!sky&&cur.sun>.05&&eb>-.05;
+      if(cs.visible){
+        const R_=12+34*(1-clamp(eb,0,1)),hd=Math.hypot(dir.x,dir.z)||1,s=(24+12*(1-clamp(eb,0,1)))*b.size;
+        cs.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cs.scale.set(s,s,1);
+        cs.material.color.setRGB(b.c[0],b.c[1],b.c[2]);cs.material.opacity=clamp(cur.sun*.85,0,.95)*b.bright*X.fade;
+      }
+    }
+    // ---- mặt trăng i ----
+    const m=W.moons[i],mp=X.moonB[i],cm=X.cMoon[i];
+    if(!m){mp.visible=cm.visible=false}
+    else{
+      const thm=th+Math.PI+m.dh*Math.PI/12,em=Math.sin(thm),dir=arc(_f,thm,m.z,m.az);
+      mp.visible=sky&&em>-.08&&cur.moon>0;
+      if(mp.visible){
+        const s=70*m.size;mp.position.copy(C.position).addScaledVector(dir,CFG.dist);mp.scale.set(s,s,1);
+        mp.material.color.setRGB(m.c[0],m.c[1],m.c[2]);mp.material.opacity=ss(-.08,.15,em)*clamp(cur.moon*2.4,0,1)*m.bright*X.fade;
+      }
+      cm.visible=!sky&&cur.moon>0&&em>-.05;   // tầng có trần: quầng trăng xanh nhạt trên lớp sương
+      if(cm.visible){
+        const R_=12+34*(1-clamp(em,0,1)),hd=Math.hypot(dir.x,dir.z)||1,s=(18+10*(1-clamp(em,0,1)))*m.size;
+        cm.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cm.scale.set(s,s,1);
+        cm.material.color.setRGB(m.c[0],m.c[1],m.c[2]);cm.material.opacity=clamp(cur.moon*2,0,.85)*ss(-.05,.2,em)*m.bright*X.fade;
+      }
+    }
   }
   // --- quầng chói (nhìn thẳng mặt trời, nhất là buổi trưa) ---
   let gA=0;
   if(sVis&&cur.glare>.05){
-    C.getWorldDirection(_p);const dt_=_p.dot(sd_);
-    if(dt_>.45){_p.copy(C.position).addScaledVector(sd_,CFG.dist).project(C);gA=ss(.45,.97,dt_)*cur.glare*.8;
+    C.getWorldDirection(_p);const dt_=_p.dot(sdp);
+    if(dt_>.45){_p.copy(C.position).addScaledVector(sdp,CFG.dist).project(C);gA=ss(.45,.97,dt_)*cur.glare*.8;
       const px=((_p.x+1)/2*100).toFixed(1),py=((1-_p.y)/2*100).toFixed(1),c=cur.sunC.map(v=>Math.round(255*(.6+.4*v))).join();
       X.gl.style.background='radial-gradient(circle at '+px+'% '+py+'%,rgba('+c+',1) 0,rgba('+c+',.55) 14%,rgba('+c+',.15) 38%,rgba('+c+',0) 65%)'}
   }
@@ -272,7 +399,7 @@ function tick(dt){
     l.sp.material.opacity=l.op*(.16+.9*nightK);
     if(l.pl){
       l.pl.intensity=l.pI*(.08+1.55*nightK);
-      l.pl.visible=nightK>.03;   // ban ngày gỡ hẳn PointLight khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh). Đổi số đèn làm three biên dịch lại shader 1 lần mỗi biến thể, sau đó dùng lại từ cache
+      l.pl.visible=nightK>.03;   // ban ngày gỡ hẳn PointLight khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh)
     }
   }
   // --- vật liệu phát sáng về đêm (mắt bot...) ---
@@ -281,10 +408,11 @@ function tick(dt){
     g.m.visible=true;const t=ss(g.lo,g.hi,nightK);
     g.m.color.setRGB(lerp(g.d[0],g.n[0],t),lerp(g.d[1],g.n[1],t),lerp(g.d[2],g.n[2],t));
   }
-  // --- đồng hồ ---
-  if(X.bd){X.bdT-=dt;if(X.bdT<=0){X.bdT=.5;const hh=Math.floor(h),mm=Math.floor((h-hh)*60),t=emoji(h)+' '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+(country?' · '+country:'');if(t!==X.bdTxt){X.bdTxt=t;X.bd.textContent=t;X.bd.title=tz}}}
+  // --- đồng hồ (giờ của thế giới đang đứng; tầng 1 hiện thêm quốc gia) ---
+  if(X.bd){X.bdT-=dt;if(X.bdT<=0){X.bdT=.5;const hh=Math.floor(h),mm=Math.floor((h-hh)*60),t=emoji(h)+' '+String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+' · '+(wi===0&&country?country:W.name||('T'+(wi+1)));if(t!==X.bdTxt){X.bdTxt=t;X.bd.textContent=t;X.bd.title=tz}}}
 }
 window.DayCycle={tick,reg,lamp,unlit,glow,shadows(on){SH.off=!on;if(on){SH.slow=0;SH.ema=.016}},fog:fogCol,hour:nowH,cur,KEYS,
+  worlds:WORLDS,world:f=>WORLDS[f],
   info:()=>({tz,country,hour:nowH()}),
   setHour(h,spd){if(h==null){ovr=false;frozen=false;speed=1;resync();return}baseH=((h%24)+24)%24;baseT=performance.now();ovr=true;speed=spd||0;frozen=!speed}
 };

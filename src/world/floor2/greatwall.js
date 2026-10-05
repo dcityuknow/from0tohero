@@ -7,6 +7,7 @@
 // Bản vẽ thiết kế ở hệ toạ độ nửa cạnh 75 (DA) và tự co giãn theo AF(1).
 // Nạp SAU bath.js, TRƯỚC nature.js (xem loader.js). KHÔNG tự dựng khi nạp file: floors.js (FM) gọi GreatWall.build() khi tầng 2 được nạp
 // và tự dỡ khi tầng 2 bị dỡ. nature.js đọc GreatWall.terrainGrid() (độ cao nền) và GreatWall.makeLakes() (suối).
+// Tháp canh (chòi nghỉ) XOAY theo hướng tường (không còn cố định 4 hướng trục), thân cao hơn để cung thủ đi lọt, và có đuốc ở trụ cửa (xem TORCH + khối ĐUỐC).
 // Chỉnh nhanh ở các hằng số / bảng MAIN, SPUR, STREAMS ngay bên dưới.
 (function(){
 const FLOOR=1;
@@ -15,7 +16,19 @@ const WH=4;           // tường cao hơn mặt đất ở sống núi bao nhi�
 const HWID=4;         // nửa bề rộng thân tường (m): mặt đi rộng 6m + 1 ô lan can mỗi bên (trước đây 3m)
 const STW=3;          // nửa bề rộng lối cầu thang lên tường (m): lối lên rộng 6m (trước đây 3.2m)
 const PAR=1.1;        // chiều cao lan can (m)
-const TW=12,TH=3.6;    // cạnh tháp canh (m), chiều cao thân tháp phía trên mặt đi (m)
+const TW=12,TH=5.2;    // cạnh tháp canh (m), chiều cao thân tháp phía trên mặt sàn tháp (m) (trước đây 3.6 -> thấp quá, cung thủ cao ~3.2m kể cả mũ không lọt)
+const DH=4.1;         // chiều cao cửa vòm tính từ sàn tháp (m) (trước đây 2.4). Cung thủ cao ~3.2m (mũ nhọn) nên chừa dư ~.9m
+// Đuốc gắn ở 2 trụ cạnh mỗi cửa vòm của tháp (tháp đầu mút chỉ có 1 cửa nên 2 đuốc, tháp thường 4 đuốc). Cung thủ đi bộ tới thắp khi trời tối (xem archer.js).
+const TORCH={
+  pu:.6,           // cột đuốc cách mặt tháp bao xa (m)
+  y0:1.25,y1:2.3,  // chân / đỉnh cột đuốc so với sàn tháp (m)
+  reachU:.95,      // cung thủ đứng cách mặt tháp bao xa (m) khi thắp
+  reachLat:2.7,    // cung thủ đứng lệch khỏi tim đường đi bao xa (m) về phía ngọn đuốc
+  lights:3,        // số đèn thật (PointLight) dùng chung cho các đuốc gần người chơi nhất. 0 = tắt đèn thật (chỉ còn lửa + quầng sáng)
+  light:2.2,       // độ sáng đèn thật
+  lightR:70,       // chỉ gắn đèn thật cho đuốc cách người chơi không quá ngần này (m)
+  draw:130         // đuốc xa hơn ngần này (m) thì không vẽ lửa
+};
 const SLOPE=.36;      // độ dốc tối đa của mặt đi (m cao / m dài): <= .38 để bước tự động (.55m) lên được ở cả đường chéo
 const HK=1;           // hệ số nhân độ cao núi + sống tường (1 = như thiết kế gốc, trần tầng 2 cao 32m). Hạ xuống (vd .8) nếu muốn núi thấp hơn
 const HMAX=24*HK;     // độ cao tối đa của núi (m)
@@ -137,14 +150,17 @@ function prep(){
     H[j*NH+i]=Math.max(0,Math.min(h0+hb*kb,Math.max(h0,HCAP)));   // không để đồi + núi cộng dồn chạm trần tầng
   }
   const G=(x,z)=>{let u=(x+A)/HS,v=(z+A)/HS;const m=NH-1.001;u=u<0?0:u>m?m:u;v=v<0?0:v>m?m:v;const i=u|0,j=v|0,fu=u-i,fv=v-j,a=H[j*NH+i],b=H[j*NH+i+1],c=H[(j+1)*NH+i],d=H[(j+1)*NH+i+1];return a+(b-a)*fu+(c-a)*fv+(a-b-c+d)*fu*fv};
-  // ---- tháp: toạ độ nguyên (khớp lưới ô 1m), hướng trục theo đường đi, cửa trong quay về phía thung lũng ----
+  // ---- tháp: XOAY theo hướng tường (trục u = tiếp tuyến đường đi lấy theo dây cung +-6m, trục v = pháp tuyến về phía thung lũng) ----
+  // Trước đây tháp chỉ có 4 hướng song song trục x/z nên ở đoạn tường chéo cửa tháp bị lệch khỏi mặt đi. Giờ tx,tz,nx,nz là hệ trục riêng của từng tháp.
   const towers=[];
   BR.forEach((B,b)=>B.twI.forEach((it,q)=>{
-    const p=B.pts[it],a=B.pts[Math.max(0,it-1)],c=B.pts[Math.min(B.n-1,it+1)],tx=c[0]-a[0],tz=c[1]-a[1],nx=-tz,nz=tx;
-    const horiz=Math.abs(tx)>Math.abs(tz),cand=horiz?[0,2]:[1,3],VD=[[0,1],[-1,0],[0,-1],[1,0]];   // hướng v của từng khung f
+    const p=B.pts[it],a=B.pts[Math.max(0,it-6)],c=B.pts[Math.min(B.n-1,it+6)];
+    let tx=c[0]-a[0],tz=c[1]-a[1];const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;
+    const nx=-tz,nz=tx;
+    const horiz=Math.abs(tx)>Math.abs(tz),cand=horiz?[0,2]:[1,3],VD=[[0,1],[-1,0],[0,-1],[1,0]];   // (giữ lại f / ax cho các file khác nếu có dùng)
     const f=cand.reduce((u,v)=>(VD[u][0]*nx+VD[u][1]*nz)>=(VD[v][0]*nx+VD[v][1]*nz)?u:v);
     const last=(q===B.twI.length-1&&b===1)||(q===0&&b===0);   // đầu mút của đường: chỉ 1 cửa
-    towers.push({b,i:it,cx:Math.round(p[0]),cz:Math.round(p[1]),f,Ht:B.R[it]+WH,end:last,ax:horiz,junc:b===0&&MAIN_TOWERS[q]===7});
+    towers.push({b,i:it,s:it*B.step,cx:p[0],cz:p[1],tx,tz,nx,nz,ang:Math.atan2(tz,tx),f,Ht:B.R[it]+WH,end:last,ax:horiz,junc:b===0&&MAIN_TOWERS[q]===7});
   }));
   ST={A,k,BR,near,streams,nearS,N1,bil,fDW,fDS,H,HS,NH,G,towers,main,spur,Rj};
   return ST;
@@ -271,15 +287,73 @@ function buildPines(P,cells,keyOf,Y0,B_){
   return cand.length;
 }
 
+// ---------- ĐUỐC ----------
+// Mỗi đuốc: {x,y,z (tâm lửa), b/s/lat (chỗ cung thủ đứng để thắp: nhánh, mét dọc đường, lệch ngang), lit, claim (cung thủ đang đi thắp), ign (0..1 lửa bùng lên)}.
+// archer.js đọc GreatWall.torches, gọi GreatWall.lightTorch(t) khi cung thủ thắp xong; GreatWall.torchTick(dt) do archer.js gọi mỗi khung hình khi người chơi ở tầng 2.
+// Trời sáng (DayCycle.cur.lamp < .12) thì đuốc tự tắt; tối lại cung thủ thắp lại.
+let TORCHES=[],LIGHTS=[],TT=0,FXT=null;
+const lampK=()=>{const dc=window.DayCycle;return dc&&dc.cur&&typeof dc.cur.lamp==='number'?dc.cur.lamp:0};
+function fxT(){
+  if(FXT)return FXT;
+  const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);
+  r.addColorStop(0,'rgba(255,235,170,1)');r.addColorStop(.3,'rgba(255,150,50,.55)');r.addColorStop(1,'rgba(255,100,20,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
+  FXT={outer:new THREE.BoxGeometry(.34,.5,.34),inner:new THREE.BoxGeometry(.2,.36,.2),tip:new THREE.BoxGeometry(.12,.2,.12),
+    mo:new THREE.MeshBasicMaterial({color:0xff7a1c}),mi:new THREE.MeshBasicMaterial({color:0xffd24d}),mt:new THREE.MeshBasicMaterial({color:0xfff2b8}),
+    halo:new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,color:0xffa050,opacity:.85})};
+  return FXT;
+}
+function mkTorch(x,y,z,o){
+  const F=fxT(),g=new THREE.Group(),a=new THREE.Mesh(F.outer,F.mo),b=new THREE.Mesh(F.inner,F.mi),c=new THREE.Mesh(F.tip,F.mt);
+  b.position.y=-.02;c.position.y=.3;g.add(a,b,c);g.position.set(x,y,z);g.visible=false;S.add(g);   // không đưa vào meshes: đạn bay xuyên lửa
+  const h=new THREE.Sprite(F.halo);h.position.set(x,y+.1,z);h.scale.set(3,3,1);h.visible=false;S.add(h);
+  return Object.assign({x,y,z,lit:false,claim:null,ign:0,ph:Math.random()*6.283,g,halo:h,f:1,d2:0},o);
+}
+function lightTorch(t){if(t.lit)return;t.lit=true;t.ign=0;t.claim=null}
+function torchTick(dt){
+  if(!TORCHES.length)return;
+  TT+=dt;
+  const pl=typeof P!=='undefined'?P:null,k=lampK(),dark=clamp((k-.15)/.5,0,1),day=k<.12,near=[];
+  for(const t of TORCHES){
+    if(!t.lit)continue;
+    if(day){t.lit=false;t.claim=null;t.g.visible=t.halo.visible=false;continue}   // hết đêm: tắt
+    t.ign=Math.min(1,t.ign+dt*2);
+    const dx=pl?pl.x-t.x:0,dz=pl?pl.z-t.z:0,dy=pl?pl.y-t.y:0;t.d2=dx*dx+dz*dz+dy*dy*.25;
+    if(t.d2>TORCH.draw*TORCH.draw){t.g.visible=t.halo.visible=false;continue}
+    const f=1+.16*Math.sin(TT*14+t.ph)+.1*Math.sin(TT*23+t.ph*2.1),w=t.ign*(1+.07*Math.sin(TT*9+t.ph*1.7));
+    t.f=f;t.g.visible=t.halo.visible=true;t.g.scale.set(w,t.ign*f,w);t.g.rotation.y=Math.sin(TT*3+t.ph)*.3;
+    const hs=(2.7+(1-t.ign)*2.2)*(.92+.08*f)*(.4+.6*t.ign);t.halo.scale.set(hs,hs,1);
+    near.push(t);
+  }
+  if(!LIGHTS.length)return;
+  near.sort((p,q)=>p.d2-q.d2);
+  const top=near.slice(0,LIGHTS.length).filter(t=>t.d2<TORCH.lightR*TORCH.lightR);
+  for(const L of LIGHTS)if(L.tt&&top.indexOf(L.tt)<0)L.tt=null;               // đèn nào đang gắn đuốc không còn trong nhóm gần nhất thì nhả ra
+  for(const t of top)if(!LIGHTS.some(L=>L.tt===t)){const L=LIGHTS.find(q=>!q.tt);if(L){L.tt=t;L.position.set(t.x,t.y+.5,t.z);L.intensity=0}}
+  for(const L of LIGHTS){const t=L.tt,want=t?TORCH.light*dark*t.ign*(.88+.12*t.f):0;L.intensity+=(want-L.intensity)*Math.min(1,dt*(t?6:12))}
+}
+function torchIdle(){for(const L of LIGHTS){L.intensity=0;L.tt=null}}   // rời tầng 2: tắt đèn thật
+function torchReset(){for(const t of TORCHES){t.lit=false;t.claim=null;t.g.visible=t.halo.visible=false}torchIdle()}
+
 // ---------- DỰNG ----------
 function build(){
   const P=prep(),Y0=FY(FLOOR),A=P.A;
   newQ();
   const cells=new Map(),key=(i,j)=>i*4096+j,keyOf=(x,z)=>key(Math.floor(x),Math.floor(z));
   const B_=(x0,x1,y0,y1,z0,z1)=>boxes.push({x0,x1,y0:Y0+y0,y1:Y0+y1,z0,z1,gw:true});   // gw: nature.js không "ép phẳng" địa hình quanh các khối này
-  // --- 1) tháp canh: chiếm ô lưới trước để ô tường né ra ---
-  const inTower=(x,z)=>{for(const t of P.towers)if(x>t.cx-TW/2&&x<t.cx+TW/2&&z>t.cz-TW/2&&z<t.cz+TW/2)return t;return null};
-  for(const t of P.towers)for(let i=t.cx-TW/2;i<t.cx+TW/2;i++)for(let j=t.cz-TW/2;j<t.cz+TW/2;j++)cells.set(key(i,j),{top:t.Ht,tower:true});
+  TORCHES=[];LIGHTS=[];
+  // toạ độ cục bộ của tháp (u dọc đường đi, v về phía thung lũng, 0..TW, gốc ở góc) -> toạ độ thế giới
+  const toW=(t,u,v)=>[t.cx+(u-TW/2)*t.tx+(v-TW/2)*t.nx,t.cz+(u-TW/2)*t.tz+(v-TW/2)*t.nz];
+  // --- 1) tháp canh: chiếm ô lưới trước để ô tường né ra. Tháp xoay tuỳ ý nên chiếm các ô 1m có TÂM nằm trong hình vuông đã xoay ---
+  const towerCells=[];
+  for(const t of P.towers){
+    const R=TW*.7072+1;
+    for(let i=Math.floor(t.cx-R);i<=Math.ceil(t.cx+R);i++)for(let j=Math.floor(t.cz-R);j<=Math.ceil(t.cz+R);j++){
+      const x=i+.5,z=j+.5,dx=x-t.cx,dz=z-t.cz,lu=dx*t.tx+dz*t.tz,lv=dx*t.nx+dz*t.nz;
+      if(Math.abs(lu)>TW/2||Math.abs(lv)>TW/2||cells.has(key(i,j)))continue;
+      const c={ci:i,cj:j,x,z,d:0,top:t.Ht,tower:true,sd:0,par:false,stair:false};
+      cells.set(key(i,j),c);towerCells.push(c);
+    }
+  }
   // --- 2) ô tường: tâm cách đường đi <= HWID ---
   const bb=[1e9,-1e9,1e9,-1e9];
   for(const B of P.BR)for(let i=0;i<B.n;i++){bb[0]=Math.min(bb[0],B.px[i]);bb[1]=Math.max(bb[1],B.px[i]);bb[2]=Math.min(bb[2],B.pz[i]);bb[3]=Math.max(bb[3],B.pz[i])}
@@ -312,11 +386,12 @@ function build(){
     stairs.push({b,i,N});
   }
   for(const c of wall)if(!c.stair&&c.d>HWID-1&&!noPar.has(key(c.ci,c.cj)))c.par=true;
+  for(const c of towerCells)wall.push(c);   // móng tháp: vẽ như ô tường, va chạm gộp theo hàng bên dưới
   // --- 4) xuất hình + va chạm cho từng ô ---
   const nb4=[[1,0],[-1,0],[0,1],[0,-1]];
   for(const c of wall){
     const x0=c.ci,x1=c.ci+1,z0=c.cj,z1=c.cj+1,top=c.top;
-    B_(x0,x1,0,top,z0,z1);
+    if(!c.tower)B_(x0,x1,0,top,z0,z1);
     const yb=nb4.map(([di,dj])=>{const n=cells.get(key(c.ci+di,c.cj+dj));
       if(n)return n.top>=top-.001?null:n.top;   // hàng xóm thấp hơn: chỉ vẽ phần cao hơn
       return Math.max(0,P.G(c.x+di,c.z+dj)-.7)}); // không có hàng xóm: vẽ xuống tới mặt đất
@@ -331,15 +406,64 @@ function build(){
       if(((c.ci+c.cj)&1)===0&&(c.sd<=0))addBox('brick','trim',x0+.05,x1-.05,T+PAR,T+PAR+.55,z0+.05,z1-.05,false);   // lỗ châu mai phía ngoài
     }else quad(c.stair?'brick':'pave',[x0,T,z1],[x1,T,z1],[x1,T,z0],[x0,T,z0],[0,1,0],uy);
   }
-  // --- 5) tháp canh: thân gạch + sàn lát đá, cửa vòm hai đầu (hướng ra tường), cửa sổ, mái ngói 4 tầng thu nhỏ ---
-  const DW=7,D0=(TW-DW)/2,D1=D0+DW,WC=(D1+TW)/2;   // cửa vòm rộng 7m, nằm giữa tháp (trước đây 2.4m và lệch tâm)
+  // --- 5) tháp canh (xoay theo tường): sàn lát đá, thân gạch, cửa vòm hai đầu (hướng ra tường), cửa sổ, mái ngói 4 tầng thu nhỏ, đuốc ở trụ cửa ---
+  // va chạm gộp theo hàng cho móng tháp (các ô tâm nằm trong hình vuông đã xoay)
+  {towerCells.sort((p,q)=>p.cj-q.cj||p.ci-q.ci);let run=null;
+    for(const c of towerCells){
+      if(run&&run.cj===c.cj&&run.x1===c.ci&&run.top===c.top)run.x1=c.ci+1;
+      else{if(run)B_(run.x0,run.x1,0,run.top,run.cj,run.cj+1);run={x0:c.ci,x1:c.ci+1,cj:c.cj,top:c.top}}
+    }
+    if(run)B_(run.x0,run.x1,0,run.top,run.cj,run.cj+1);}
+  // hộp quay theo tháp: 4 mặt bên + mặt trên (+ mặt dưới). Họa tiết lấy theo toạ độ cục bộ của tháp nên gạch luôn thẳng hàng với thân tháp
+  function quadN(kind,pts,n,uv){   // tự đảo thứ tự đỉnh cho đúng chiều mặt (back-face culling)
+    let [a,b,c,d]=pts;
+    const e1=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],e2=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+    const cx=e1[1]*e2[2]-e1[2]*e2[1],cy=e1[2]*e2[0]-e1[0]*e2[2],cz=e1[0]*e2[1]-e1[1]*e2[0];
+    if(cx*n[0]+cy*n[1]+cz*n[2]<0)[b,d]=[d,b];
+    quad(kind,a,b,c,d,n,uv);
+  }
+  function addBoxR(t,sk,tk,u0,u1,y0,y1,v0,v1,bot){
+    const W=(u,v,y)=>{const a=toW(t,u,v);return [a[0],y,a[1]]};
+    const lu=p=>(p[0]-t.cx)*t.tx+(p[2]-t.cz)*t.tz+TW/2,lv=p=>(p[0]-t.cx)*t.nx+(p[2]-t.cz)*t.nz+TW/2;
+    const uU=p=>[lv(p),p[1]],uV=p=>[lu(p),p[1]],uT=p=>[lu(p),lv(p)];
+    quadN(sk,[W(u1,v0,y0),W(u1,v1,y0),W(u1,v1,y1),W(u1,v0,y1)],[t.tx,0,t.tz],uU);
+    quadN(sk,[W(u0,v0,y0),W(u0,v1,y0),W(u0,v1,y1),W(u0,v0,y1)],[-t.tx,0,-t.tz],uU);
+    quadN(sk,[W(u0,v1,y0),W(u1,v1,y0),W(u1,v1,y1),W(u0,v1,y1)],[t.nx,0,t.nz],uV);
+    quadN(sk,[W(u0,v0,y0),W(u1,v0,y0),W(u1,v0,y1),W(u0,v0,y1)],[-t.nx,0,-t.nz],uV);
+    quadN(tk,[W(u0,v0,y1),W(u1,v0,y1),W(u1,v1,y1),W(u0,v1,y1)],[0,1,0],uT);
+    if(bot)quadN(sk,[W(u0,v0,y0),W(u1,v0,y0),W(u1,v1,y0),W(u0,v1,y0)],[0,-1,0],uT);
+  }
+  // va chạm cho 1 khối cục bộ của tháp (các hộp AABB của thế giới xấp xỉ khối đã xoay)
+  function colR(t,u0,u1,v0,v1,y0,y1){
+    if(Math.abs(t.tx*t.tz)<.002){const a=toW(t,u0,v0),b=toW(t,u1,v1);B_(Math.min(a[0],b[0]),Math.max(a[0],b[0]),y0,y1,Math.min(a[1],b[1]),Math.max(a[1],b[1]));return}   // tháp thẳng trục: 1 hộp
+    const L=u1-u0,Wd=v1-v0;
+    if(Math.min(L,Wd)<=1.6){   // khối mỏng (tường, trụ, lanh tô): rải hộp 1m dọc theo cạnh dài, bước .5m (không để lọt khe)
+      const along=L>=Wd,n=Math.max(1,Math.ceil((along?L:Wd)/.5)),m=Math.max(1,Math.ceil((along?Wd:L)/.9));
+      for(let i=0;i<n;i++)for(let j=0;j<m;j++){
+        const a=u0+(along?(i+.5)*L/n:(j+.5)*L/m),c=v0+(along?(j+.5)*Wd/m:(i+.5)*Wd/n),w=toW(t,a,c);
+        B_(w[0]-.5,w[0]+.5,y0,y1,w[1]-.5,w[1]+.5);
+      }
+      return;
+    }
+    // khối lớn (mái): các ô 1m có tâm trong hình đã xoay, gộp theo hàng
+    const cs=[],cr=[toW(t,u0,v0),toW(t,u1,v0),toW(t,u0,v1),toW(t,u1,v1)],xs=cr.map(p=>p[0]),zs=cr.map(p=>p[1]);
+    for(let i=Math.floor(Math.min(...xs));i<=Math.ceil(Math.max(...xs));i++)for(let j=Math.floor(Math.min(...zs));j<=Math.ceil(Math.max(...zs));j++){
+      const dx=i+.5-t.cx,dz=j+.5-t.cz,lu=dx*t.tx+dz*t.tz+TW/2,lv=dx*t.nx+dz*t.nz+TW/2;
+      if(lu>=u0-.25&&lu<=u1+.25&&lv>=v0-.25&&lv<=v1+.25)cs.push([i,j])}
+    cs.sort((p,q)=>p[1]-q[1]||p[0]-q[0]);let run=null;
+    for(const [i,j] of cs){
+      if(run&&run.j===j&&run.x1===i)run.x1=i+1;else{if(run)B_(run.x0,run.x1,y0,y1,run.j,run.j+1);run={x0:i,x1:i+1,j}}}
+    if(run)B_(run.x0,run.x1,y0,y1,run.j,run.j+1);
+  }
+  const DW=7,D0=(TW-DW)/2,D1=D0+DW,WC=(D1+TW)/2;   // cửa vòm rộng 7m, nằm giữa tháp
   for(const t of P.towers){
-    const f=t.f,Ht=t.Ht,top=Ht+TH,dh=Ht+2.4,r0=RF[f](TW/2,TW/2),OX=t.cx-r0[0],OZ=t.cz-r0[1];
-    const rect=(u0,u1,v0,v1)=>{const a=RF[f](u0,v0),b=RF[f](u1,v1);return [OX+Math.min(a[0],b[0]),OX+Math.max(a[0],b[0]),OZ+Math.min(a[1],b[1]),OZ+Math.max(a[1],b[1])]};
-    const col=(u0,u1,v0,v1,y0,y1)=>{const [x0,x1,z0,z1]=rect(u0,u1,v0,v1);B_(x0,x1,y0,y1,z0,z1)};
-    const put=(sk,tk,u0,u1,v0,v1,y0,y1,solid,bot)=>{const [x0,x1,z0,z1]=rect(u0,u1,v0,v1);addBox(sk,tk,x0,x1,Y0+y0,Y0+y1,z0,z1,bot);if(solid)B_(x0,x1,y0,y1,z0,z1)};
-    put('brick','pave',0,TW,0,TW,0,Ht,true);
-    for(const [ua,door] of[[0,!(t.end&&t.b===0)],[TW-1,!(t.end&&t.b===1)]]){   // đầu mút đường đi thì đóng cửa phía ngoài: tháp đầu của tường chính đóng ở ua=0 (trước đây đóng nhầm phía nối với tường -> bị chặn)
+    const Ht=t.Ht,top=Ht+TH,dh=Ht+DH,B=P.BR[t.b];
+    const put=(sk,tk,u0,u1,v0,v1,y0,y1,solid,bot)=>{addBoxR(t,sk,tk,u0,u1,Y0+y0,Y0+y1,v0,v1,bot);if(solid)colR(t,u0,u1,v0,v1,y0,y1)};
+    const col=(u0,u1,v0,v1,y0,y1)=>colR(t,u0,u1,v0,v1,y0,y1);
+    // móng gạch hơi thấp hơn sàn: che chỗ thân tháp (đã xoay) nhô ra khỏi các ô móng bậc thang; sàn lát đá xoay theo tháp nổi cao hơn mặt ô 2cm để không nhấp nháy
+    put('brick','pave',0,TW,0,TW,Ht-1.2,Ht-.02,false,false);
+    put('pave','pave',0,TW,0,TW,Ht,Ht+.02,false,false);
+    for(const [ua,door] of[[0,!(t.end&&t.b===0)],[TW-1,!(t.end&&t.b===1)]]){   // đầu mút đường đi thì đóng cửa phía ngoài
       if(door){
         put('brick','brick',ua,ua+1,0,D0,Ht,top,true);put('brick','brick',ua,ua+1,D1,TW,Ht,top,true);put('brick','brick',ua,ua+1,D0,D1,dh,top,true);
         put('wood','wood',ua-.06,ua+1.06,D0-.18,D0,Ht,dh,false);put('wood','wood',ua-.06,ua+1.06,D1,D1+.18,Ht,dh,false);put('wood','wood',ua-.06,ua+1.06,D0-.18,D1+.18,dh-.2,dh,false);
@@ -352,12 +476,26 @@ function build(){
     put('trim','trim',-.15,TW+.15,-.15,TW+.15,top-.2,top,false);
     for(let n=0;n<4;n++){const o=-1+1.1*n;put('roof','roof',o,TW-o,o,TW-o,top+.35*n,top+.35*(n+1),false,n===0)}
     put('trim','trim',TW/2-.4,TW/2+.4,TW/2-.4,TW/2+.4,top+1.4,top+1.8,false);
-    const y0=Ht+1.1;
+    const y0=Ht+1.9;   // cửa sổ cao hơn cho hợp thân tháp mới
     const winU=(uf,s,c)=>{put('dark','dark',uf,uf+s*.08,c-.5,c+.5,y0,y0+1.5,false);put('dark','dark',uf,uf+s*.08,c-.3,c+.3,y0+1.5,y0+1.8,false);put('trim','trim',uf,uf+s*.14,c-.65,c+.65,y0-.12,y0,false)};
     const winV=c=>{put('dark','dark',c-.5,c+.5,TW,TW+.08,y0,y0+1.5,false);put('dark','dark',c-.3,c+.3,TW,TW+.08,y0+1.5,y0+1.8,false);put('trim','trim',c-.65,c+.65,TW,TW+.14,y0-.12,y0,false)};
     winU(TW,1,WC);if(t.end)winU(0,-1,WC);
     winV(TW/2-1.6);winV(TW/2+1.6);
+    // ---- đuốc: 2 trụ cạnh mỗi cửa vòm (bracket gỗ + cột gỗ + chén sắt). Lửa / đèn là đối tượng riêng, chỉ hiện khi cung thủ đã thắp ----
+    for(const [uf,out,open] of[[0,-1,!(t.end&&t.b===0)],[TW,1,!(t.end&&t.b===1)]]){
+      if(!open)continue;
+      for(const vv of[D0-.45,D1+.45]){
+        const pu=uf+out*TORCH.pu,ya=Ht+TORCH.y0,yb=Ht+TORCH.y1;
+        put('wood','wood',Math.min(uf,pu+out*.1),Math.max(uf,pu+out*.1),vv-.07,vv+.07,ya+.12,ya+.3,false);   // tay đỡ gắn vào mặt tháp
+        put('wood','wood',pu-.1,pu+.1,vv-.1,vv+.1,ya,yb,false);                                           // cột đuốc
+        put('dark','dark',pu-.19,pu+.19,vv-.19,vv+.19,yb,yb+.22,false);                                     // chén sắt giữ lửa
+        const w=toW(t,pu,vv);
+        TORCHES.push(mkTorch(w[0],Y0+yb+.5,w[1],{b:t.b,s:t.i*B.step+out*(TW/2+TORCH.reachU),lat:(vv>TW/2?1:-1)*TORCH.reachLat,tw:t}));
+      }
+    }
   }
+  // đèn thật dùng chung (chỉ vài cái, gắn vào đuốc gần người chơi nhất mỗi khung hình)
+  for(let i=0;i<TORCH.lights;i++){const L=new THREE.PointLight(0xff9a40,0,34,1.6);L.position.set(0,-500,0);L.tt=null;S.add(L);LIGHTS.push(L)}
   // --- xuất mesh ---
   const M=mats();
   for(const q of Q.values()){
@@ -372,5 +510,5 @@ function build(){
   Q=null;
   buildPines(P,cells,keyOf,Y0,B_);
 }
-window.GreatWall={build,floor:FLOOR,prep,terrainGrid,makeLakes,cfg:{WH,HWID,HMAX,SLOPE}};
+window.GreatWall={build,floor:FLOOR,prep,terrainGrid,makeLakes,cfg:{WH,HWID,HMAX,SLOPE,TW,TH,DH},get torches(){return TORCHES},torchCfg:TORCH,lightTorch,torchTick,torchIdle,torchReset};
 })();
