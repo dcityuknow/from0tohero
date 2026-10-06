@@ -5,6 +5,11 @@
 // Nạp SAU voxel.js, TRƯỚC nature.js để cây / đá / sông tự né nhà (xem keepOuts trong nature.js).
 (function(){
 const HX=0,HZ=15.5;                 // tâm nhà (x,z) trên sàn tầng 1
+// QUAY MẶT NHÀ VỀ PHÍA SÔNG: sông tầng 1 chạy ngang bản đồ ở phía -z của nhà, nên xoay cả căn nhà 180° quanh tâm (HX,HZ):
+// mặt tiền (hiên, bậc thang, biển hiệu logo) hướng -z (về sông), lưng nhà hướng +z. false = như cũ (mặt tiền +z).
+// Mọi toạ độ bên dưới vẫn viết theo hệ cục bộ cũ; chỉ lúc đặt mesh / va chạm / đèn / che khuất mới đảo dấu (biến sg).
+const FACE_RIVER=true;
+const sg=FACE_RIVER?-1:1;           // -1 = đã xoay 180°: (x,z) cục bộ -> (HX-x, HZ-z)
 const F=3.5;                        // (giữ tên cũ) mặt tiền ở z=+ cục bộ
 const FL=.875, WT=3.375, RY=3.625;  // TẦNG 1: mặt sàn hiên · đỉnh tường · chân mái dưới
 const RZ=-.25;                      // tâm z của mái dưới
@@ -603,7 +608,7 @@ function buildHouse(hx,hz){
     logo(E,-5.5,2.23,5.35+.012,2.0,false);
     text(E,'POWERED',-5.5,1.47,5.261+.012,.04,0xffffff);
     text(E,'BY RLNC',-5.5,1.15,5.261+.012,.04,0xffffff);
-    const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);S.add(gm);prevObjs.push(gm);}   // không vào meshes -> không ảnh hưởng va chạm / bắn
+    const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);if(FACE_RIVER)gm.rotation.y=Math.PI;S.add(gm);prevObjs.push(gm);}   // không vào meshes -> không ảnh hưởng va chạm / bắn
   fp(-2.0,2.0,1.15,3.35,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=38||j<2||j>=20)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4]);   // bảng gỗ đen, y chang mặt trước
   logo(v,0,2.25,-3.25-.18,3.0,true);
 
@@ -773,7 +778,7 @@ function buildHouse(hx,hz){
   v.ell(-7.9,.3,-3.4,.6,.35,.5,G,.1);v.ell(7.9,.3,-3.4,.6,.35,.5,G,.1);
   v.ell(3.5,.25,5.6,.45,.25,.4,G,.1);v.ell(-2.6,.25,5.7,.4,.2,.35,P,.1);
 
-  for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
+  for(const m of v.meshLOD()){m.position.set(hx,0,hz);if(FACE_RIVER)m.rotation.y=Math.PI;S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
 
   // ================= QUẦNG SÁNG + ÁNH SÁNG VÀNG =================
   try{
@@ -781,11 +786,11 @@ function buildHouse(hx,hz){
       const tex=glowTex();
       for(const l of lamps){
         const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));
-        sp.scale.set(l.s,l.s,1);sp.position.set(hx+l.x,l.y,hz+l.z);S.add(sp);prevObjs.push(sp);
+        sp.scale.set(l.s,l.s,1);sp.position.set(hx+sg*l.x,l.y,hz+sg*l.z);S.add(sp);prevObjs.push(sp);
         let pl=null;
         if(GLOW_LIGHTS&&l.light){
           pl=new THREE.PointLight(0xffc860,1.0,9,2);
-          pl.position.set(hx+l.x,l.y-.1,hz+l.z);S.add(pl);prevObjs.push(pl);
+          pl.position.set(hx+sg*l.x,l.y-.1,hz+sg*l.z);S.add(pl);prevObjs.push(pl);
         }
         if(window.DayCycle)DayCycle.reg(sp,pl);   // ban đêm đèn sáng rực, ban ngày chỉ còn quầng mờ
       }
@@ -796,8 +801,8 @@ function buildHouse(hx,hz){
   // wh = true: khối này bao quanh giếng thang -> physics.js (nohole) bỏ qua nó khi TÂM người chơi đang nằm trong giếng.
   // FIX 2: người chơi có bán kính .35 nên đầu / vai chạm trần, lan can, tường sau ngay cả khi tâm vẫn trong giếng rộng 1.25m
   //        (còn ~.17m làn đi) -> lệch chút là bị đẩy văng. Giờ chỉ cần tâm nằm trong giếng là leo thang bình thường.
-  const inWell=(x,z)=>inH(x-hx,z-hz);
-  const cb=(x0,x1,y0,y1,z0,z1,wh)=>{if(x1<=x0||y1<=y0||z1<=z0)return;const o={x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1};if(wh)o.hole=inWell;boxes.push(o)};
+  const inWell=(x,z)=>inH(sg*(x-hx),sg*(z-hz));
+  const cb=(x0,x1,y0,y1,z0,z1,wh)=>{if(x1<=x0||y1<=y0||z1<=z0)return;const o=FACE_RIVER?{x0:hx-x1,x1:hx-x0,y0,y1,z0:hz-z1,z1:hz-z0}:{x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1};if(wh)o.hole=inWell;boxes.push(o)};
   const cbHole=(x0,x1,y0,y1,z0,z1)=>{          // hộp va chạm có khoét giếng thang
     if(x1<=H.x0||x0>=H.x1||z1<=H.z0||z0>=H.z1)return cb(x0,x1,y0,y1,z0,z1);
     cb(x0,H.x0,y0,y1,z0,z1,1);cb(H.x1,x1,y0,y1,z0,z1,1);
@@ -819,7 +824,7 @@ function buildHouse(hx,hz){
   (window.OccSrc=window.OccSrc||{}).house=[
     [-6.5,-1.25,FL,WT,2.5,2.75],[1.25,6.5,FL,WT,2.5,2.75],[-1.25,1.25,2.75,WT,2.5,2.75],[-6.5,6.5,FL,WT,-3.25,-3.0],[-6.5,-6.25,FL,WT,-3.25,2.75],[6.25,6.5,FL,WT,-3.25,2.75],
     [-6,-1.25,FL2,WT2,1.75,2.0],[1.25,6,FL2,WT2,1.75,2.0],[-1.25,1.25,FL2+1.875,WT2,1.75,2.0],[-6,6,FL2,WT2,-2.75,-2.5],[-6,-5.75,FL2,WT2,-2.75,2.0],[5.75,6,FL2,WT2,-2.75,2.0]]
-    .map(([x0,x1,y0,y1,z0,z1])=>({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1}));
+    .map(([x0,x1,y0,y1,z0,z1])=>FACE_RIVER?{x0:hx-x1,x1:hx-x0,y0,y1,z0:hz-z1,z1:hz-z0}:{x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1});
   // trần tầng 1 + mái dưới + sàn tầng 2 (khoét giếng thang)
   cbHole(-6.75,6.75,WT,RY,-3.5,3.0);
   cbHole(-8.5,8.5,RY,RY+.5,RZ-4.75,RZ+4.75);
@@ -858,6 +863,6 @@ function buildHouse(hx,hz){
   cb(4.65,5.35,0,1.3,5.25,5.95);                         // đèn đá
 }
 buildHouse(HX,HZ);
-window.HouseZone=(x,z)=>x>HX-8.8&&x<HX+8.8&&z>HZ-5.4&&z<HZ+6.2;
+window.HouseZone=(x,z)=>x>HX-8.8&&x<HX+8.8&&(FACE_RIVER?(z>HZ-6.2&&z<HZ+5.4):(z>HZ-5.4&&z<HZ+6.2));
 window.House={build:buildHouse,rebuild:()=>buildHouse(HX,HZ)};
 })();

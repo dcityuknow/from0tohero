@@ -12,7 +12,7 @@ const circleRect=(x,z,r,k)=>{const dx=Math.max(k.x0-x,0,x-k.x1),dz=Math.max(k.z0
 function keepOuts(f){
   const k=[];
   if(f===0)k.push({x0:-3.5*MAPK,x1:3.5*MAPK,z0:12.5*MAPK,z1:19.5*MAPK});
-  if(f===0)k.push({x0:-9.2,x1:9.2,z0:10.5,z1:22});   // nhà rubik (world/house.js) + cây cảnh quanh nhà: không mọc cây / đá / sông đè lên
+  if(f===0)k.push({x0:-9.2,x1:9.2,z0:9.2,z1:22});   // nhà rubik (world/house.js) + cây cảnh quanh nhà: không mọc cây / đá / sông đè lên (z0=9.2: nhà đã quay mặt về sông nên hiên + bậc thang mới lấn ra phía -z)
   if(f===0&&window.PavilionKeep)k.push(window.PavilionKeep);   // chòi Nhật (world/pavilion.js): không mọc cây / đá, không đào sông, không đặt đầu cầu đè lên chòi
   if(f===0&&window.TeaKeeps)k.push(...window.TeaKeeps);   // 2 bộ bàn trà (world/teaset.js): cây / đá / sông / đầu cầu né ra
   if(f===0&&window.StairGroveKeep)k.push(window.StairGroveKeep);   // rừng cây cao che tường thang lên tầng 2 (world/stairgrove.js): cây / đá / sông / đầu cầu né ra
