@@ -8,8 +8,29 @@ const DZ=1.75;                      // phần sâu thêm mỗi bên cho hành la
 const HX=17.25, HZ=3.25+DZ;            // nửa rộng (rộng ra để bày tranh 2 bên) / nửa sâu của sàn
 const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 cột / trụ đá trên mỗi hàng (đều nhau, 8 thay vì 6)
 
-const CEIL_X=[-14.1,-9.4,-4.7,4.7,9.4,14.1], CEIL_Y=3.55;   // vị trí x (dọc sảnh) và độ cao đáy của 6 đèn treo giữa trần
-const CEIL_LIGHTS=true;   // true = mỗi đèn có thêm PointLight thật chiếu sáng tranh (đẹp hơn nhưng tốn GPU); false = chỉ phát sáng, không chiếu
+// ĐÈN RỌI RAY (track light): 2 thanh ray đen chạy dọc trần phía trên 2 mép hành lang, trên ray gắn các đèn ống đen xoay chĩa vào từng tranh (tranh to có 2 đèn).
+const TRACK_Z=1.4, TRACK_X=16;   // ray cách tâm sảnh ±TRACK_Z (m), dài ±TRACK_X (m)
+const TRACK_SPOT=true;           // true = mỗi đèn có SpotLight thật chiếu vào tranh (đẹp hơn nhưng tốn GPU); false = chỉ có thân đèn + mắt đèn phát sáng
+const TRACK_DAY=.8, TRACK_NIGHT=2.8;   // cường độ SpotLight ban ngày / ban đêm
+const TRACKL=[], prevTrack=[];   // danh sách SpotLight đang dùng, và các vật của lần dựng trước (để rebuild không bị nhân đôi)
+const LENSGLOW=new THREE.MeshBasicMaterial({vertexColors:true});LENSGLOW.visible=false;
+// HÀO QUANG: (1) vầng sáng mềm phủ lên mặt mỗi tranh (cộng sáng, nhìn thấy cả ngày lẫn đêm), (2) chùm sáng mờ đi từ miệng đèn xuống tranh.
+const TRACK_HALO=.5, TRACK_BEAM=.12;   // độ đậm vầng sáng / chùm sáng ban đêm (0 = tắt); ban ngày tự giảm
+const _cv=(w,h,fn)=>{const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);return new THREE.CanvasTexture(c)};
+const HALOMAT=new THREE.MeshBasicMaterial({map:_cv(128,128,(g,w,h)=>{const r=g.createRadialGradient(w/2,h*.4,0,w/2,h*.5,w/2);
+  r.addColorStop(0,'rgba(255,244,205,1)');r.addColorStop(.35,'rgba(255,230,170,.55)');r.addColorStop(.7,'rgba(255,215,140,.14)');r.addColorStop(1,'rgba(255,210,130,0)');g.fillStyle=r;g.fillRect(0,0,w,h)}),
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:TRACK_HALO*.6});
+const BEAMMAT=new THREE.MeshBasicMaterial({map:_cv(4,64,(g,w,h)=>{const r=g.createLinearGradient(0,0,0,h);r.addColorStop(0,'rgba(255,240,200,1)');r.addColorStop(1,'rgba(255,225,170,.25)');g.fillStyle=r;g.fillRect(0,0,w,h)}),
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,opacity:TRACK_BEAM*.4});
+   // mắt đèn: ban đêm sáng trắng ấm, không ăn đèn
+(function trackLoop(){
+  requestAnimationFrame(trackLoop);
+  const dc=window.DayCycle,k=dc&&dc.cur?dc.cur.lamp:0,t=Math.min(1,Math.max(0,(k-.25)/.65)),sm=t*t*(3-2*t);
+  const I=TRACK_DAY+(TRACK_NIGHT-TRACK_DAY)*sm;
+  for(const l of TRACKL)l.intensity=I;
+  HALOMAT.opacity=TRACK_HALO*(.6+.4*sm);BEAMMAT.opacity=TRACK_BEAM*(.4+.6*sm);
+  LENSGLOW.visible=k>.25;LENSGLOW.color.setRGB(1+.3*sm,1+.25*sm,1+.05*sm);
+})();
 const POST=0x6b2d1c, RED=0x8a3b22, RED2=0x9c4a2c, DARK=0x2a1a10;
 const STONE=[0x5a5a5a,0x6a6a6a,0x4c4c4c,0x777777,0x3e3e3e];
 const ROOF=[0x2b2b33,0x22222a,0x1c1c22], TRIM=[0x8a8a8a,0x767676,0x9a9a9a];
@@ -166,6 +187,7 @@ let prevGlow=null;   // bản phủ của lần dựng trước (để rebuild k
 
 function build(hx,hz){
   if(prevGlow){try{S.remove(prevGlow)}catch(e){}prevGlow=null}
+  for(const o of prevTrack){try{S.remove(o)}catch(e){}}prevTrack.length=0;TRACKL.length=0;
   const v=new VB();
   const fb=(x0,x1,y0,y1,z0,z1,c,s=.25)=>v.box((x0+x1)/2,(y0+y1)/2,(z0+z1)/2,x1-x0,y1-y0,z1-z0,c,s);
   const fp=(x0,x1,y0,y1,z0,z1,s,fn)=>fb(x0,x1,y0,y1,z0,z1,
@@ -233,16 +255,6 @@ function build(hx,hz){
   fb(-3.2,-2.6,0,.2,5.0+DZ,5.6+DZ,0x666666,.1);fb(-3.0,-2.8,.2,.8,5.2+DZ,5.4+DZ,0x777777,.1);
   fb(-3.1,-2.7,.8,1.1,5.1+DZ,5.5+DZ,0xffd070,.1);fb(-3.25,-2.55,1.1,1.3,4.95+DZ,5.65+DZ,0x555555,.1);
   cb(-3.25,-2.55,0,1.3,4.95+DZ,5.65+DZ);
-
-  // ---- ĐÈN TREO GIỮA TRẦN: 6 đèn lồng treo xích từ xà giữa, mỗi đèn thẳng cột với một cặp kệ tranh; ban đêm sáng + chiếu vào tranh (xem DayCycle.lamp bên dưới) ----
-  for(const x of CEIL_X){
-    fb(x-.03,x+.03,CEIL_Y+.55,RY-.4,-.03,.03,DARK,.03);                                  // xích treo
-    fb(x-.28,x+.28,CEIL_Y+.45,CEIL_Y+.55,-.28,.28,DARK,.07);                              // nắp trên
-    fb(x-.2,x+.2,CEIL_Y+.05,CEIL_Y+.45,-.2,.2,(i,j,k)=>(j===0)?0xfff0b0:0xffc860,.05);    // thân đèn sáng
-    for(const cx of[-.22,.22])for(const cz of[-.22,.22])fb(x+cx-.025,x+cx+.025,CEIL_Y+.05,CEIL_Y+.45,cz-.025,cz+.025,DARK,.025);   // 4 thanh khung
-    fb(x-.28,x+.28,CEIL_Y-.05,CEIL_Y+.05,-.28,.28,DARK,.07);                              // đáy
-    fb(x-.04,x+.04,CEIL_Y-.15,CEIL_Y-.05,-.04,.04,0xe8c04a,.04);                           // núm vàng
-  }
 
   // ---- BIỂN HIỆU góc trước-trái: LOGO + "OPTIMUM" (cùng kiểu với nhà) ----
   const SX0=-14.05, SX1=-11.45, SCX=(SX0+SX1)/2;         // biển rộng 2.6, tâm SCX
@@ -328,6 +340,39 @@ function build(hx,hz){
     GUIDE_EASELS.push({x:hx+cx,z:hz+cz,y:Y(1.25),s:K,fx:sn,fz:cs,n1:P.n1,n2:P.n2});
   };
   for(const L of LAYOUT)easel(L.x,L.z,L.pi,L.s,L.deg);
+  // ---- ĐÈN RỌI RAY ----
+  const BLK=0x15151a;
+  for(const rz of[-TRACK_Z,TRACK_Z]){
+    fb(-TRACK_X,TRACK_X,RY-.1,RY,rz-.06,rz+.06,BLK,.06);                          // thanh ray
+    for(const x of[-TRACK_X,-TRACK_X/2,0,TRACK_X/2,TRACK_X])fb(x-.1,x+.1,RY-.16,RY-.1,rz-.1,rz+.1,BLK,.05);   // bộ cấp nguồn / kẹp ray
+  }
+  const _dir=new THREE.Vector3(),_dn=new THREE.Vector3(0,-1,0);
+  for(const e of GUIDE_EASELS){
+    const lx=e.x-hx,lz=e.z-hz,rz=lz<0?-TRACK_Z:TRACK_Z,n=e.s>=1.5?2:1;
+    {const hm=new THREE.Mesh(new THREE.PlaneGeometry(1.5*e.s,1.5*e.s),HALOMAT);          // vầng sáng ngay trước mặt tranh
+     hm.position.set(e.x+e.fx*.3,e.y+.12*e.s,e.z+e.fz*.3);hm.rotation.y=Math.atan2(e.fx,e.fz);S.add(hm);prevTrack.push(hm)}
+    for(let q=0;q<n;q++){
+      const off=n===1?0:(q?.3:-.3)*e.s,px=lx+off*e.fz,py=RY-.55;           // đèn trượt trên ray, thẳng với tranh (dọc theo mặt tranh)
+      fb(px-.07,px+.07,RY-.2,RY-.1,rz-.07,rz+.07,BLK,.035);                  // đế gắn vào ray
+      fb(px-.025,px+.025,py,RY-.2,rz-.025,rz+.025,BLK,.025);                  // cổ đèn
+      const tx=lx+e.fx*.2+off*e.fz,ty=e.y,tz=lz+e.fz*.2-off*e.fx;          // điểm đèn chĩa tới: giữa mặt tranh
+      _dir.set(tx-px,ty-py,tz-rz).normalize();
+      const w=new VB();                                                       // thân đèn ống, dựng thẳng đứng hướng xuống rồi xoay chĩa vào tranh
+      w.cyl(0,-.3,0,.1,.6,BLK,.04,'y');w.box(0,-.01,0,.2,.05,.2,0x2a2a30,.05);   // ống + nắp
+      w.cyl(0,-.6,0,.105,.03,0x2a2a30,.03,'y',.07);                           // viền miệng đèn
+      const m=w.mesh();m.position.set(hx+px,py,hz+rz);m.quaternion.setFromUnitVectors(_dn,_dir);S.add(m);prevTrack.push(m);
+      const wl=new VB();wl.cyl(0,-.6,0,.075,.02,0xfff3d0,.025,'y');        // mắt đèn (ban đêm phát sáng)
+      const gm=wl.mesh();gm.material=LENSGLOW;gm.position.copy(m.position);gm.quaternion.copy(m.quaternion);S.add(gm);prevTrack.push(gm);
+      {const lx2=hx+px+_dir.x*.62,ly2=py+_dir.y*.62,lz2=hz+rz+_dir.z*.62,bx=hx+tx,bz=hz+tz,L=Math.hypot(bx-lx2,ty-ly2,bz-lz2);
+       const bg=new THREE.Mesh(new THREE.CylinderGeometry(.07,.42*e.s+.1,L,20,1,true),BEAMMAT);   // chóp: nhỏ ở miệng đèn, loe ra ở tranh
+       bg.position.set((lx2+bx)/2,(ly2+ty)/2,(lz2+bz)/2);bg.quaternion.copy(m.quaternion);S.add(bg);prevTrack.push(bg)}
+      if(TRACK_SPOT&&q===0){   // mỗi tranh 1 SpotLight thật (đèn thứ 2 của tranh to chỉ phát sáng) để giữ số đèn vừa phải
+        const sp=new THREE.SpotLight(0xfff0d2,TRACK_DAY,10,.4+.12*(e.s-1),.55,1);   // tranh càng to chùm sáng càng rộng
+        sp.position.set(hx+px,py-.55,hz+rz);sp.target.position.set(hx+lx+e.fx*.2,ty,hz+lz+e.fz*.2);
+        S.add(sp);S.add(sp.target);prevTrack.push(sp,sp.target);TRACKL.push(sp);
+      }
+    }
+  }
 
   for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
   window.PavilionGuide={cx:hx,cz:hz,FL,HX,HZ,easels:GUIDE_EASELS};   // guide-bot.js đọc mỗi khung hình (rebuild tự cập nhật)
@@ -335,7 +380,6 @@ function build(hx,hz){
   if(window.DayCycle){
     for(const x of[-16,-12,-7.5,-2.7,2.7,7.5,12,16])DayCycle.lamp(hx+x,2.9,hz+3.0+DZ,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
     DayCycle.lamp(hx-2.9,.95,hz+5.3+DZ,1.5,{op:.9});
-    for(const x of CEIL_X)DayCycle.lamp(hx+x,CEIL_Y+.25,hz,2.6,{light:CEIL_LIGHTS,I:1.0,dist:13});   // đèn treo giữa trần: chiếu xuống cả 2 hàng tranh
   }
 }
 build(PX,PZ);
