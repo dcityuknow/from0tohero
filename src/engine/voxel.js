@@ -2,6 +2,12 @@
 // new VB(true) = nhớ lại từng khối (dùng cho bot để vỡ mảnh khi chết). shell=true = chỉ tạo lớp vỏ ngoài, bỏ khối ruột.
 // Cách dùng: box(tâm x,y,z, rộng,cao,dài, màu hoặc hàm màu, cỡ khối) · cyl(...) hình trụ · ell(...) hình cầu/elip
 const VMAT=new THREE.MeshLambertMaterial({vertexColors:true,emissive:0x1e1e1e});
+// KHOẢNG HỞ GIỮA CÁC KHỐI: 1 = SÁT NHAU (không còn khe) -> mặt chung của 2 khối kề nhau trùng khít và bị BỎ HẲN (mesh() / meshLOD() bên dưới).
+// Bản cũ dùng .93 (khe 7%, nên mặt chung không trùng khít và không bỏ được). Thử lại kiểu cũ: thêm ?vgap=.93 vào địa chỉ trang.
+const VGAP=(()=>{const v=parseFloat(new URLSearchParams(location.search).get('vgap'));return v>0&&v<=1?v:.98})();
+const VTIGHT=VGAP>=.999;
+// Công tắc thử: thêm ?cull=0 vào địa chỉ trang để TẮT việc bỏ mặt khuất (vẫn sát khối) - dùng để xem một lỗi hiển thị có do bỏ mặt hay không.
+const VCULL=new URLSearchParams(location.search).get('cull')!=='0';
 const FACES=(()=>{const f=[];for(let a=0;a<3;a++)for(const s of[1,-1]){
   const A=(a+1)%3,B=(a+2)%3,u=s>0?A:B,v=s>0?B:A,n=[0,0,0];n[a]=s;
   f.push({n,q:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{const p=[0,0,0];p[a]=s;p[u]=x;p[v]=y;return p})})}return f})();
@@ -18,7 +24,7 @@ class VB{
     }
   }
   box(cx,cy,cz,w,h,d,col,s=.024,shell=false){
-    const nx=Math.max(1,Math.round(w/s)),ny=Math.max(1,Math.round(h/s)),nz=Math.max(1,Math.round(d/s)),cw=w/nx,ch=h/ny,cd=d/nz,g=.93;this.seed++;
+    const nx=Math.max(1,Math.round(w/s)),ny=Math.max(1,Math.round(h/s)),nz=Math.max(1,Math.round(d/s)),cw=w/nx,ch=h/ny,cd=d/nz,g=VGAP;this.seed++;
     for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)for(let k=0;k<nz;k++){
       if(shell&&i>0&&i<nx-1&&j>0&&j<ny-1&&k>0&&k<nz-1)continue;
       const hex=typeof col==='function'?col(i,j,k,nx,ny,nz):col;if(hex<0)continue;
@@ -27,7 +33,7 @@ class VB{
   }
   // trụ tròn theo trục ax ('x'|'y'|'z'), ri>0 để khoét rỗng (làm vòng)
   cyl(cx,cy,cz,r,len,col,s=.02,ax='z',ri=0){
-    const n=Math.max(1,Math.round(2*r/s)),nl=Math.max(1,Math.round(len/s)),cs=2*r/n,cl=len/nl,g=.93;this.seed++;
+    const n=Math.max(1,Math.round(2*r/s)),nl=Math.max(1,Math.round(len/s)),cs=2*r/n,cl=len/nl,g=VGAP;this.seed++;
     for(let a=0;a<n;a++)for(let b=0;b<n;b++)for(let l=0;l<nl;l++){
       const u=(a+.5-n/2)*cs,v=(b+.5-n/2)*cs,d2=u*u+v*v;if(d2>r*r*1.05||d2<ri*ri)continue;
       const w=(l+.5-nl/2)*cl,hex=typeof col==='function'?col(a,b,l):col;if(hex<0)continue;
@@ -37,7 +43,7 @@ class VB{
     }
   }
   ell(cx,cy,cz,rx,ry,rz,col,s=.02,shell=false){
-    const nx=Math.round(2*rx/s),ny=Math.round(2*ry/s),nz=Math.round(2*rz/s),g=.93;this.seed++;
+    const nx=Math.round(2*rx/s),ny=Math.round(2*ry/s),nz=Math.round(2*rz/s),g=VGAP;this.seed++;
     const ins=(i,j,k)=>((i+.5-nx/2)*s/rx)**2+((j+.5-ny/2)*s/ry)**2+((k+.5-nz/2)*s/rz)**2<=1;
     for(let i=0;i<nx;i++)for(let j=0;j<ny;j++)for(let k=0;k<nz;k++){
       if(!ins(i,j,k))continue;
@@ -52,6 +58,7 @@ class VB{
     geo.setAttribute('normal',new THREE.Float32BufferAttribute(this.n,3));
     geo.setAttribute('color',new THREE.Float32BufferAttribute(this.c,3));
     geo.setIndex(this.i);
+    if(VTIGHT&&VCULL&&!this.keep&&typeof cullHiddenFaces==='function'){try{cullHiddenFaces(geo)}catch(e){console.warn('cullHiddenFaces',e)}}   // engine/merge.js: bỏ mặt chung giữa 2 khối kề nhau
     geo.computeBoundingSphere();
     // mesh LỚN tĩnh (nhà, chòi, tượng...: bán kính > 3m) cho three.js tự bỏ vẽ khi nằm ngoài tầm nhìn; vật nhỏ / súng cầm tay giữ không cull như cũ (tránh nhấp nháy)
     const m=new THREE.Mesh(geo,VMAT);m.frustumCulled=geo.boundingSphere.radius>3;return m;
@@ -99,7 +106,7 @@ const VLOD=(function(){
 VB.prototype.meshLOD=function(cellSize){
   const nC=(this.k/24)|0;
   if(!VLOD.cfg.on||nC<VLOD.cfg.minCubes)return[this.mesh()];   // vật nhỏ / LOD tắt: như cũ
-  const cell=cellSize||VLOD.cfg.cell,P=this.p,N=this.n,Cl=this.c,G=.93,Q=500,OFF=65536,CMP=VLOD.cfg.compact,K=VLOD.cfg.K;
+  const cell=cellSize||VLOD.cfg.cell,P=this.p,N=this.n,Cl=this.c,G=VGAP,Q=500,OFF=65536,CMP=VLOD.cfg.compact&&!VTIGHT,K=VLOD.cfg.K;
   // 1) tâm + kích thước từng khối (suy từ 24 đỉnh)
   const cc=new Float32Array(nC*6);let gx0=1e9,gx1=-1e9,gy0=1e9,gy1=-1e9,gz0=1e9,gz1=-1e9;
   for(let c=0;c<nC;c++){
@@ -149,6 +156,7 @@ VB.prototype.meshLOD=function(cellSize){
     }
     gf.setIndex(new THREE.BufferAttribute(fi,1));gf.boundingSphere=gn.boundingSphere;gf.boundingBox=gbox;
     // dỡ tầng (floors.js) chỉ dispose hình học đang gắn -> nối để dispose luôn bản kia
+    if(VTIGHT&&VCULL){gn.dispose();const m=new THREE.Mesh(gf,VMAT);m.frustumCulled=true;out.push(m);continue}   // sát khối: bản đã bỏ mặt khuất dùng luôn cho cả gần lẫn xa
     const dn=gn.dispose,df=gf.dispose;gn.dispose=function(){dn.call(gn);df.call(gf)};gf.dispose=function(){df.call(gf);dn.call(gn)};
     const m=new THREE.Mesh(gn,VMAT);m.frustumCulled=true;   // ô tĩnh có hình cầu bao chính xác nên cull được an toàn
     VLOD.list.push({m,gn,gf,mf:CMP?VLOD.farMat():VMAT,far:false,ok:false,off:0,cx:0,cy:0,cz:0,r:0,tn:n*12,tf:fq*2});

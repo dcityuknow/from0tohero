@@ -28,6 +28,7 @@ function launchG(){
   grenades.push({x:C.position.x+d.x*.5,y:C.position.y-.3+d.y*.5,z:C.position.z+d.z*.5,vx:d.x*tpow,vy:d.y*tpow+3,vz:d.z*tpow,r:.12,h:.24,ground:false,t:2,m});
   snd(200,.12,'sine');
 }
+const BLG=new THREE.SphereGeometry(1,10,8);   // dùng chung cho mọi vụ nổ
 function explode(g){
   const c=new THREE.Vector3(g.x,g.y+.2,g.z),RAD=10;
   boom(c);quake(c);
@@ -39,11 +40,11 @@ function explode(g){
   }
   const dp=Math.hypot(P.x-c.x,P.y+1-c.y,P.z-c.z);
   if(dp<RAD&&!dead)hurt(70*(1-dp/RAD));
-  const bl=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),new THREE.MeshBasicMaterial({color:0xffb040,transparent:true,opacity:.75}));
+  const bl=new THREE.Mesh(BLG,new THREE.MeshBasicMaterial({color:0xffb040,transparent:true,opacity:.75}));
   bl.position.copy(c);S.add(bl);blasts.push({m:bl,t:.3,R:RAD});
   for(let i=0;i<72;i++){
-    const m=new THREE.Mesh(UG,M(i%2?0xff9a3c:0xffe066)),sz=.08+Math.random()*.12;m.scale.set(sz,sz,sz);m.position.copy(c);
-    spawnPart(m,(Math.random()-.5)*24,Math.random()*16,(Math.random()-.5)*24,.6+Math.random()*.6,true);
+    const sz=.08+Math.random()*.12;fxPools();   // effects.js: pool InstancedMesh
+    fxS.add(c.x,c.y,c.z,(Math.random()-.5)*24,Math.random()*16,(Math.random()-.5)*24,.6+Math.random()*.6,true,undefined,sz,sz,sz,i%2?0xff9a3c:0xffe066,null);
   }
 }
 function tickG(dt){
@@ -59,7 +60,7 @@ function tickG(dt){
   }
   for(let i=blasts.length-1;i>=0;i--){
     const b=blasts[i];b.t-=dt;const u=1-b.t/.3;
-    if(b.t<=0){S.remove(b.m);blasts.splice(i,1);continue}
+    if(b.t<=0){S.remove(b.m);b.m.material.dispose();blasts.splice(i,1);continue}
     b.m.scale.setScalar(.3+u*b.R*.8);b.m.material.opacity=.75*(1-u);
   }
 }
