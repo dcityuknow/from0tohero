@@ -30,7 +30,7 @@ block-arena/
    ├─ engine/                 input.js · sound.js · music.js · voxel.js (voxel building core) · occlusion.js (occlusion culling)
    ├─ player/                 player.js (hands) · weapons.js (4 weapons) · viewmodel.js (reload, bolt action)
    ├─ entities/               bot-model · boss-model · steering · boss · spawner · boss-talk · floor-manager
-   │                          bot-throw (bots pick up and throw rocks) · ally (recruit defeated bosses as allies)
+   │                          bot-throw (bots pick up and throw rocks) · ally (recruit defeated bosses as allies) · guide-bot
    ├─ gameplay/               combat · effects · items · grenade
    └─ ui/                     minimap · mobile (touch controls) · ui (start / pause screen)
 ```
