@@ -1,5 +1,6 @@
 // Hai bệ vuông đỡ tượng đá (thay cho 2 khối hồng bk(±8,0,6,2,3.5,2,PK) cũ trong world.js).
 // Bên TRÁI: tượng chibi đầu tròn to, kính VR, hai tay nâng vòng vô cực. Bên PHẢI: "bóng ma" tóc ngọn lửa, kính đen, hoodie, cầm laptop.
+// + đèn pha đặt trên mặt đất PHÍA TRƯỚC mỗi tượng, chiếu sáng toàn thân tượng (chỉnh ở LAMP). Bệ & tượng giữ nguyên.
 // Nạp SAU pavilion.js, TRƯỚC nature.js (xem loader.js). Chỉnh nhanh ở STA / Q bên dưới.
 (function(){
 const STA={
@@ -7,6 +8,26 @@ const STA={
   turn:.4,             // xoay tượng hướng vào giữa (rad)
   k:2                  // hệ số phóng to tượng (bệ giữ nguyên). 1 = cỡ cũ, 2 = gấp đôi
 };
+// ---------- ĐÈN PHA PHÍA TRƯỚC TƯỢNG ----------
+const LAMP={
+  on:true,             // false = tắt hết đèn
+  n:1,                 // số đèn pha mỗi tượng (1 = một đèn giữa trước mặt, 2 = hai bên, 3 = hai bên + giữa...)
+  dist:7,              // khoảng cách từ tâm bệ ra phía trước mặt tượng (m)
+  side:2.6,            // độ lệch sang hai bên (m) khi n >= 2
+  aimY:4.2,            // độ cao điểm đèn hướng tới (m, tính từ mặt bệ) ~ giữa thân tượng
+  spread:24,           // độ loe của chùm sáng nhìn thấy (độ)
+  beamOpacity:.22,     // độ đậm chùm sáng nhìn thấy (0 = ẩn chùm)
+  glow:1.8,            // kích thước quầng sáng ở đầu đèn
+  pulse:true,          // sáng nhấp nhô nhẹ
+  auto:true,           // TỰ BẬT/TẮT THEO NGÀY-ĐÊM của game (DayCycle). false = luôn sáng
+  onAt:.2,             // độ tối (DayCycle.cur.lamp, 0 = ban ngày .. 1 = đêm) bắt đầu sáng đèn (~17h30)
+  fullAt:.7,           // độ tối để đèn sáng hết cỡ; ban mai đèn tắt dần theo chiều ngược lại (~5h30 -> 7h)
+  realLights:'auto',   // SpotLight thật chiếu lên đá: 'auto' (PC có, điện thoại tắt) | true | false
+  lightPower:1.5,      // cường độ SpotLight
+  lightRange:26,       // tầm chiếu (m)
+  color:0xffc878       // màu ánh sáng (ấm)
+};
+
 // Q = độ mịn khối rubic. Nhỏ hơn = chi tiết hơn nhưng nặng hơn.
 // 1 = thô như bản cũ, .7 = mặc định, .5 = rất mịn (nếu máy yếu thì tăng lên .8~1).
 const Q=.5;   // tượng được phóng to nên dùng ô nhỏ hơn để vẫn mịn; nếu lag thì tăng lên .6~.8
@@ -242,6 +263,106 @@ function statueB(){
   return v;
 }
 
+// ---------- ĐÈN PHA: thân voxel trên mặt đất + chùm sáng + SpotLight thật ----------
+// Chỉ phần đế đèn nằm trong meshes (đạn để lại vết); chùm sáng/quầng sáng tắt raycast nên đạn xuyên qua.
+const FX={beams:[],glows:[],lights:[],lens:[],run:false,tex:null};
+const LENS_ON=new THREE.Color(0xfff2cc),LENS_OFF=new THREE.Color(0x3a3a42);   // mặt kính: sáng / tắt
+const ssm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
+// độ sáng của đèn theo ngày-đêm: k = độ tối của game (cùng biến các đèn lồng/đèn đá khác dùng), f = 0 (tắt) .. 1 (sáng hết)
+function nightF(){
+  const D=window.DayCycle;
+  if(!LAMP.auto||!D||!D.cur)return{k:1,f:1};
+  return{k:D.cur.lamp,f:ssm(LAMP.onAt,LAMP.fullAt,D.cur.lamp)};
+}
+function fxTick(t){
+  const s=t*.001,n=nightF(),f=n.f,P=LAMP.pulse;
+  for(const b of FX.beams){b.m.opacity=b.base*f*(P?.93+.07*Math.sin(s*1.6):1);b.m.visible=f>.01}
+  for(const g of FX.glows){const q=P?1+.06*Math.sin(s*2.1+g.ph):1;g.sp.scale.set(g.base*q,g.base*q,1);g.sp.material.opacity=f;g.sp.visible=f>.01}
+  // SpotLight: ban ngày gỡ hẳn khỏi shader (cùng ngưỡng với đèn lồng của DayCycle) để đỡ nặng
+  for(const l of FX.lights){l.L.intensity=l.base*f*(P?.95+.05*Math.sin(s*2.1+l.ph):1);l.L.visible=n.k>.03}
+  for(const m of FX.lens)m.color.copy(LENS_OFF).lerp(LENS_ON,f);
+}
+function fxStart(){
+  if(FX.run)return;FX.run=true;
+  (function loop(t){requestAnimationFrame(loop);fxTick(t)})(performance.now());
+}
+const noRay=m=>{m.raycast=function(){};return m};
+function glowTex(){
+  if(FX.tex)return FX.tex;
+  const cv=document.createElement('canvas');cv.width=cv.height=128;
+  const g=cv.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,248,225,1)');gr.addColorStop(.2,'rgba(255,214,140,.7)');
+  gr.addColorStop(.55,'rgba(255,170,70,.2)');gr.addColorStop(1,'rgba(255,140,40,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);
+  return FX.tex=new THREE.CanvasTexture(cv);
+}
+// chùm sáng: nón hở, hẹp ở đèn, loe dần, mờ dần về 0 (cộng sáng nên tối = trong suốt); trục dọc theo +z cục bộ
+function beamGeo(len,r0,r1){
+  const g=new THREE.CylinderGeometry(r1,r0,len,28,8,true);
+  g.translate(0,len/2,0);
+  const p=g.attributes.position,col=new Float32Array(p.count*3);
+  for(let i=0;i<p.count;i++){
+    const f=Math.pow(1-p.getY(i)/len,1.5);
+    col[i*3]=f;col[i*3+1]=.8*f;col[i*3+2]=.45*f;
+  }
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  g.rotateX(Math.PI/2);   // +y -> +z
+  return g;
+}
+const addMat=extra=>new THREE.MeshBasicMaterial(Object.assign({transparent:true,blending:THREE.AdditiveBlending,
+  depthWrite:false,fog:false},extra));
+
+// px,pz: tâm bệ; sx: -1 tượng trái / +1 tượng phải (để biết mặt tượng quay hướng nào)
+function lampFX(px,pz,sx){
+  if(!LAMP.on)return;
+  const T=STA.turn,fx=-sx*Math.sin(T),fz=Math.cos(T);   // hướng "trước mặt" tượng
+  const rx=Math.cos(T),rz=sx*Math.sin(T);               // hướng ngang (vuông góc)
+  const aim=new THREE.Vector3(px,Y+LAMP.aimY,pz);
+  const useLights=LAMP.realLights==='auto'?!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent):!!LAMP.realLights;
+  const len=LAMP.dist+1.5,r1=len*Math.tan(LAMP.spread*Math.PI/180);
+  const gOut=beamGeo(len,.2,r1),gIn=beamGeo(len*.85,.15,r1*.55);
+  const mOut=addMat({vertexColors:true,opacity:LAMP.beamOpacity*.7,side:THREE.DoubleSide});
+  const mIn=addMat({vertexColors:true,opacity:LAMP.beamOpacity,side:THREE.DoubleSide});
+  FX.beams.push({m:mOut,base:LAMP.beamOpacity*.7},{m:mIn,base:LAMP.beamOpacity});
+  const lensGeo=new THREE.BoxGeometry(.5,.3,.02),lensMat=new THREE.MeshBasicMaterial({color:0xfff2cc,fog:false});FX.lens.push(lensMat);
+  const N=Math.max(1,LAMP.n|0);
+  for(let i=0;i<N;i++){
+    const off=N===1?0:-LAMP.side+2*LAMP.side*i/(N-1);
+    const lx=px+fx*LAMP.dist+rx*off,lz=pz+fz*LAMP.dist+rz*off;
+    // đế + trụ đèn (đứng trên mặt đất)
+    const bv=new VB();
+    bv.box(0,.2,0,.9,.4,.9,ST,c(.1),true);          // bệ đá nhỏ
+    bv.box(0,.62,0,.16,.45,.16,D,.03);              // trụ
+    for(const m of bv.meshLOD()){m.position.set(lx,0,lz);add(m)}
+    boxes.push({x0:lx-.45,x1:lx+.45,y0:0,y1:.85,z0:lz-.45,z1:lz+.45});
+    // đầu đèn: nhóm xoay về phía tượng (+z cục bộ = hướng chiếu)
+    const gp=new THREE.Group();gp.position.set(lx,1.05,lz);S.add(gp);
+    gp.lookAt(aim);
+    const hv=new VB();
+    hv.box(0,0,0,.7,.45,.5,GD[2],.03);              // thân đèn
+    hv.box(0,0,.26,.7,.45,.04,D,.03);               // viền mặt đèn
+    hv.box(0,.27,-.02,.74,.05,.56,D,.03);           // nắp che trên
+    for(const m of hv.meshLOD())gp.add(m);
+    const lens=noRay(new THREE.Mesh(lensGeo,lensMat));lens.position.z=.285;gp.add(lens);   // mặt kính phát sáng
+    for(const [g,mat] of[[gOut,mOut],[gIn,mIn]]){const b=noRay(new THREE.Mesh(g,mat));b.position.z=.3;b.renderOrder=2;gp.add(b)}
+    // quầng sáng (luôn quay về camera) ngay trước mặt đèn
+    const dir=aim.clone().sub(gp.position).normalize();
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),blending:THREE.AdditiveBlending,
+      transparent:true,depthWrite:false,fog:false}));
+    sp.scale.set(LAMP.glow,LAMP.glow,1);sp.position.copy(gp.position).addScaledVector(dir,.35);noRay(sp);S.add(sp);
+    FX.glows.push({sp,base:LAMP.glow,ph:i*1.9});
+    // ánh sáng thật chiếu lên thân tượng
+    if(useLights){
+      const L=new THREE.SpotLight(LAMP.color,LAMP.lightPower,LAMP.lightRange,.62,.55,1);
+      L.position.copy(gp.position).addScaledVector(dir,.4);
+      L.target.position.copy(aim);S.add(L);S.add(L.target);
+      FX.lights.push({L,base:LAMP.lightPower,ph:i*1.3});
+    }
+  }
+  fxTick(performance.now());   // đặt đúng trạng thái ngay khung đầu (không chớp)
+  fxStart();
+}
+
 const add=m=>{S.add(m);meshes.push(m)};   // meshes: để đạn để lại vết trên đá
 
 function build(){
@@ -254,11 +375,12 @@ function build(){
       sm.position.set(x,Y*(1-k),z);          // phóng to quanh mặt bệ: chân tượng vẫn đứng đúng trên bệ
       sm.rotation.y=-sx*STA.turn;add(sm);
     }
+    lampFX(x,z,sx);   // đèn pha phía trước tượng
     // va chạm: bệ 3x3 + thân tượng (đã nhân hệ số k)
     boxes.push({x0:x-1.5,x1:x+1.5,y0:0,y1:Y,z0:z-1.5,z1:z+1.5});
     boxes.push({x0:x-1.0*k,x1:x+1.0*k,y0:Y,y1:Y+4*k,z0:z-.8*k,z1:z+.9*k});
   }
 }
 build();
-window.Statues={build};
+window.Statues={build,LAMP};
 })();
