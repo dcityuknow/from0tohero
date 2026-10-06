@@ -8,14 +8,21 @@ const VGAP=(()=>{const v=parseFloat(new URLSearchParams(location.search).get('vg
 const VTIGHT=VGAP>=.999;
 // Công tắc thử: thêm ?cull=0 vào địa chỉ trang để TẮT việc bỏ mặt khuất (vẫn sát khối) - dùng để xem một lỗi hiển thị có do bỏ mặt hay không.
 const VCULL=new URLSearchParams(location.search).get('cull')!=='0';
+// BỎ MẶT KHUẤT (mọi giá trị vgap): khối nào có đủ 6 khối cùng cỡ kề sát thì không ai nhìn thấy nó.
+//  - vgap=1 (sát nhau): mặt nào có khối kề ngay phía ngoài thì bỏ (hai mặt chung trùng khít nhau).
+//  - vgap<1 (có khe): vẫn nhìn xuyên vào khe được, nên GIỮ mọi mặt của khối còn lộ ra ngoài (thành khe sâu ~1 ô), chỉ bỏ mặt giữa 2 khối nằm sâu >= VCULLD ô trong lòng khối.
+//  ?culld=N -> tự chọn độ sâu giữ lại (mặc định tự tính theo độ rộng khe; N lớn = khe nhìn sâu hơn, đổi lại bỏ ít mặt hơn).  ?cullbot=1 -> bỏ cả mặt khuất của VB nhớ khối (bot / boss).
+const VCULLD=(()=>{const v=parseInt(new URLSearchParams(location.search).get('culld'));return v>=1?v:Math.max(1,Math.ceil((1-VGAP)*10))})();   // tự động: khe càng rộng càng giữ sâu (.93->1 ô, .8->2 ô, .7->3 ô)
+const VCULLK=new URLSearchParams(location.search).get('cullbot')==='1';
 const FACES=(()=>{const f=[];for(let a=0;a<3;a++)for(const s of[1,-1]){
   const A=(a+1)%3,B=(a+2)%3,u=s>0?A:B,v=s>0?B:A,n=[0,0,0];n[a]=s;
   f.push({n,q:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{const p=[0,0,0];p[a]=s;p[u]=x;p[v]=y;return p})})}return f})();
 class VB{
-  constructor(keep=false){this.keep=keep;this.cubes=[];this.p=[];this.n=[];this.c=[];this.i=[];this.k=0;this.seed=0}
+  constructor(keep=false){this.keep=keep;this.cc=[];this.cubes=[];this.p=[];this.n=[];this.c=[];this.i=[];this.k=0;this.seed=0}
   cube(x,y,z,sx,sy,sz,hex,ci,cj,ck){
     const h=((ci*73856093)^(cj*19349663)^(ck*83492791)^(this.seed*2654435761))>>>0;
     const col=new THREE.Color(hex).multiplyScalar([.88,.95,1,1.07][(h>>>7)&3]);
+    this.cc.push(x,y,z,sx,sy,sz);   // tâm + kích thước (dùng để tìm khối kề khi bỏ mặt khuất)
     if(this.keep)this.cubes.push({x,y,z,sx,sy,sz,hex});
     for(const f of FACES){
       const b=this.k;
@@ -53,12 +60,13 @@ class VB{
     }
   }
   mesh(){
+    let p=this.p,n=this.n,c=this.c,ix=this.i;
+    if(VCULL&&(!this.keep||VCULLK)){try{const r=this.cullFaces();if(r){p=r.p;n=r.n;c=r.c;ix=r.i}}catch(e){console.warn('VB.cullFaces',e)}}
     const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.Float32BufferAttribute(this.p,3));
-    geo.setAttribute('normal',new THREE.Float32BufferAttribute(this.n,3));
-    geo.setAttribute('color',new THREE.Float32BufferAttribute(this.c,3));
-    geo.setIndex(this.i);
-    if(VTIGHT&&VCULL&&!this.keep&&typeof cullHiddenFaces==='function'){try{cullHiddenFaces(geo)}catch(e){console.warn('cullHiddenFaces',e)}}   // engine/merge.js: bỏ mặt chung giữa 2 khối kề nhau
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));
+    geo.setAttribute('normal',new THREE.Float32BufferAttribute(n,3));
+    geo.setAttribute('color',new THREE.Float32BufferAttribute(c,3));
+    geo.setIndex(Array.isArray(ix)?ix:new THREE.BufferAttribute(ix,1));   // r128: setIndex chỉ nhận mảng thường hoặc BufferAttribute (không nhận Uint16Array)
     geo.computeBoundingSphere();
     // mesh LỚN tĩnh (nhà, chòi, tượng...: bán kính > 3m) cho three.js tự bỏ vẽ khi nằm ngoài tầm nhìn; vật nhỏ / súng cầm tay giữ không cull như cũ (tránh nhấp nháy)
     const m=new THREE.Mesh(geo,VMAT);m.frustumCulled=geo.boundingSphere.radius>3;return m;
@@ -68,6 +76,46 @@ const chk=(a,b)=>(i,j,k)=>((i+j+k)&1)?a:b;
 const DKC=chk(0x3a3850,0x2b2a3a),YLC=chk(0xf2b84b,0xffd76a);
 
 const tri=(a,b,c)=>(i,j,k)=>[a,b,c][(i+j+k)%3];
+
+// ---- BỎ MẶT KHUẤT: tìm mặt nào cần GIỮ. Trả về {keep:Uint8Array(số khối*6), nC} hoặc null (không cắt được) ----
+VB.prototype.faceKeep=function(){
+  const nC=(this.k/24)|0,cc=this.cc;if(nC<2||!cc||cc.length!==nC*6)return null;
+  const G=VGAP;let mn=1e9,mx=0;
+  for(let c=0;c<nC;c++){const o=c*6;mn=Math.min(mn,cc[o+3],cc[o+4],cc[o+5]);mx=Math.max(mx,Math.abs(cc[o]),Math.abs(cc[o+1]),Math.abs(cc[o+2]))}
+  const Q=Math.min(500,8/mn),OFF=65536;if((mx+1)*Q>=OFF-2)return null;   // quá xa gốc toạ độ cho khoá số nguyên: không cắt (an toàn)
+  const key=(x,y,z)=>((Math.round(x*Q)+OFF)*131072+(Math.round(y*Q)+OFF))*131072+(Math.round(z*Q)+OFF);
+  const mp=new Map();for(let c=0;c<nC;c++)mp.set(key(cc[c*6],cc[c*6+1],cc[c*6+2]),c);
+  const nb=new Int32Array(nC*6).fill(-1);   // nb[c*6+f] = khối cùng cỡ kề sát ở mặt f (hoặc -1)
+  for(let c=0;c<nC;c++){
+    const o=c*6,sx=cc[o+3],sy=cc[o+4],sz=cc[o+5],cx=sx/G,cy=sy/G,cz=sz/G;   // cx = bề rộng 1 ô (đã tính cả khe)
+    for(let f=0;f<6;f++){const nv=FACES[f].n,j=mp.get(key(cc[o]+nv[0]*cx,cc[o+1]+nv[1]*cy,cc[o+2]+nv[2]*cz));
+      if(j!==undefined&&Math.abs(cc[j*6+3]-sx)<2e-4&&Math.abs(cc[j*6+4]-sy)<2e-4&&Math.abs(cc[j*6+5]-sz)<2e-4)nb[c*6+f]=j}
+  }
+  const keep=new Uint8Array(nC*6);
+  if(G>=.999){for(let i=0;i<nC*6;i++)keep[i]=nb[i]<0?1:0}   // sát khối: mặt nào có khối kề thì hai mặt chung trùng nhau -> bỏ
+  else{
+    // có khe: độ sâu = số ô tính từ khối lộ ngoài (lan theo 6 hướng). Chỉ bỏ mặt giữa 2 khối cùng nằm sâu >= VCULLD.
+    const dep=new Uint8Array(nC).fill(255),qu=[];
+    for(let c=0;c<nC;c++){for(let f=0;f<6;f++)if(nb[c*6+f]<0){dep[c]=0;qu.push(c);break}}
+    for(let h=0;h<qu.length;h++){const c=qu[h],d=dep[c];if(d>=VCULLD)continue;
+      for(let f=0;f<6;f++){const j=nb[c*6+f];if(j>=0&&dep[j]>d+1){dep[j]=d+1;qu.push(j)}}}
+    for(let c=0;c<nC;c++)for(let f=0;f<6;f++){const j=nb[c*6+f];keep[c*6+f]=(j<0||dep[c]<VCULLD||dep[j]<VCULLD)?1:0}
+  }
+  return {keep,nC};
+};
+// dựng lại mảng đỉnh chỉ với các mặt được giữ (null nếu không bỏ được mặt nào)
+VB.prototype.cullFaces=function(){
+  const r=this.faceKeep();if(!r)return null;
+  const keep=r.keep,tot=keep.length;let kept=0;for(let i=0;i<tot;i++)kept+=keep[i];
+  if(kept===tot)return null;
+  const P=this.p,N=this.n,C=this.c,p=new Float32Array(kept*12),n=new Float32Array(kept*12),c=new Float32Array(kept*12),
+    ix=(kept*4>65535)?new Uint32Array(kept*6):new Uint16Array(kept*6);
+  let q=0;
+  for(let i=0;i<tot;i++){if(!keep[i])continue;const s=i*12,w=q*12;   // mặt (khối c, hướng f) bắt đầu ở đỉnh c*24+f*4 = i*4
+    for(let k=0;k<12;k++){p[w+k]=P[s+k];n[w+k]=N[s+k];c[w+k]=C[s+k]}
+    const b=q*4,o=q*6;ix[o]=b;ix[o+1]=b+1;ix[o+2]=b+2;ix[o+3]=b;ix[o+4]=b+2;ix[o+5]=b+3;q++}
+  return {p,n,c,i:ix};
+};
 
 // ============================================================================
 // VOXEL LOD: mesh voxel LỚN (nhà, chòi, tượng, bể tắm) được cắt thành các ô ~6m. Mỗi ô có 2 bản hình học:
@@ -122,13 +170,15 @@ VB.prototype.meshLOD=function(cellSize){
   const grp=new Map();
   for(let c=0;c<nC;c++){const k=Math.floor(cc[c*6]/cell)+','+Math.floor(cc[c*6+1]/cell)+','+Math.floor(cc[c*6+2]/cell);let a=grp.get(k);if(!a)grp.set(k,a=[]);a.push(c)}
   const gbox=new THREE.Box3(new THREE.Vector3(gx0,gy0,gz0),new THREE.Vector3(gx1,gy1,gz1));
-  const out=[];
+  const out=[],info=(VCULL&&!VTIGHT)?this.faceKeep():null;
   for(const cubes of grp.values()){
     const n=cubes.length;
     // ---- bản GẦN: sao chép nguyên các khối của ô ----
-    const pn=new Float32Array(n*72),nn=new Float32Array(n*72),cn=new Float32Array(n*72),in_=(n*24>65535)?new Uint32Array(n*36):new Uint16Array(n*36);
-    for(let i=0;i<n;i++){const c=cubes[i];pn.set(P.subarray?P.subarray(c*72,c*72+72):P.slice(c*72,c*72+72),i*72);nn.set(N.slice(c*72,c*72+72),i*72);cn.set(Cl.slice(c*72,c*72+72),i*72);
-      for(let f=0;f<6;f++){const b=i*24+f*4,o=i*36+f*6;in_[o]=b;in_[o+1]=b+1;in_[o+2]=b+2;in_[o+3]=b;in_[o+4]=b+2;in_[o+5]=b+3}}
+    const fl=[];for(let i=0;i<n;i++){const c=cubes[i];for(let f=0;f<6;f++)if(!info||info.keep[c*6+f])fl.push(c*6+f)}   // mặt giữ lại của ô này
+    const nf=fl.length;if(!nf)continue;   // ô toàn khối nằm sâu trong lòng: không ai nhìn thấy
+    const pn=new Float32Array(nf*12),nn=new Float32Array(nf*12),cn=new Float32Array(nf*12),in_=(nf*4>65535)?new Uint32Array(nf*6):new Uint16Array(nf*6);
+    for(let q=0;q<nf;q++){const s=fl[q]*12,w=q*12;for(let k=0;k<12;k++){pn[w+k]=P[s+k];nn[w+k]=N[s+k];cn[w+k]=Cl[s+k]}
+      const b=q*4,o=q*6;in_[o]=b;in_[o+1]=b+1;in_[o+2]=b+2;in_[o+3]=b;in_[o+4]=b+2;in_[o+5]=b+3}
     const gn=new THREE.BufferGeometry();
     gn.setAttribute('position',new THREE.BufferAttribute(pn,3));gn.setAttribute('normal',new THREE.BufferAttribute(nn,3));gn.setAttribute('color',new THREE.BufferAttribute(cn,3));gn.setIndex(new THREE.BufferAttribute(in_,1));
     gn.computeBoundingSphere();gn.boundingBox=gbox;   // hộp bao = cả mô hình như cũ (floors.js / bóng đổ phân tầng dựa vào hộp bao này)
@@ -162,6 +212,6 @@ VB.prototype.meshLOD=function(cellSize){
     VLOD.list.push({m,gn,gf,mf:CMP?VLOD.farMat():VMAT,far:false,ok:false,off:0,cx:0,cy:0,cz:0,r:0,tn:n*12,tf:fq*2});
     out.push(m);
   }
-  this.p=this.n=this.c=this.i=null;   // giải phóng bộ nhớ CPU
+  this.p=this.n=this.c=this.i=this.cc=null;   // giải phóng bộ nhớ CPU
   return out;
 };

@@ -8,6 +8,8 @@
 // Tên hàm cũ (spawnPart, groundY, tickParts, blood, shatter, hole, quake, applyShake) giữ nguyên chữ ký.
 // ---------------------------------------------------------------------------------------------
 const FX_BLOOD_MAX=500,FX_SHARD_MAX=700,FX_HOLE_N=40;
+// Số mảnh vỡ khi bot chết: 1 = như bản gốc, .6 = còn 60%. Mảnh ít đi thì mỗi mảnh to ra tương ứng (xem 'k' trong shatter) nên bot vẫn vỡ đủ "khối".
+const SHARD_K=0.2;
 const BLOOD_HEX=[0xd10f2f,0x8f0a22,0xff2a4d];
 const bm=BLOOD_HEX.map(c=>new THREE.MeshBasicMaterial({color:c}));   // giữ lại phòng file khác còn tham chiếu
 const holes=[];let hi=0;                                              // holes: giữ tên cũ (không còn dùng)
@@ -121,7 +123,7 @@ function shatter(b,dir){
   b.g.updateMatrixWorld(true);
   let total=0;for(const p of b.parts)total+=p.vb.cubes.length;
   const live=parts.length,
-    cap=live>420?110:live>220?160:220,                 // đang có nhiều mảnh trên màn: dùng ít mảnh hơn (to hơn)
+    cap=Math.max(8,(live>420?110:live>220?160:220)*SHARD_K),   // đang có nhiều mảnh trên màn: dùng ít mảnh hơn (to hơn); SHARD_K: hệ số chung
     stride=Math.max(1,Math.floor(total/cap)),k=Math.cbrt(stride)*.95;
   const cx=b.x,cy=b.y+.9,cz=b.z;
   let n=0;
