@@ -18,7 +18,7 @@ function hurt(n){
   if(P.hp<=0&&lives>0){lives--;P.hp=100;reviveT=3;P.vy=0;showMsg((LVT[L]||LVT.en).replace('%d',lives));updLives();$('hurt').style.opacity=0;return}   // hồi sinh tại chỗ: giữ nguyên vị trí / tầng / đạn
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
-function restart(){hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();resetLevel()}
+function restart(){hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();clearParts();clearHoles();clearBul();resetLevel()}
 // ---- Đồng hồ FPS ở góc trái dưới màn hình: xanh = mượt, vàng = trung bình, đỏ = giật lag. Chỉnh ngưỡng ở FPSC ----
 const FPSC={good:50,mid:30,every:.5};   // >= good: xanh · >= mid: vàng · thấp hơn: đỏ · every: giây giữa 2 lần cập nhật số
 const fpsEl=document.createElement('div');fpsEl.id='fps';fpsEl.className='pill';
@@ -32,9 +32,20 @@ function fpsTick(now){
   const f=fpsN/el;fpsN=0;fpsLast=now;
   fpsEl.textContent='FPS '+Math.round(f);
   fpsEl.style.color=f>=FPSC.good?'#3dff7a':f>=FPSC.mid?'#ffd23f':'#ff4d5e';
+  if(el<1.5)drsStep(f);   // el lớn = vừa chuyển tab / đứng hình: bỏ qua, đừng hạ độ phân giải oan
+}
+// ---- TỰ CHỈNH ĐỘ PHÂN GIẢI (Dynamic Resolution Scaling): tụt FPS thì giảm số điểm ảnh, mượt lại thì tăng dần ----
+// Vì game nghẽn ở GPU (tô điểm ảnh), đây là cách rẻ nhất để giữ FPS, nhưng làm hình mờ đi. MẶC ĐỊNH TẮT (on:false); bật: DRS.on=true. Chỉnh ngưỡng ở DRS.
+const DRS={on:false,min:.85,max:Math.min(window.devicePixelRatio||1,1.5),down:48,up:58,step:.1,lo:0,hi:0,pr:null};
+function drsStep(f){
+  if(!DRS.on||!playing)return;
+  if(DRS.pr===null)DRS.pr=Math.min(R.getPixelRatio(),DRS.max);
+  if(f<DRS.down){DRS.hi=0;if(++DRS.lo>=2&&DRS.pr>DRS.min){DRS.lo=0;DRS.pr=Math.max(DRS.min,+(DRS.pr-DRS.step).toFixed(2));R.setPixelRatio(DRS.pr)}}   // thấp liên tiếp ~1s -> giảm
+  else if(f>DRS.up){DRS.lo=0;if(++DRS.hi>=8&&DRS.pr<DRS.max){DRS.hi=0;DRS.pr=Math.min(DRS.max,+(DRS.pr+DRS.step).toFixed(2));R.setPixelRatio(DRS.pr)}}   // cao liên tiếp ~4s -> tăng
+  else DRS.lo=DRS.hi=0;
 }
 const H={hp:-1,am:null,mg:null,gn:null,eHp:$('hp'),eAm:$('am'),eMg:$('mg'),eGn:$('gn')};   // bản sao giá trị HUD đã hiển thị
-let last=performance.now();
+let last=performance.now(),mapT=0;   // mapT: đếm ngược để vẽ minimap ~12 lần/giây thay vì mỗi khung
 function frame(now){
   requestAnimationFrame(frame);fpsTick(now);
   const dt=Math.min(.05,(now-last)/1000);last=now;
@@ -94,7 +105,7 @@ function frame(now){
     vm.position.y+=((P.ground&&slideT<=0?Math.sin(bt)*.014*Math.min(1,spd/6):0)-vm.position.y)*Math.min(1,dt*10);
     animVM(dt);
   }
-  tickBoss(dt);if(playing)Archer.tick(dt);tickParts(dt);drawMap();if(!playing)scoped=false;
+  tickBoss(dt);if(playing)Archer.tick(dt);tickParts(dt);mapT-=dt;if(mapT<=0){mapT=.08;drawMap()}if(!playing)scoped=false;
   const sc=scoped&&cur==='sniper'&&rel<=0;document.body.classList.toggle('sc',sc);vm.visible=!sc&&!dead;
   const tf=sc?20:75;if(Math.abs(C.fov-tf)>.1){C.fov+=(tf-C.fov)*Math.min(1,dt*16);C.updateProjectionMatrix()}
   if(reviveT>0)reviveT-=dt;
