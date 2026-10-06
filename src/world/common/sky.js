@@ -7,7 +7,11 @@ const SKY={
   sMin:7,sMax:17,        // cỡ đám mây (m)
   spread:200,            // mây rải trong bán kính này quanh tâm map
   drift:1.6,             // tốc độ trôi (m/s)
-  horizon:0xcfe8ff,mid:0x8ec5f5,top:0x3f8fe6   // màu chân trời -> giữa -> đỉnh vòm
+  horizon:0xcfe8ff,mid:0x8ec5f5,top:0x3f8fe6,  // màu chân trời -> giữa -> đỉnh vòm
+  // Độ mịn lưới của MỖI đám mây [số đoạn ngang, số đoạn dọc]. Bản cũ 96x64 = ~12.000 tam giác / lớp mây (mỗi đám 3 lớp, tầng cao nhất 34 đám = ~1,2 triệu tam giác).
+  // Mây trắng mờ nên giảm lưới gần như không đổi hình; muốn trả lại như cũ: [96,64].
+  segTop:[56,36],        // mây ở tầng cao nhất (to, ở xa)
+  segFl:[36,24]          // mây nhỏ lơ lửng ở các tầng 1-3
 };
 // Hình dạng mây = 4 "hạt" (đo từ ảnh mẫu): 1 hạt tròn, 2 hạt nối (hình đậu phộng), 3 hạt nối (tam giác bo tròn), 4 hạt nối (hình thoi bo tròn).
 // Mây ĐỨNG THẲNG và luôn quay mặt về phía người chơi (xem tickSky), màu trắng mờ nhiều lớp như lớp sương trên trần.
@@ -26,7 +30,7 @@ const _hex=h=>[(h>>16)&255,(h>>8)&255,h&255];
 const HAZE=[],CEILMATS=[];   // vật liệu mây / sương / mặt dưới sàn: daycycle.js nhân màu theo giờ trong ngày
 // Mây 3D: viền 2D là "hợp mượt" (smooth-union) của các giọt tròn, rồi "bơm phồng" thành khối có mép bo tròn (mặt giữa phẳng, mép cong như giọt thủy ngân).
 // Dựng lưới bằng cách chiếu tia từ tâm ra mặt SDF; pháp tuyến lấy từ gradient nên bóng mịn, không lộ đường nối.
-function cloudGeometry(sh){
+function cloudGeometry(sh,ws,hs){
   const B=sh.b,K=sh.K,w=sh.w,hh=sh.h;
   const sdf=(x,y,z)=>{
     let d=1e9;
@@ -35,7 +39,7 @@ function cloudGeometry(sh){
     return Math.min(Math.max(A,E),0)+Math.hypot(Math.max(A,0),Math.max(E,0))-w;
   };
   const cx=B.reduce((a,b)=>a+b[0],0)/B.length,cz=B.reduce((a,b)=>a+b[1],0)/B.length;
-  const g=new THREE.SphereGeometry(1,96,64),p=g.attributes.position,n=g.attributes.normal,e=.01;
+  const g=new THREE.SphereGeometry(1,ws||96,hs||64),p=g.attributes.position,n=g.attributes.normal,e=.01;
   for(let i=0;i<p.count;i++){
     // nén hướng tia về phía xích đạo để phần mép bo tròn có nhiều đỉnh lưới hơn mặt phẳng giữa
     let dx=p.getX(i),dy=p.getY(i)*.4,dz=p.getZ(i);const dl=Math.hypot(dx,dy,dz)||1;dx/=dl;dy/=dl;dz/=dl;
@@ -132,7 +136,7 @@ function buildSky(){
   paintDome(gd,_hex(SKY.horizon),_hex(SKY.mid),_hex(SKY.top));
   const dome=new THREE.Mesh(gd,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
   dome.renderOrder=-1;dome.frustumCulled=false;S.add(dome);
-  const geos=CLOUD_SHAPES.map(cloudGeometry),
+  const geos=CLOUD_SHAPES.map(sh=>cloudGeometry(sh,SKY.segTop[0],SKY.segTop[1])),geosF=CLOUD_SHAPES.map(sh=>cloudGeometry(sh,SKY.segFl[0],SKY.segFl[1])),
     mat=cloudMats(false),cl=new THREE.Group(),list=[],top=FY(NF);
   for(let i=0;i<SKY.clouds;i++){
     const m=cloudObj(geos[i%4],mat),s=SKY.sMin+Math.random()*(SKY.sMax-SKY.sMin),a=Math.random()*6.283,r=SKY.spread*Math.pow(Math.random(),.8);
@@ -151,7 +155,7 @@ function buildSky(){
       m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,m,k:(i%2?-1:1)*(.6+i*.25)});
     });
     for(let i=0;i<SKYFOG.clouds;i++){
-      const m=cloudObj(geos[i%4],cmat),s=SKYFOG.cMin+Math.random()*(SKYFOG.cMax-SKYFOG.cMin);
+      const m=cloudObj(geosF[i%4],cmat),s=SKYFOG.cMin+Math.random()*(SKYFOG.cMax-SKYFOG.cMin);
       m.scale.set(s,s,s*CLOUD_FLAT);m.rotation.z=(Math.random()-.5)*.8;
       m.position.set((Math.random()*2-1)*(A-5),FY(f)+SKYFOG.cLo+Math.random()*(SKYFOG.cHi-SKYFOG.cLo),(Math.random()*2-1)*(A-5));
       m.userData.v=SKYFOG.cDrift*(.5+Math.random());g.add(m);cs.push(m);
