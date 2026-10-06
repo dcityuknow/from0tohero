@@ -402,7 +402,8 @@ function lookedEasel(P,g){
     if(P.dz>-.05||P.z<pz)continue;
     const t=(pz-P.z)/P.dz;if(t<0||t>CFG.lookRange)continue;
     const hx=P.x+P.dx*t,hy=P.y+P.dy*t;
-    if(Math.abs(hx-e.x)>.5+CFG.lookMargin||Math.abs(hy-e.y)>.5+CFG.lookMargin)continue;
+    const hs=.5*(e.s||1);                                  // nửa kích thước tranh (tranh to thì vùng ngắm to theo)
+    if(Math.abs(hx-e.x)>hs+CFG.lookMargin||Math.abs(hy-e.y)>hs+CFG.lookMargin)continue;
     const vx=e.x-P.x,vy=e.y-P.y,vz=pz-P.z,L=Math.hypot(vx,vy,vz)||1;
     const a=Math.acos(Math.max(-1,Math.min(1,(vx*P.dx+vy*P.dy+vz*P.dz)/L)));
     if(a<bestA){bestA=a;best=i}

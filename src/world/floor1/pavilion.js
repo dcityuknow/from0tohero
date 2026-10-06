@@ -4,7 +4,7 @@
 (function(){
 const PX=7,PZ=-19.5;               // tâm chòi (x,z) trên sàn tầng 1 (chỗ tường hồng cũ: bk(0,0,-13,...) * MAPK)
 const FL=.875, RY=3.9;             // mặt sàn · chân mái
-const HX=14.25, HZ=3.25;            // nửa rộng (9.5 x 1.5 = dài gấp 1.5 lần bản trước) / nửa sâu của sàn
+const HX=17.25, HZ=3.25;            // nửa rộng (rộng ra để bày tranh 2 bên) / nửa sâu của sàn
 const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 cột / trụ đá trên mỗi hàng (đều nhau, 8 thay vì 6)
 
 const POST=0x6b2d1c, RED=0x8a3b22, RED2=0x9c4a2c, DARK=0x2a1a10;
@@ -222,7 +222,7 @@ function build(hx,hz){
     fb(HX+.6*k,HX+.6*(k+1),0,top,-1.25,1.25,(i,j,kk)=>DECK[(j+kk)%3],.1);cb(HX+.6*k,HX+.6*(k+1),0,top,-1.25,1.25);
   }
   // ---- đèn lồng treo dưới hiên trước ----
-  for(const x of[-12,-7.5,-2.7,2.7,7.5,12]){
+  for(const x of[-16,-12,-7.5,-2.7,2.7,7.5,12,16]){
     fb(x-.15,x+.15,2.7,3.1,2.85,3.15,(i,j,k)=>(j===0||j===3)?DARK:0xffc860,.1);
     fb(x-.025,x+.025,3.1,RY-.4,2.975,3.025,DARK,.05);
   }
@@ -264,45 +264,55 @@ function build(hx,hz){
   {n1:"DAVID SONG",n2:"APAC GROWTH LEAD",d:'eefeefeefeefeefeefeefeefeefeefeefeefeeeeeeeeeffffffffffffffffffffffffeeeeeeeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeeefefeefdddbbbbbbbbbcccbbb999dddffffffeeeeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeeefffddd888444111111111222223323333888eeefffeeeeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeefeeeeeefffccc444222112222111222222111111333222444cccfffeeeeefeefeefeefeefeefeefeefeefeefeefeffeefeefeefeefeefeefeefeefeefeeefff999222111001112111222111222111111222333222444dddfffeeeeefeefeefeefeefeefeefeefeefeefeeffeffefffffefeefeefeefeefeeefffccc222111111111111222111111111111111222222111111777eeeeefeefeefeefeefeefeefeefeeffefffffeffffffffffffffefeefeefeeffefddd444000111111111111111111111111111111222111111222222888fffeeeeeffeffeffeffeffeffeffeffefefffffffffffffffffeefeefeeefff778000111111111111011000111111111010010111001111111111333cccfffeeffeffeffeffeffeffeffeffeffefffffffffffffffffeffeffffeee333111111111111211222433543544754654543332222111111111111888fffeeffeffeffeffeffeffeffeffeffefffffffffffffffffffeeefffbbb111111000211543754a76b86c97c97da8da8da8ca8b97754322111111555eeeffffeffeffeffeffeffeffeffeffffeffeffefffffffffffeeefff999111111211643864975b86c97ca7da8da8db9db9ecaeb9da8976221222444cccfffeeffeffefeffeffefffffffffffeffefffffeffffffffeeefff777111111432854965a76b86c97da8da8db9db9ebaecbecadb9da8543111333baafffeeefefffffeffffffffffffffffeffffffffeffefffefeeefff656111211644865975a86b86c97da8da8db9eb9eb9ecaebadb9db9976222222aaafffeeefefffffffffffffeffffffffeffeffeffeffefffffeeefff777111322754865a76b97da8da8da8da8db8da8eb9ecaecbecaeb9b97433222bbbfffeefffffffeffeffeffeffeffefffffeffeffeffeffeffeeefff888111543975765654765976c98dbadb9da8da8ca9b98987987ca9db8654333cccfffeeffffeffffffffeffffffffefffffffffffeffefffffeeefffaaa211876876644543543543865c98da8da8da8a76865865876987db9a87333dddfffeeffffffffffeffffffffeffefffffffffffeffefffffeeffffccc333987865865b86da8c97a76a76c97da8c97c97da8ecaecbdb9db9ba8655efffffeffffffffeffefffffeffefffffffffffffffffeffeffefffffbba544987865754754754a87b86965c97ebada8b86965987b98da8eb9ca9877feeeffeffeffeffeffeffeffefffffffffffffffffffffffefffffeee864654977854643754433765a86864c97ecbdb9b86433655b98b86eb9db9a87ebaeffeffefffffffffffefffffffffffffffffffffffffffffefffff976765a87975975a75b87c97b87864c97ebaecada8b86c98eb9ebaecaecab98da9fffeffffffffeffefffffffffffffffffffffffffffffeffeeffffb99755a87a76b86b97c97c97a75864c97ecaecaecada9db9ecaecbecaecac98edcfffeffffffffeffffffffffffffffffffffffffffffffeffeeffffcba755987975b87c97c97c86965854c97ecbebaecaebaebaecaecbeb9dbac98eeefffeffeffeffefffffffffffffffffffffffffffffffffffefffffddd976977865b86c97c97b86864965c97fcbfcbeb9da8ebaecaebaeb9dbadb9feefffeffefffffffffffffffffffffffffffffffffffffffffefffffeee987976865a76c97c97965854743a75c97c87da8d97eb9ebaeb9db9db9ecbffffffeffffffffffffffffffffffffffffffffffffffffffffeffefffffcbb977865975b86c87a75854743965c97b87ebaeb9da8eb9eb9db9dbaeddfffeffefffffffffffffffffffffffffffffffffffffffffffffffeffefffffa99865965a75b86a76a76b86da8da9ecbecbecbeb9db9eb9db9edcfffefffffffffffffffffffffffffffffffffffffffffffffffffffffeffeeffffcbb865865975a75965965965c97c97da9db9db9eb9eb9eb9db9eeeffffffffffffffffffffffffffffffffffffffffffffffffffffffeffeffefffffeee976864965a75743532633854a65a76b76b86db8eb9db9dcaeffefffffeffeffffffffffffffffffffffffffffffffffffffffffffeffeffeffeeffffbaa864965a76865754954b76c87da8eb9db9da8eb9db9eddfffeffeffeffefffffffffffffffffffffffffffffffffffffffffffffffeffffffeffffdcc865854965965864a75a75b86da8eb9eb9da9da8da9eeefffefffffffffffefffffffffffffffffffffffffffffffffffffffffefffffffffeffffdcc865754864965975b86c97da8db9eb9eb9db9ca8da9eeefffefffffffffffeffffffffffffffffffffffffffffffffffffffeffeffeffffffeffffddc754754754865975b86c97da8eb9eb9db9c97ca8db9feefffeefffffffefffffffffffffffffffffffffffffffffffffffffeffeffeffeeffeffffddc754753643754864965a86b97ca8ca8b97c97da8db9ddcffffffeefeefeffeffffffffffffffffffffffffffffffffffffffeefeeffffffffffbbb766755754753643643753754864975b86ca8da9db9eb9987777deeffffffeefeeffffffffffffffffffffffffffffeffeefeeeffffffeeebab444222765764754754753643753965b86c97da8db9db9db9db9eb9654334888dddfffffffffeeffffffffffffffffeffeefeffffffffeee999333111001111654754754754754754753a75ca8ca8da9db9dbadb9db9db9654222222333667bbbeeefffffffffeeffffffffffffffffccc778333111111111111011432754754864864864864965c97da9db9db9dbadbadb9ca8333222223223222222444888cddfffffffffeefeeeaab666222111111111111111111111211754864865975965975a86c97da9db9db9db9db9eca655122222222222223223222222333667bbbffffff445222112222112112111111111111111111332865975975a76a76a86c98ca8da9db9db9eca876222222222222222222222222223222222223556aaa212222212112112112111111111111111111111443a76a86b87a86b87c98ca8da9db9db9876222222222223222222222222222222222222222222233'},
   {n1:"HAR PREET SINGH",n2:"VP OF ENGINEERING",d:'eddeddeddeddeddeddeddeddeddeddeddeddeddeedddccbbcbaccbccbaa9baaccbccbccbeededdeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedddccccbbbaaa9aa9998998887888998998baaccbbbaccbeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddddcddccbb998988988998888888998998888888888998aa9aa9988aa9ddceddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedddccbbaddc888998aa9a99888777665665665776887877888988998888887baadcceddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedbbb888998666877777777666555555555666776665666666777888a99998988988cbbeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddcbb998988554555555544544444555666666666766666777777776999bbb998776988eddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedd887666777666444544666655666776666555666777777777665777887bba888776887dcceddeddeddeddeddeddeddeddeddeddeddeddeddeddddcbbaaa9655555554544877777766666877887666877988a99887887776655888877666665aa9eededdeddeddeddeddeddeddeddeddeddeddeddeddeed887888776444666888777666888766776999555777988887887ccbbaa555777776555444a99eededceddeddeddeddeddeddeddeddeddeddeddeddeddddc887555776aaaccbcbbccceedddcaaaccc998777aaaccbddceddbba777777666655554bbbeededceddeddeddeddeddeddeddeddeddeddeddeddeddeedddccccaa9aa9ccceedccc999aa9eddeedfeeeddeedeedeeddccaa9777777776655665ddceddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedda99333222998eed776333332443554988eedbbbaaaddcbbb887777777777555776eededdeddeddeddeddeddeddeddeddeddeddeddeddeddedceed998222665554988edd988666555544665444666bba776bbabba776877777666555998eededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeed776888ccbaa9887ddcbbb777777bbacbbbba766665ccbddcdcc877777777665433baaeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeeddcc887887665777eddbaa665766888999999a99666ddcddcddc888666555665aa9aa9ddceededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddedd888888554ccbddcccc887887bba443444888cccdccddcddc887554887ddcbba999bbaeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedaaa888cbbedddccddcccb888aaaaa9baabbbddcdddddcdcc777666ddc998aa9ccbbbaeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedcbba99ccbddcdccbbbccbedddccbbadcceedeededdddcdccccb776baabba777ddcddcbbaeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeeda99bbbddcdddddcccb888bbaeededdeddeddedddddddcccbbbb887bbaddc888bbaddcbbbeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeedbaa888bbaaa9888bbaaa9aa9ccbedddddeddeddddccccccbaa9776ccbcbb999ddcccbddceededdeddeddeddeddeddeddeddeddeddeddeddeddddcdddbba888444655555665bbadddbbbcccdddddcdcccbbbbabaa887666ccbccbddcccbcbbeededdeddeddeddeddeddeddeddeddeddeddeddeddedddccddc887443332444333443554766888666999bbaaa9aa9aaa988666776998ddc999baaeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedd777333554877777555333333433332433998998888988777666776766a99aaabaaeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedbaa444777998aa9999888666776776443988777777877777665666999ccb999ccbeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeed877776baabbadccdccccbeddaaa666888776777776666443999aaaeedddceededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedccb877665665776888bbadcc999887988666655655444887ccbbbafededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddddc666665333555aa9cbbbaa887777666555444554877ddccbb555988ccceededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedd665554776a99aa9999887665554444444665999ccceedbba433666998edceddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeed776433665776777776555444444555877a99ccbeddeedbba433887888cbbeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedbbb554433443444554444555777988a99bbbeddeddddcccb555887999cbbeededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeeddccaa9aa9aaa666665888988999bbaddceddddcddcbbb666988aaa998dcceededdeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddedceedfeeddc887555544998baabaaccbddcddcdccedd887776999bba777777aa9dcceddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeddeedddcaaa777555555333777aa9bbaddcdccdcceedaaa665999aa9baa888aa9baaaa9ddceededdeddeddeddeddeddeddeddeddeddeddeddeddeedddc998998777777766555333665aa9bbacbbccbdddaa9555888a99aa9bba998988bbacbbbaaccbeddeddeddeddeddeddeddeddeddeddeddeddeedccbaaa887888877887777555444776aa9bbaccbccb887443766a99aa9aa9baa998aa9aaabbaddcddccbbddceededdeddeddeddeddeddeddeddddcaa9aa9998998888877887aa9555444998baaaaa888555433555988aa9baabbabaa998ccbcbbbbacbbccbccbbaaccbeededdeddeddeddeddddcaa9998aa9ccb999877aa9baaaa9aa9777443554665444433666887776aa9cbabbacbaaa9a99ccbccbccbbba998998bbaa99bbaddceddeddeddeedaa9a99cbbbbaaa9998888aa9bba998998aa9a99666666888bbaccb988a99cbbba9cbacba998aa9ccbccbcbbbbaccbbaa887baaaa9aa9eddeddeedcbba99ccbbbabbabaa777555655988998a99baaddceddedceddddca99776877a99a99ba9aa9887aa9ccbccbbbacbbccb998998887aa9cbbeddeddddcbbaaa9cbabaacbbcbb998887998cbabaa988bbaddcddcddcdcc998aa9877322554887aa9887998ba9ccbcbbbaaccbbba998a99bbadccddc'},
   ];
-  const PORT={'-8.5':0,'-6.7':1,'-4.9':8,'-3.1':7,'-1.3':2,'3.1':3,'6.7':4,'8.5':5,'1.3':6,'4.9':9};   // x của kệ -> ảnh (trái -> phải)
   const pcol=(d,i,j)=>{const o=((39-j)*40+i)*3;
     return (parseInt(d[o],16)*17<<16)|(parseInt(d[o+1],16)*17<<8)|(parseInt(d[o+2],16)*17)};
+  // BỐ CỤC RỜI RẠC 2 BÊN: mỗi tranh có tọa độ x/z riêng (so le sâu - nông) và tỉ lệ s (1 = cỡ cũ).
+  // Người chức vụ cao (CEO, co-founder) tranh to nhất, đặt gần giữa sảnh; người ít chức vụ hơn nhỏ dần ra rìa.
+  // pi = chỉ số trong PORTRAITS: 0 Muriel(CEO) · 1 Kent(co-founder) · 2 Chandler · 3 Jeff · 4 Swarna · 5 Flash · 6 Abbas · 7 Eli(CMO) · 8 David · 9 Har Preet
+  const LAYOUT=[
+    // ---- bên TRÁI ----
+    {pi:0,x:-5.6,z:-1.9,s:1.6},    // CEO: to nhất
+    {pi:7,x:-9.8,z:-1.0,s:1.2},    // CMO
+    {pi:2,x:-2.5,z:-.8,s:1.0},
+    {pi:3,x:-13.2,z:-1.9,s:.8},
+    {pi:5,x:-15.6,z:-.9,s:.8},
+    // ---- bên PHẢI ----
+    {pi:1,x:5.6,z:-1.9,s:1.45},    // co-founder: to
+    {pi:9,x:9.8,z:-1.0,s:1.2},     // VP Engineering
+    {pi:8,x:2.5,z:-.8,s:1.0},
+    {pi:6,x:13.2,z:-1.9,s:.8},
+    {pi:4,x:15.6,z:-.9,s:1.0}
+  ];
   const GUIDE_EASELS=[];   // vị trí + tên các tranh thật, cho guide-bot.js
-  const easel=(cx,cz,pi)=>{
-    const F=FL;
-    seg(cx-.64,F,cz+.45,cx-.56,F+2.0,cz+.05,WHITE);        // 2 chân trước
-    seg(cx+.64,F,cz+.45,cx+.56,F+2.0,cz+.05,WHITE);
-    seg(cx,F,cz-.6,cx,F+1.95,cz+.02,WHITE);                // chân sau
-    seg(cx-.62,F+.35,cz+.38,cx+.62,F+.35,cz+.38,WHITE);    // thanh ngang dưới
-    seg(cx-.56,F+1.95,cz+.06,cx+.56,F+1.95,cz+.06,WHITE);  // thanh ngang trên
-    fb(cx-.6,cx+.6,F+.68,F+.74,cz+.16,cz+.34,0xf0f0f0,.06); // gờ đỡ tranh
-    cb(cx-.65,cx+.65,F,F+2.0,cz-.62,cz+.47);
+  const easel=(cx,cz,pi,S)=>{
+    const F=FL,X=d=>cx+d*S,Y=d=>F+d*S;   // chỉ phóng theo chiều ngang / dọc; độ dày (z) giữ nguyên để mặt tranh luôn ở cz+.22
+    seg(X(-.64),F,cz+.45,X(-.56),Y(2.0),cz+.05,WHITE);        // 2 chân trước
+    seg(X(.64),F,cz+.45,X(.56),Y(2.0),cz+.05,WHITE);
+    seg(cx,F,cz-.6,cx,Y(1.95),cz+.02,WHITE);                // chân sau
+    seg(X(-.62),Y(.35),cz+.38,X(.62),Y(.35),cz+.38,WHITE);    // thanh ngang dưới
+    seg(X(-.56),Y(1.95),cz+.06,X(.56),Y(1.95),cz+.06,WHITE);  // thanh ngang trên
+    fb(X(-.6),X(.6),Y(.68),Y(.74),cz+.16,cz+.34,0xf0f0f0,.06); // gờ đỡ tranh
+    cb(X(-.65),X(.65),F,Y(2.0),cz-.62,cz+.47);
     const P=PORTRAITS[pi];
-    if(!P){                                                // kệ trống: khung tranh trống (tranh trắng chưa vẽ)
-      const FR=0x5a3418;
-      fb(cx-.52,cx+.52,F+.73,F+1.77,cz+.19,cz+.21,0xf4f4f4,.02);                       // nền
-      fb(cx-.5,cx+.5,F+.75,F+1.75,cz+.21,cz+.225,0xfaf8f0,.05);                        // vải toan trắng
-      fb(cx-.58,cx+.58,F+1.75,F+1.83,cz+.18,cz+.27,FR,.04);fb(cx-.58,cx+.58,F+.67,F+.75,cz+.18,cz+.27,FR,.04);   // khung trên / dưới
-      fb(cx-.58,cx-.5,F+.67,F+1.83,cz+.18,cz+.27,FR,.04);fb(cx+.5,cx+.58,F+.67,F+1.83,cz+.18,cz+.27,FR,.04);     // khung trái / phải
-      return}
-    GUIDE_EASELS.push({x:hx+cx,z:hz+cz,y:F+1.25,n1:P.n1,n2:P.n2});
-    fb(cx-.52,cx+.52,F+.73,F+1.77,cz+.19,cz+.21,0xf4f4f4,.02);   // nền tranh
-    fp(cx-.5,cx+.5,F+.75,F+1.75,cz+.21,cz+.235,.025,(x,y,z,i,j)=>pcol(P.d,i,j));
-    for(const s of[-.3,.3])fb(cx+s-.06,cx+s+.06,F+1.75,F+1.85,cz+.19,cz+.27,0xbdbdbd,.06); // kẹp trên
-    // bảng tên đặt trước kệ
-    fp(cx-.8,cx+.8,F,F+.45,cz+.7,cz+.76,.05,(x,y,z,i,j)=>(i<1||i>=31||j<1||j>=8)?POST:0x2b1c12);
-    const tcs=s=>Math.min(.017,1.46/(s.length*6-1));   // chữ dài (vd 'PROF. MURIEL MEDARD') tự nhỏ lại cho vừa bảng
+    GUIDE_EASELS.push({x:hx+cx,z:hz+cz,y:Y(1.25),s:S,n1:P.n1,n2:P.n2});
+    fb(X(-.52),X(.52),Y(.73),Y(1.77),cz+.19,cz+.21,0xf4f4f4,.02);   // nền tranh
+    fp(X(-.5),X(.5),Y(.75),Y(1.75),cz+.21,cz+.235,.025*S,(x,y,z,i,j)=>pcol(P.d,i,j));   // 40x40 điểm ảnh, mỗi điểm to theo S
+    for(const s of[-.3,.3])fb(cx+(s-.06)*S,cx+(s+.06)*S,Y(1.75),Y(1.85),cz+.19,cz+.27,0xbdbdbd,.06); // kẹp trên
+    // bảng tên đặt trước kệ (rộng theo tranh)
+    const pw=1.6*S,pn=Math.round(pw/.05);
+    fp(cx-pw/2,cx+pw/2,F,F+.45,cz+.7,cz+.76,.05,(x,y,z,i,j)=>(i<1||i>=pn-1||j<1||j>=8)?POST:0x2b1c12);
+    const tcs=s=>Math.min(.017*Math.min(S,1.3),(pw-.14)/(s.length*6-1));   // chữ dài tự nhỏ lại cho vừa bảng
     text(v,P.n1,cx,F+.30,cz+.771,tcs(P.n1),0xffffff);
     text(v,P.n2,cx,F+.13,cz+.771,tcs(P.n2),0xffd070);
-    cb(cx-.8,cx+.8,F,F+.45,cz+.7,cz+.76);
+    cb(cx-pw/2,cx+pw/2,F,F+.45,cz+.7,cz+.76);
   };
-  for(const sx of[-1,1])for(const ax of[1.3,3.1,4.9,6.7,8.5,10.3,12.1]){const x=sx*ax;easel(x,-1.2,PORT[String(x)])}
+  for(const L of LAYOUT)easel(L.x,L.z,L.pi,L.s);
 
   for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
   window.PavilionGuide={cx:hx,cz:hz,FL,HX,HZ,easels:GUIDE_EASELS};   // guide-bot.js đọc mỗi khung hình (rebuild tự cập nhật)
   // ban đêm: 6 đèn lồng dưới hiên + đèn đá cạnh bậc thang sáng lên (daycycle.js); 2 đèn giữa có thêm PointLight
   if(window.DayCycle){
-    for(const x of[-12,-7.5,-2.7,2.7,7.5,12])DayCycle.lamp(hx+x,2.9,hz+3.0,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
+    for(const x of[-16,-12,-7.5,-2.7,2.7,7.5,12,16])DayCycle.lamp(hx+x,2.9,hz+3.0,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
     DayCycle.lamp(hx-2.9,.95,hz+5.3,1.5,{op:.9});
   }
 }
