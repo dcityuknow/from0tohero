@@ -11,7 +11,7 @@ if(typeof THREE==='undefined'||typeof VB==='undefined'||typeof S==='undefined'){
 const CFG={
   walk:1.1, run:4.2,          // m/s: tuần tra / chạy theo người chơi
   followDist:1.15,            // khoảng cách đứng cạnh người chơi
-  zMin:.75, zMax:1.9,         // dải đi lại trong sảnh (z cục bộ): giữa bảng tên tranh (z≈-.45) và hàng cột (z≈2.3)
+  zMin:-1.9, zMax:1.9,       // dải đi lại trong sảnh (z cục bộ): lối đi giữa 2 hàng tranh đối diện (bảng tên hàng sau z≈-1.2, hàng trước z≈+1.1)
   xPad:1.2,                   // cách mép sảnh
   lookMargin:.4, lookRange:9, // dung sai khi ngắm tranh (m) / tầm xa nhất (m)
   dwell:.5,                   // nhìn liên tục bao lâu thì bắt đầu đọc (s)
@@ -398,12 +398,13 @@ async function greet(){
 function lookedEasel(P,g){
   let best=-1,bestA=1e9;
   for(let i=0;i<g.easels.length;i++){
-    const e=g.easels[i],pz=e.z+.22;                      // mặt tranh quay về +z
-    if(P.dz>-.05||P.z<pz)continue;
-    const t=(pz-P.z)/P.dz;if(t<0||t>CFG.lookRange)continue;
-    const hx=P.x+P.dx*t,hy=P.y+P.dy*t;
-    const hs=.5*(e.s||1);                                  // nửa kích thước tranh (tranh to thì vùng ngắm to theo)
-    if(Math.abs(hx-e.x)>hs+CFG.lookMargin||Math.abs(hy-e.y)>hs+CFG.lookMargin)continue;
+    const e=g.easels[i],fx=e.fx||0,fz=e.fz===undefined?1:e.fz;   // (fx,fz) = hướng mặt tranh trên mặt phẳng ngang (kệ có thể xoay bất kỳ góc nào)
+    const px=e.x+fx*.22,pz=e.z+fz*.22;                            // điểm trên mặt tranh
+    const den=P.dx*fx+P.dz*fz;if(den>-.05)continue;               // phải nhìn ngược chiều mặt tranh
+    const t=((px-P.x)*fx+(pz-P.z)*fz)/den;if(t<0||t>CFG.lookRange)continue;
+    const hx=P.x+P.dx*t,hy=P.y+P.dy*t,hz=P.z+P.dz*t,hs=.5*(e.s||1);
+    const lat=(hx-e.x)*fz-(hz-e.z)*fx;                            // khoảng lệch ngang dọc theo mặt tranh
+    if(Math.abs(lat)>hs+CFG.lookMargin||Math.abs(hy-e.y)>hs+CFG.lookMargin)continue;
     const vx=e.x-P.x,vy=e.y-P.y,vz=pz-P.z,L=Math.hypot(vx,vy,vz)||1;
     const a=Math.acos(Math.max(-1,Math.min(1,(vx*P.dx+vy*P.dy+vz*P.dz)/L)));
     if(a<bestA){bestA=a;best=i}
@@ -472,7 +473,7 @@ function update(dt){
   // --- hướng người / đầu / tay ---
   const present=on&&st.speaking>=0&&st.talking&&g.easels[st.speaking];
   let lookX=null,lookZ=null;
-  if(present){const e=g.easels[st.speaking];lookX=e.x;lookZ=e.z+.22;face=Math.atan2(lookX-st.x,lookZ-st.z)}
+  if(present){const e=g.easels[st.speaking];lookX=e.x+(e.fx||0)*.22;lookZ=e.z+(e.fz===undefined?1:e.fz)*.22;face=Math.atan2(lookX-st.x,lookZ-st.z)}
   else if(on){lookX=P.x;lookZ=P.z;if(!mv)face=Math.atan2(P.x-st.x,P.z-st.z)}
   if(face!==null)st.yaw+=wrap(face-st.yaw)*Math.min(1,dt*8);
   const hy=lookX!==null?Math.max(-1,Math.min(1,wrap(Math.atan2(lookX-st.x,lookZ-st.z)-st.yaw))):0;

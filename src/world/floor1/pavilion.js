@@ -3,10 +3,13 @@
 // Nạp SAU house.js, TRƯỚC nature.js: mở rộng window.HouseZone để cây / đá / sông tự né chòi.
 (function(){
 const PX=7,PZ=-19.5;               // tâm chòi (x,z) trên sàn tầng 1 (chỗ tường hồng cũ: bk(0,0,-13,...) * MAPK)
-const FL=.875, RY=3.9;             // mặt sàn · chân mái
-const HX=17.25, HZ=3.25;            // nửa rộng (rộng ra để bày tranh 2 bên) / nửa sâu của sàn
+const FL=.875, RY=5.0;             // mặt sàn · chân mái (nâng cao để tranh to không chạm mái)
+const DZ=1.75;                      // phần sâu thêm mỗi bên cho hành lang rộng (bản cũ DZ=0)
+const HX=17.25, HZ=3.25+DZ;            // nửa rộng (rộng ra để bày tranh 2 bên) / nửa sâu của sàn
 const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 cột / trụ đá trên mỗi hàng (đều nhau, 8 thay vì 6)
 
+const CEIL_X=[-14.1,-9.4,-4.7,4.7,9.4,14.1], CEIL_Y=3.55;   // vị trí x (dọc sảnh) và độ cao đáy của 6 đèn treo giữa trần
+const CEIL_LIGHTS=true;   // true = mỗi đèn có thêm PointLight thật chiếu sáng tranh (đẹp hơn nhưng tốn GPU); false = chỉ phát sáng, không chiếu
 const POST=0x6b2d1c, RED=0x8a3b22, RED2=0x9c4a2c, DARK=0x2a1a10;
 const STONE=[0x5a5a5a,0x6a6a6a,0x4c4c4c,0x777777,0x3e3e3e];
 const ROOF=[0x2b2b33,0x22222a,0x1c1c22], TRIM=[0x8a8a8a,0x767676,0x9a9a9a];
@@ -136,10 +139,10 @@ const FONT={
   ',':['.....','.....','.....','.....','..##.','..#..','.#...'],
   '-':['.....','.....','.....','.###.','.....','.....','.....'],
   '&':['.##..','#..#.','.##..','.#.#.','#..##','#...#','.##.#']};
-function text(v,str,cx,cy,cz,cs,hex){
-  const x0=cx-(str.length*6-1)*cs/2;
+function text(v,str,cx,cy,cz,cs,hex,flip){   // flip=true: chữ đọc được từ phía +z (bảng tên của tranh hàng trước)
+  const W=(str.length*6-1)*cs;
   for(let a=0;a<str.length;a++){const g=FONT[str[a]];if(!g)continue;
-    for(let r=0;r<7;r++)for(let b=0;b<5;b++)if(g[r][b]==='#')v.box(x0+(a*6+b+.5)*cs,cy+(3-r)*cs,cz,cs,cs,.02,hex,cs)}
+    for(let r=0;r<7;r++)for(let b=0;b<5;b++)if(g[r][b]==='#'){const o=(a*6+b+.5)*cs-W/2;v.box(cx+(flip?-o:o),cy+(3-r)*cs,cz,cs,cs,.02,hex,cs)}}
 }
 
 // ---------- BIỂN HIỆU PHÁT SÁNG KHI TRỜI TỐI ----------
@@ -170,26 +173,26 @@ function build(hx,hz){
   const cb=(x0,x1,y0,y1,z0,z1)=>boxes.push({x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1});
 
   // ---- trụ đá + khung dầm + sàn gỗ ----
-  for(const x of POSX)for(const z of[-2.75,0,2.75])
+  for(const x of POSX)for(const z of[-2.75-DZ,0,2.75+DZ])
     fb(x-.4,x+.4,0,.5,z-.4,z+.4,(i,j,k)=>STONE[(i*3+j*5+k*7)%5],.2);
   fb(-HX,HX,.5,.75,-HZ,HZ,(i,j,k)=>(i+k)&1?0x3a2412:0x2f1c0e,.25);
   fb(-HX,HX,.75,FL,-HZ,HZ,(i,j,k)=>(k&1)?DECK[(i>>2)%3]:DECK[((i>>2)+1)%3],.125);
   cb(-HX,HX,0,FL,-HZ,HZ);
 
   // ---- 8 cột đỏ nâu (4 x 2) ----
-  for(const x of POSX)for(const z of[-2.5,2.5]){
+  for(const x of POSX)for(const z of[-2.5-DZ,2.5+DZ]){
     fb(x-.2,x+.2,FL,RY,z-.2,z+.2,(i,j,k)=>(j&1)?POST:0x7a3520,.1);
     fb(x-.25,x+.25,FL,FL+.15,z-.25,z+.25,0x3a2412,.1);      // đế cột
     cb(x-.2,x+.2,FL,RY,z-.2,z+.2);
   }
   // ---- dầm ngang quanh mái ----
-  for(const z of[-2.5,2.5])fb(-HX+.15,HX-.15,RY-.4,RY,z-.2,z+.2,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
-  for(const x of[-PXO,PXO])fb(x-.2,x+.2,RY-.4,RY,-2.7,2.7,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
+  for(const z of[-2.5-DZ,2.5+DZ])fb(-HX+.15,HX-.15,RY-.4,RY,z-.2,z+.2,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
+  for(const x of[-PXO,PXO])fb(x-.2,x+.2,RY-.4,RY,-2.7-DZ,2.7+DZ,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
   fb(-HX+.15,HX-.15,RY-.4,RY,-.2,.2,0x431d10,.2);                  // xà giữa
 
   // ---- mái ngói đá phiến 4 mái (hip), nhiều tầng, viền đá ----
   for(let n=0;n<=6;n++){
-    const hw=HX+1-.75*n,hd=3.75-.5*n,nx=Math.round(hw*8),nz=Math.round(hd*8),y0=RY+.5*n;
+    const hw=HX+1-.75*n,hd=(3.75+DZ)-(3+DZ)*n/6,nx=Math.round(hw*8),nz=Math.round(hd*8),y0=RY+.5*n;
     fb(-hw,hw,y0,y0+.5,-hd,hd,(i,j,k)=>{
       if(n===0&&(i===0||i===nx-1||k===0||k===nz-1))return TRIM[(i+k)%3];
       if((i<3||i>=nx-3)&&(k<3||k>=nz-3))return TRIM[(i+k)%3];
@@ -199,8 +202,8 @@ function build(hx,hz){
   fb(-(HX+1-4.5),HX+1-4.5,RY+3.5,RY+3.75,-.25,.25,(i,j,k)=>TRIM[(i+k)%3],.25);   // nóc đá
   for(const sx of[-1,1]){const fx=sx*(HX-4.5);fb(fx-.15,fx+.15,RY+3.75,RY+4.35,-.15,.15,(i,j,k)=>(j&1)?RED:RED2,.1)}    // 2 búp nóc
   for(const sx of[-1,1])for(const sz of[-1,1])                          // góc mái cong vút
-    fb(sx>0?HX+.75:-HX-1.25,sx>0?HX+1.25:-HX-.75,RY+.125,RY+.625,sz>0?3.5:-4.0,sz>0?4.0:-3.5,(i,j,k)=>TRIM[(i+j+k)%3],.125);
-  cb(-HX-1,HX+1,RY-.4,RY+.5,-3.75,3.75);
+    fb(sx>0?HX+.75:-HX-1.25,sx>0?HX+1.25:-HX-.75,RY+.125,RY+.625,sz>0?3.5+DZ:-4.0-DZ,sz>0?4.0+DZ:-3.5-DZ,(i,j,k)=>TRIM[(i+j+k)%3],.125);
+  cb(-HX-1,HX+1,RY-.4,RY+.5,-3.75-DZ,3.75+DZ);
 
   // ---- lan can đỏ nâu (chừa lối lên bậc: mặt trước giữa, bên phải giữa) ----
   const rail=(x0,x1,z0,z1,alongX)=>{
@@ -223,27 +226,37 @@ function build(hx,hz){
   }
   // ---- đèn lồng treo dưới hiên trước ----
   for(const x of[-16,-12,-7.5,-2.7,2.7,7.5,12,16]){
-    fb(x-.15,x+.15,2.7,3.1,2.85,3.15,(i,j,k)=>(j===0||j===3)?DARK:0xffc860,.1);
-    fb(x-.025,x+.025,3.1,RY-.4,2.975,3.025,DARK,.05);
+    fb(x-.15,x+.15,2.7,3.1,2.85+DZ,3.15+DZ,(i,j,k)=>(j===0||j===3)?DARK:0xffc860,.1);
+    fb(x-.025,x+.025,3.1,RY-.4,2.975+DZ,3.025+DZ,DARK,.05);
   }
   // ---- đèn đá nhỏ bên cạnh bậc thang ----
-  fb(-3.2,-2.6,0,.2,5.0,5.6,0x666666,.1);fb(-3.0,-2.8,.2,.8,5.2,5.4,0x777777,.1);
-  fb(-3.1,-2.7,.8,1.1,5.1,5.5,0xffd070,.1);fb(-3.25,-2.55,1.1,1.3,4.95,5.65,0x555555,.1);
-  cb(-3.25,-2.55,0,1.3,4.95,5.65);
+  fb(-3.2,-2.6,0,.2,5.0+DZ,5.6+DZ,0x666666,.1);fb(-3.0,-2.8,.2,.8,5.2+DZ,5.4+DZ,0x777777,.1);
+  fb(-3.1,-2.7,.8,1.1,5.1+DZ,5.5+DZ,0xffd070,.1);fb(-3.25,-2.55,1.1,1.3,4.95+DZ,5.65+DZ,0x555555,.1);
+  cb(-3.25,-2.55,0,1.3,4.95+DZ,5.65+DZ);
+
+  // ---- ĐÈN TREO GIỮA TRẦN: 6 đèn lồng treo xích từ xà giữa, mỗi đèn thẳng cột với một cặp kệ tranh; ban đêm sáng + chiếu vào tranh (xem DayCycle.lamp bên dưới) ----
+  for(const x of CEIL_X){
+    fb(x-.03,x+.03,CEIL_Y+.55,RY-.4,-.03,.03,DARK,.03);                                  // xích treo
+    fb(x-.28,x+.28,CEIL_Y+.45,CEIL_Y+.55,-.28,.28,DARK,.07);                              // nắp trên
+    fb(x-.2,x+.2,CEIL_Y+.05,CEIL_Y+.45,-.2,.2,(i,j,k)=>(j===0)?0xfff0b0:0xffc860,.05);    // thân đèn sáng
+    for(const cx of[-.22,.22])for(const cz of[-.22,.22])fb(x+cx-.025,x+cx+.025,CEIL_Y+.05,CEIL_Y+.45,cz-.025,cz+.025,DARK,.025);   // 4 thanh khung
+    fb(x-.28,x+.28,CEIL_Y-.05,CEIL_Y+.05,-.28,.28,DARK,.07);                              // đáy
+    fb(x-.04,x+.04,CEIL_Y-.15,CEIL_Y-.05,-.04,.04,0xe8c04a,.04);                           // núm vàng
+  }
 
   // ---- BIỂN HIỆU góc trước-trái: LOGO + "OPTIMUM" (cùng kiểu với nhà) ----
   const SX0=-14.05, SX1=-11.45, SCX=(SX0+SX1)/2;         // biển rộng 2.6, tâm SCX
-  fb(SX0,SX0+.2,0,2.75,5.1,5.3,PLANK1,.1);fb(SX1-.2,SX1,0,2.75,5.1,5.3,PLANK1,.1);   // 2 trụ
-  fp(SX0,SX1,.65,2.75,5.15,5.25,.1,(x,y,z,i,j)=>(i<2||i>=24||j<2||j>=19)?POST:0x2b1c12); // bảng + viền
-  logo(v,SCX,2.07,5.35,1.85);
-  text(v,'OPTIMUM',SCX,1.35,5.261,.055,0xffffff);
-  text(v,'EXHIBITION',SCX,.98,5.261,.03,0xffd070);
+  fb(SX0,SX0+.2,0,2.75,5.1+DZ,5.3+DZ,PLANK1,.1);fb(SX1-.2,SX1,0,2.75,5.1+DZ,5.3+DZ,PLANK1,.1);   // 2 trụ
+  fp(SX0,SX1,.65,2.75,5.15+DZ,5.25+DZ,.1,(x,y,z,i,j)=>(i<2||i>=24||j<2||j>=19)?POST:0x2b1c12); // bảng + viền
+  logo(v,SCX,2.07,5.35+DZ,1.85);
+  text(v,'OPTIMUM',SCX,1.35,5.261+DZ,.055,0xffffff);
+  text(v,'EXHIBITION',SCX,.98,5.261+DZ,.03,0xffd070);
   {const E=new VB();   // bản phủ phát sáng: cùng hình, nhích ra trước 1.2cm (cộng polygonOffset ở SIGNGLOW)
-    logo(E,SCX,2.07,5.35+.012,1.85);
-    text(E,'OPTIMUM',SCX,1.35,5.261+.012,.055,0xffffff);
-    text(E,'EXHIBITION',SCX,.98,5.261+.012,.03,0xffd070);
+    logo(E,SCX,2.07,5.35+DZ+.012,1.85);
+    text(E,'OPTIMUM',SCX,1.35,5.261+DZ+.012,.055,0xffffff);
+    text(E,'EXHIBITION',SCX,.98,5.261+DZ+.012,.03,0xffd070);
     const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);S.add(gm);prevGlow=gm;}   // không vào meshes -> không ảnh hưởng va chạm / bắn
-  cb(SX0,SX1,0,2.75,5.1,5.3);
+  cb(SX0,SX1,0,2.75,5.1+DZ,5.3+DZ);
 
   // ---- KỆ TRANH x10 (chia đều 5 trái + 5 phải): 9 kệ treo ảnh chân dung + bảng tên, 5 kệ còn lại để trống ----
   const WHITE=[0xf4f4f4,0xe8e8e8,0xfafafa];
@@ -266,61 +279,70 @@ function build(hx,hz){
   ];
   const pcol=(d,i,j)=>{const o=((39-j)*40+i)*3;
     return (parseInt(d[o],16)*17<<16)|(parseInt(d[o+1],16)*17<<8)|(parseInt(d[o+2],16)*17)};
-  // BỐ CỤC RỜI RẠC 2 BÊN: mỗi tranh có tọa độ x/z riêng (so le sâu - nông) và tỉ lệ s (1 = cỡ cũ).
-  // Người chức vụ cao (CEO, co-founder) tranh to nhất, đặt gần giữa sảnh; người ít chức vụ hơn nhỏ dần ra rìa.
+  // BỐ CỤC TỰ DO 2 PHÍA: hàng SAU (z<0, tranh nhìn về +z) và hàng TRƯỚC (z>0, nhìn về -z), ở giữa là hành lang rộng.
+  // Mỗi kệ có tọa độ x/z riêng (so le sâu - nông), cỡ s riêng và góc xoay deg riêng (0° = nhìn thẳng về +z, 180° = nhìn thẳng về -z;
+  // lệch khỏi 0°/180° thì kệ bị xiên; số dương ở hàng sau = quay mặt về phía +x). Chức vụ càng cao tranh càng to.
   // pi = chỉ số trong PORTRAITS: 0 Muriel(CEO) · 1 Kent(co-founder) · 2 Chandler · 3 Jeff · 4 Swarna · 5 Flash · 6 Abbas · 7 Eli(CMO) · 8 David · 9 Har Preet
   const LAYOUT=[
-    // ---- bên TRÁI ----
-    {pi:0,x:-5.6,z:-1.9,s:1.6},    // CEO: to nhất
-    {pi:7,x:-9.8,z:-1.0,s:1.2},    // CMO
-    {pi:2,x:-2.5,z:-.8,s:1.0},
-    {pi:3,x:-13.2,z:-1.9,s:.8},
-    {pi:5,x:-15.6,z:-.9,s:.8},
-    // ---- bên PHẢI ----
-    {pi:1,x:5.6,z:-1.9,s:1.45},    // co-founder: to
-    {pi:9,x:9.8,z:-1.0,s:1.2},     // VP Engineering
-    {pi:8,x:2.5,z:-.8,s:1.0},
-    {pi:6,x:13.2,z:-1.9,s:.8},
-    {pi:4,x:15.6,z:-.9,s:1.0}
+    // ---- hàng SAU (tranh to, quan trọng) ----
+    {pi:0,x:-5.0, z:-3.6,s:1.7, deg:14},    // CEO
+    {pi:1,x: 5.6, z:-3.2,s:1.55,deg:-18},   // co-founder
+    {pi:7,x:-10.2,z:-2.9,s:1.2, deg:28},    // CMO
+    {pi:9,x: 10.0,z:-3.5,s:1.2, deg:-9},    // VP Engineering
+    {pi:2,x:-14.8,z:-3.6,s:1.0, deg:20},
+    {pi:8,x: 14.6,z:-2.8,s:1.0, deg:-30},
+    // ---- hàng TRƯỚC (đối diện), tranh nhỏ hơn ----
+    {pi:5,x:-4.4, z:3.1, s:.8,  deg:160},
+    {pi:3,x: 4.9, z:2.7, s:.8,  deg:192},
+    {pi:4,x:-9.6, z:3.5, s:.9,  deg:172},
+    {pi:6,x: 9.8, z:2.9, s:.9,  deg:206}
   ];
-  const GUIDE_EASELS=[];   // vị trí + tên các tranh thật, cho guide-bot.js
-  const easel=(cx,cz,pi,S)=>{
-    const F=FL,X=d=>cx+d*S,Y=d=>F+d*S;   // chỉ phóng theo chiều ngang / dọc; độ dày (z) giữ nguyên để mặt tranh luôn ở cz+.22
-    seg(X(-.64),F,cz+.45,X(-.56),Y(2.0),cz+.05,WHITE);        // 2 chân trước
-    seg(X(.64),F,cz+.45,X(.56),Y(2.0),cz+.05,WHITE);
-    seg(cx,F,cz-.6,cx,Y(1.95),cz+.02,WHITE);                // chân sau
-    seg(X(-.62),Y(.35),cz+.38,X(.62),Y(.35),cz+.38,WHITE);    // thanh ngang dưới
-    seg(X(-.56),Y(1.95),cz+.06,X(.56),Y(1.95),cz+.06,WHITE);  // thanh ngang trên
-    fb(X(-.6),X(.6),Y(.68),Y(.74),cz+.16,cz+.34,0xf0f0f0,.06); // gờ đỡ tranh
-    cb(X(-.65),X(.65),F,Y(2.0),cz-.62,cz+.47);
-    const P=PORTRAITS[pi];
-    GUIDE_EASELS.push({x:hx+cx,z:hz+cz,y:Y(1.25),s:S,n1:P.n1,n2:P.n2});
-    fb(X(-.52),X(.52),Y(.73),Y(1.77),cz+.19,cz+.21,0xf4f4f4,.02);   // nền tranh
-    fp(X(-.5),X(.5),Y(.75),Y(1.75),cz+.21,cz+.235,.025*S,(x,y,z,i,j)=>pcol(P.d,i,j));   // 40x40 điểm ảnh, mỗi điểm to theo S
-    for(const s of[-.3,.3])fb(cx+(s-.06)*S,cx+(s+.06)*S,Y(1.75),Y(1.85),cz+.19,cz+.27,0xbdbdbd,.06); // kẹp trên
-    // bảng tên đặt trước kệ (rộng theo tranh)
-    const pw=1.6*S,pn=Math.round(pw/.05);
-    fp(cx-pw/2,cx+pw/2,F,F+.45,cz+.7,cz+.76,.05,(x,y,z,i,j)=>(i<1||i>=pn-1||j<1||j>=8)?POST:0x2b1c12);
-    const tcs=s=>Math.min(.017*Math.min(S,1.3),(pw-.14)/(s.length*6-1));   // chữ dài tự nhỏ lại cho vừa bảng
-    text(v,P.n1,cx,F+.30,cz+.771,tcs(P.n1),0xffffff);
-    text(v,P.n2,cx,F+.13,cz+.771,tcs(P.n2),0xffd070);
-    cb(cx-pw/2,cx+pw/2,F,F+.45,cz+.7,cz+.76);
+  const GUIDE_EASELS=[];   // vị trí + hướng mặt + tên các tranh thật, cho guide-bot.js
+  const easel=(cx,cz,pi,K,deg)=>{
+    // Dựng kệ ở toạ độ cục bộ (tâm kệ = gốc, mặt tranh quay về +z) trong 1 VB riêng, rồi xoay cả mesh theo góc deg.
+    const a=deg*Math.PI/180,sn=Math.sin(a),cs=Math.cos(a),w=new VB();
+    const lfb=(x0,x1,y0,y1,z0,z1,c,s=.25)=>w.box((x0+x1)/2,(y0+y1)/2,(z0+z1)/2,x1-x0,y1-y0,z1-z0,c,s);
+    const lfp=(x0,x1,y0,y1,z0,z1,s,fn)=>lfb(x0,x1,y0,y1,z0,z1,(i,j,k)=>fn(x0+(i+.5)*s,y0+(j+.5)*s,z0+(k+.5)*s,i,j,k),s);
+    const lseg=(ax,ay,az,bx,by,bz)=>{const n=Math.ceil(Math.hypot(bx-ax,by-ay,bz-az)/.06);
+      for(let t=0;t<=n;t++){const x=ax+(bx-ax)*t/n,y=ay+(by-ay)*t/n,z=az+(bz-az)*t/n;lfb(x-.04,x+.04,y-.04,y+.04,z-.04,z+.04,WHITE[t%3],.08)}};
+    const F=FL,X=d=>d*K,Y=d=>F+d*K;   // phóng theo chiều ngang / dọc; độ dày (z) giữ nguyên
+    lseg(X(-.64),F,.45,X(-.56),Y(2.0),.05);        // 2 chân trước
+    lseg(X(.64),F,.45,X(.56),Y(2.0),.05);
+    lseg(0,F,-.6,0,Y(1.95),.02);                   // chân sau
+    lseg(X(-.62),Y(.35),.38,X(.62),Y(.35),.38);    // thanh ngang dưới
+    lseg(X(-.56),Y(1.95),.06,X(.56),Y(1.95),.06);  // thanh ngang trên
+    lfb(X(-.6),X(.6),Y(.68),Y(.74),.16,.34,0xf0f0f0,.06); // gờ đỡ tranh
+    const P=PORTRAITS[pi],pw=1.6*K,pn=Math.round(pw/.05);
+    lfb(X(-.52),X(.52),Y(.73),Y(1.77),.19,.21,0xf4f4f4,.02);   // nền tranh
+    lfp(X(-.5),X(.5),Y(.75),Y(1.75),.21,.235,.025*K,(x,y,z,i,j)=>pcol(P.d,i,j));   // 40x40 điểm ảnh, mỗi điểm to theo K
+    for(const s of[-.3,.3])lfb((s-.06)*K,(s+.06)*K,Y(1.75),Y(1.85),.19,.27,0xbdbdbd,.06); // kẹp trên
+    lfp(-pw/2,pw/2,F,F+.45,.7,.76,.05,(x,y,z,i,j)=>(i<1||i>=pn-1||j<1||j>=8)?POST:0x2b1c12);   // bảng tên (rộng theo tranh)
+    const tcs=s=>Math.min(.017*Math.min(K,1.3),(pw-.14)/(s.length*6-1));   // chữ dài tự nhỏ lại cho vừa bảng
+    text(w,P.n1,0,F+.30,.771,tcs(P.n1),0xffffff);
+    text(w,P.n2,0,F+.13,.771,tcs(P.n2),0xffd070);
+    for(const m of w.meshLOD()){m.position.set(hx+cx,0,hz+cz);m.rotation.y=a;S.add(m);meshes.push(m)}
+    // va chạm: hộp AABB bao hình chữ nhật chân kệ + bảng tên sau khi xoay
+    let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+    for(const lx of[-.8*K,.8*K])for(const lz of[-.62,.76]){const wx=cx+lx*cs+lz*sn,wz=cz-lx*sn+lz*cs;x0=Math.min(x0,wx);x1=Math.max(x1,wx);z0=Math.min(z0,wz);z1=Math.max(z1,wz)}
+    cb(x0,x1,F,Y(2.0),z0,z1);
+    GUIDE_EASELS.push({x:hx+cx,z:hz+cz,y:Y(1.25),s:K,fx:sn,fz:cs,n1:P.n1,n2:P.n2});
   };
-  for(const L of LAYOUT)easel(L.x,L.z,L.pi,L.s);
+  for(const L of LAYOUT)easel(L.x,L.z,L.pi,L.s,L.deg);
 
   for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
   window.PavilionGuide={cx:hx,cz:hz,FL,HX,HZ,easels:GUIDE_EASELS};   // guide-bot.js đọc mỗi khung hình (rebuild tự cập nhật)
   // ban đêm: 6 đèn lồng dưới hiên + đèn đá cạnh bậc thang sáng lên (daycycle.js); 2 đèn giữa có thêm PointLight
   if(window.DayCycle){
-    for(const x of[-16,-12,-7.5,-2.7,2.7,7.5,12,16])DayCycle.lamp(hx+x,2.9,hz+3.0,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
-    DayCycle.lamp(hx-2.9,.95,hz+5.3,1.5,{op:.9});
+    for(const x of[-16,-12,-7.5,-2.7,2.7,7.5,12,16])DayCycle.lamp(hx+x,2.9,hz+3.0+DZ,2.2,{light:Math.abs(x)===2.7,I:.9,dist:9});
+    DayCycle.lamp(hx-2.9,.95,hz+5.3+DZ,1.5,{op:.9});
+    for(const x of CEIL_X)DayCycle.lamp(hx+x,CEIL_Y+.25,hz,2.6,{light:CEIL_LIGHTS,I:1.0,dist:13});   // đèn treo giữa trần: chiếu xuống cả 2 hàng tranh
   }
 }
 build(PX,PZ);
 // nature.js đọc PavilionKeep trong keepOuts(): cây / đá / sông / đầu cầu đều né hình chữ nhật này (mái + bậc thang + đèn đá + lề an toàn)
-window.PavilionKeep={x0:PX-HX-2,x1:PX+HX+3.5,z0:PZ-4.5,z1:PZ+6.5};
+window.PavilionKeep={x0:PX-HX-2,x1:PX+HX+3.5,z0:PZ-4.5-DZ,z1:PZ+6.5+DZ};
 // (giữ lại cho code khác nếu có dùng)
 const _hz=window.HouseZone||(()=>false);
-window.HouseZone=(x,z)=>_hz(x,z)||(x>PX-HX-2&&x<PX+HX+3.2&&z>PZ-4.8&&z<PZ+6.0);
+window.HouseZone=(x,z)=>_hz(x,z)||(x>PX-HX-2&&x<PX+HX+3.2&&z>PZ-4.8-DZ&&z<PZ+6.0+DZ);
 window.Pavilion={build,rebuild:()=>build(PX,PZ)};
 })();
