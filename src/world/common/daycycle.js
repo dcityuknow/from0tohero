@@ -21,10 +21,21 @@ const CFG={
   badge:true,                // hiện đồng hồ nhỏ góc phải (🌙 21:05 · VN)
   geoTimeout:2500,           // ms chờ mỗi dịch vụ tra IP
   cacheHours:12,
-  stars:420,
+  stars:900,                 // số sao trên vòm trời (tầng hở trời). Trước là 420
+  ceilStars:1,               // độ sáng sao trong "cửa sổ sao" ở các tầng có trần (0 = tắt sao + không khoét sương)
+  holeOpen:[20.5,22.5],      // cửa sổ sao mở dần từ giờ này tới giờ kia (giờ tối). Trước 20h30 chưa mở, từ 22h30 mở hẳn
+  holeClose:[4,5.4],         // sáng sớm: cửa sổ khép lại dần trong khoảng giờ này
+  holeCenter:null,moonDrift:7,moonBelow:2.8,holeEdge:[16,34],holeHalf:null,   // holeCenter:[x,z] = tâm cửa sổ sao trên trần (null = chỗ đứng đầu tiên mỗi tầng) · moonDrift: trăng lệch khỏi tâm tối đa bao nhiêu m · moonBelow: trăng treo thấp hơn trần bao nhiêu m (nhỏ = sát trần) · holeEdge: [m,m] cách MÉP trần (tường 4 góc): trong khoảng đầu sương trắng kín hoàn toàn, tới khoảng sau mới được khoét · holeHalf:[nửa rộng x, nửa rộng z] ép tay vùng được khoét (null = tự dò theo tấm trần)
+  holeR:[24,64],             // cửa sổ trên trần: bán kính [lõi luôn mở quanh tâm, hết hẳn] (m): rộng hơn trước vì giờ cửa sổ đứng yên, bạn đi quanh nó. Hình dạng KHÔNG còn là hình tròn: mép bị nhiễu (noise) bẻ thành các mảng hở trời loang lổ như khe mây
+  holeNoise:[.075,.04],       // tần số nhiễu của mép cửa sổ [theo hướng nhìn ra trăng, theo chiều ngang màn hình]. Số nhỏ = mảng to hơn · tỉ lệ 2:1 -> mảng dẹt, kéo dài ngang trời
+  moonDist:30,moonSize:1.3,moonCells:10,  // trăng VOXEL lơ lửng: cách người chơi bao nhiêu m · bán kính (m) · số ô voxel trên 1 đường kính (ô = 2*moonSize/moonCells m; tăng = mịn hơn, giảm = khối to hơn)
   shadows:qsShadow(),        // bóng đổ thật (mặt trời). ?shadow=0 để tắt
   shadowSize:/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)?1024:2048,   // độ phân giải bản đồ bóng
   shadowRange:/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)?30:32,      // nửa cạnh vùng đổ bóng quanh người chơi (m). Trước là 44; sương mù đã che dần từ 18m (kín ở 55m)
+  shadowDist:90,             // khoảng cách đặt "camera bóng" tới người chơi (m). Trước là 130 và far=300: lúc mặt trời thấp (chiều tà / bình minh) khối nhìn của bóng
+                             // kéo dài thành dải ~220m nên phải vẽ vào bản đồ bóng gấp ~3 lần số vật so với buổi trưa. 90 + far=shadowDist+60 cắt bớt phần dải thừa (sương đã che từ ~55m)
+  shadowMinSun:.15,          // chỉ vẽ bóng khi cường độ nắng > số này (trước .06). Chiều tà nắng yếu + môi trường sáng nên bóng gần như không thấy, tắt sớm cho đỡ nặng
+  maxPointLights:5,          // tối đa số PointLight bật cùng lúc, chỉ giữ các đèn GẦN camera nhất (mỗi PointLight bắt MỌI vật liệu ăn đèn tính thêm 1 lần cho từng đỉnh). 0 = không giới hạn
   shadowStride:3,            // cập nhật bóng mỗi N khung (3 = còn 1/3 tải; vật đứng yên không thấy khác, chỉ bóng bot trễ chút). Trước là 2
   dist:400                   // khoảng cách vẽ mặt trời / mặt trăng / sao quanh camera (vòm trời bán kính 450, far=600)
 };
@@ -61,23 +72,24 @@ const sm=t=>t*t*(3-2*t),clamp=(x,a,b)=>x<a?a:x>b?b:x,ss=(a,b,x)=>sm(clamp((x-a)/
 //  moons[]  : các mặt trăng. {size, col, phase 0..1 (1 = tròn, nhỏ hơn = lưỡi liềm), ring:true = có vành đai, z, az, dh, bright}
 // Chỉ TẦNG CAO NHẤT (tầng 4) hở trời nên thấy trực tiếp mặt trời / trăng / sao; tầng 1-3 có trần, thấy quầng sáng của chúng xuyên lớp sương trên trần
 // + toàn bộ màu nắng, màu ánh sáng, sương mù, màu trần / mây đều theo thế giới của tầng đó.
+// TẤT CẢ CÁC TẦNG CHẠY ĐÚNG GIỜ THẬT (cycles:1, offset:0, mọc 6h - lặn 18h): chỉ khác nhau về màu sắc / sương / trăng. Muốn tầng nào đi giờ riêng thì sửa cycles / offset / sunrise / sunset của tầng đó.
 const WORLDS=[
-  {name:'Đồng cỏ'},   // thế giới gốc: giờ thật, nắng vàng, trăng trắng
-  {name:'Rừng anh đào',cycles:1,offset:12,fog:[40,150],
+  {name:'Đồng cỏ',moons:[{phase:.32}]},   // thế giới gốc: giờ thật, nắng vàng, trăng LƯỠI LIỀM (phase: 1 = tròn, nhỏ hơn = mảnh hơn)
+  {name:'Rừng anh đào',cycles:1,offset:0,fog:[40,150],
     sunTint:0xffc4d4,hemiTint:0xfff0f6,ceilMul:0xffe2ec,glareK:.8,moonLight:0xd8b0ff,starCol:0xffd9f0,
     skyK:.55,sky:{day:[0xffe3ee,0xf7b8da,0xb48ae8],night:[0x45345f,0x2c2150,0x130d2e]},
     suns:[{size:1.4,col:0xffb8cc}],
-    moons:[{size:1.5,col:0xffe0ee,phase:1},{size:.55,col:0xd6b8ff,phase:.45,dh:5,z:.15,az:.9}]},
-  {name:'Mùa thu',cycles:3,offset:0,
+    moons:[{size:1.5,col:0xffe0ee,phase:.38},{size:.55,col:0xd6b8ff,phase:.45,dh:5,z:.15,az:.9}]},
+  {name:'Mùa thu',cycles:1,offset:0,
     sunTint:0xffa860,hemiTint:0xffe6cc,ceilMul:0xffe2c4,ambK:1.05,glareK:.9,moonLight:0xffc890,starCol:0xffd6a8,
     skyK:.5,sky:{day:[0xffd8a0,0xf2a46e,0xb0606e],night:[0x3c2234,0x26142c,0x0e0818]},
     suns:[{size:1.7,col:0xff9a50},{size:.5,col:0xff5a34,dh:.7,z:.5,az:.4}],
-    moons:[{size:1.2,col:0xffd08a,phase:.62}]},
-  {name:'Tuyết',cycles:1,offset:0,sunrise:8,sunset:16,fog:[16,52],
+    moons:[{size:1.2,col:0xffd08a,phase:.4}]},
+  {name:'Tuyết',cycles:1,offset:0,fog:[16,52],
     sunTint:0xcfe6ff,hemiTint:0xe8f4ff,ceilMul:0xe6f2ff,glareK:.5,moonK:1.3,moonLight:0xaad4ff,starCol:0xd8f0ff,starSize:3,
     skyK:.6,sky:{day:[0xe8f7ff,0xaad6f6,0x5c9ce2],night:[0x17324c,0x0b1d38,0x040a1e]},
     suns:[{size:.75,col:0xd8ecff,style:'disc'}],
-    moons:[{size:2,col:0xdcecff,phase:1,ring:true},{size:.5,col:0xbfe0ff,phase:.5,dh:-4,z:-.5,az:-.8}]}
+    moons:[{size:2,col:0xdcecff,phase:.55,ring:true},{size:.5,col:0xbfe0ff,phase:.5,dh:-4,z:-.5,az:-.8}]}
 ].map(w=>{
   const hc=a=>hx(a),d={cycles:1,offset:0,sunrise:6,sunset:18,fog:[18,55],sunTint:0xffffff,hemiTint:0xffffff,ceilMul:0xffffff,ambK:1,glareK:1,moonK:1,
     moonLight:0x9bb4ff,starCol:0xffffff,starSize:2.2,skyK:0,sky:null,suns:[{}],moons:[{}]};
@@ -159,7 +171,7 @@ async function geolocate(){
 setInterval(()=>{if(!ovr&&speed===1)resync()},60000);   // khớp lại đồng hồ hệ thống mỗi phút
 
 // ================= ĐÈN: quầng sáng (+ PointLight) bật theo đêm =================
-const lamps=[];let _gt=null;
+const lamps=[],PLC=[];let _gt=null;   // PLC: danh sách tạm các đèn có PointLight (dùng lại mỗi khung, khỏi tạo rác)
 function glowTex(){
   if(_gt)return _gt;const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d'),gr=g.createRadialGradient(32,32,2,32,32,32);
   gr.addColorStop(0,'rgba(255,236,160,.95)');gr.addColorStop(.35,'rgba(255,205,95,.40)');gr.addColorStop(1,'rgba(255,180,60,0)');
@@ -187,7 +199,7 @@ const _L0=new THREE.Layers(),_bx=new THREE.Box3(),_sn=new THREE.Vector3(),_rr=ne
   if(!CFG.shadows||typeof R==='undefined'||!R.shadowMap)return;
   R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;R.shadowMap.autoUpdate=false;R.shadowMap.needsUpdate=true;
   const D=CFG.shadowRange,sh=sun.shadow;sun.castShadow=true;sh.mapSize.set(CFG.shadowSize,CFG.shadowSize);
-  Object.assign(sh.camera,{left:-D,right:D,top:D,bottom:-D,near:1,far:300});sh.camera.updateProjectionMatrix();
+  Object.assign(sh.camera,{left:-D,right:D,top:D,bottom:-D,near:1,far:CFG.shadowDist+60});sh.camera.updateProjectionMatrix();
   sh.bias=-.0004;sh.normalBias=.05;sh.radius=1.5;S.add(sun.target);SH.on=true;
 })();
 // gắn cờ đổ / nhận bóng cho mesh mới xuất hiện (quét định kỳ vì cây, nhà, bot... được dựng rải rác theo từng tầng)
@@ -220,17 +232,17 @@ function stepShadow(dt,sl){
   const dc=Math.min(dt,.1);SH.age+=dc;SH.ema+=(dc-SH.ema)*.05;   // 8 giây đầu (nạp tầng, biên dịch shader) không tính; dt bị chặn 0.1 để tab nền không làm lệch
   SH.slow=SH.age<8?0:SH.ema>.036?SH.slow+dc:Math.max(0,SH.slow-dc);
   if(SH.slow>8&&!SH.off){SH.off=true;console.warn('[DayCycle] máy chậm -> tự tắt bóng đổ')}
-  const day=cur.sun>.06&&!SH.off;
+  const day=cur.sun>CFG.shadowMinSun&&!SH.off;
   if(day){
     const tx=2*CFG.shadowRange/CFG.shadowSize;
     _rr.set(sl.z,0,-sl.x).normalize();_uu.crossVectors(sl,_rr);
     _sn.set(C.position.x,C.position.y,C.position.z);
     const a=Math.round(_sn.dot(_rr)/tx)*tx,b=Math.round(_sn.dot(_uu)/tx)*tx,c=_sn.dot(sl);
     _sn.set(0,0,0).addScaledVector(_rr,a).addScaledVector(_uu,b).addScaledVector(sl,c);
-    sun.target.position.copy(_sn);sun.position.copy(_sn).addScaledVector(sl,130);
+    sun.target.position.copy(_sn);sun.position.copy(_sn).addScaledVector(sl,CFG.shadowDist);
     if(SH.empty||(++SH.f%CFG.shadowStride===0)){R.shadowMap.needsUpdate=true}SH.empty=false;
   }else{   // đêm / máy yếu: dời vùng bóng ra chỗ trống (bản đồ bóng rỗng = không bóng) nhưng GIỮ NGUYÊN hướng đèn
-    if(!SH.empty){sun.target.position.set(0,-5000,0);sun.position.copy(sun.target.position).addScaledVector(sl,130);R.shadowMap.needsUpdate=true;SH.empty=true}
+    if(!SH.empty){sun.target.position.set(0,-5000,0);sun.position.copy(sun.target.position).addScaledVector(sl,CFG.shadowDist);R.shadowMap.needsUpdate=true;SH.empty=true}
   }
   sun.target.updateMatrixWorld();
   return true;
@@ -261,11 +273,114 @@ function moonTex(b){
 }
 const ceilSunTex=()=>mkTex('ceil:sun',(g,n)=>rg(g,n,[[0,'rgba(255,252,232,1)'],[.1,'rgba(255,240,175,.95)'],[.28,'rgba(255,214,120,.6)'],[.6,'rgba(255,196,100,.2)'],[1,'rgba(255,190,100,0)']]));
 const ceilMoonTex=()=>mkTex('ceil:moon',(g,n)=>rg(g,n,[[0,'rgba(240,246,255,1)'],[.12,'rgba(225,235,255,.9)'],[.3,'rgba(195,212,255,.5)'],[.6,'rgba(170,190,255,.16)'],[1,'rgba(150,175,255,0)']]));
+// ---- cửa sổ sao: HOLE = (tâm x, tâm z, bán kính lõi, bán kính ngoài) · HOLEK = mức mở 0..1 · HOLED = hướng từ người chơi ra trăng · HOLET = thời gian (mép trôi rất chậm). Dùng chung cho mọi vật liệu đã vá ----
+const HOLEB={value:new THREE.Vector4(0,0,1e5,1e5)},HOLE={value:new THREE.Vector4(0,0,24,64)},HOLEK={value:0},HOLED={value:new THREE.Vector2(1,0)},HOLET={value:0};
+// holeM(xz thế giới) -> 0..1 (1 = hở trời). KHÔNG phải hình tròn: nhiễu (noise) neo theo TOẠ ĐỘ THẾ GIỚI (đi bộ thì khe mây trượt qua như thật) nhân với độ mở giảm dần theo khoảng cách tới trăng,
+// nên lõi quanh trăng luôn hở, còn xa ra thì chỉ còn các mảng / dải loang lổ. Nhiễu bị kéo dẹt vuông góc hướng trăng -> dải trải ngang bầu trời.
+const HOLE_GLSL='varying vec3 vHW;uniform vec4 uHole;uniform float uOpen;uniform vec2 uDir;uniform float uTm;uniform vec4 uBox;\n'+
+'float hH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\n'+
+'float hN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hH(i),hH(i+vec2(1.0,0.0)),f.x),mix(hH(i+vec2(0.0,1.0)),hH(i+vec2(1.0,1.0)),f.x),f.y);}\n'+
+'float holeM(vec2 wp){\n'+
+' vec2 q=wp-uHole.xy;float d=length(q);\n'+
+' if(uOpen<=0.0||d>=uHole.w)return 0.0;\n'+
+' vec2 uv=vec2(dot(wp,uDir),dot(wp,vec2(-uDir.y,uDir.x)));\n'+
+' vec2 s=uv*vec2('+CFG.holeNoise[0]+','+CFG.holeNoise[1]+')+vec2(uTm*0.006,uTm*0.002);\n'+
+' s+=1.5*vec2(hN(s*1.3+4.3),hN(s*1.3+9.7))-0.75;\n'+                                  // bẻ cong miền -> mép ngoằn ngoèo như nét vẽ tay
+' float n=hN(s)*0.5+hN(s*2.07+7.1)*0.3+hN(s*4.3+2.9)*0.2;\n'+
+' float g=1.0-smoothstep(0.0,uHole.w,d);\n'+
+' float nc=clamp((n-0.45)*2.4+0.5,0.0,1.0);\n'+
+' float m=smoothstep(0.55,0.70,nc*0.8+g*0.7);\n'+
+' vec2 eb=uBox.zw-abs(wp-uBox.xy);m*=smoothstep('+CFG.holeEdge[0].toFixed(2)+','+CFG.holeEdge[1].toFixed(2)+',min(eb.x,eb.y));\n'+
+' return m*(1.0-smoothstep(uHole.w*0.8,uHole.w,d))*uOpen;\n'+
+'}\n';
+// mode 0: lớp sương trần -> trong suốt trong cửa sổ · mode 2: mặt dưới tấm trần -> tối hơn trong cửa sổ (nền trời đêm) · mode 3: chấm sao -> chỉ hiện trong cửa sổ
+function patchHole(m,mode){
+  if(m._holeP)return;m._holeP=true;
+  m.onBeforeCompile=sh=>{
+    sh.uniforms.uHole=HOLE;sh.uniforms.uOpen=HOLEK;sh.uniforms.uDir=HOLED;sh.uniforms.uTm=HOLET;sh.uniforms.uBox=HOLEB;
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vHW;').replace('#include <begin_vertex>','#include <begin_vertex>\nvHW=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    const hook=mode===3?'#include <color_fragment>':'#include <map_fragment>',
+      code=mode===0?'diffuseColor.a*=1.0-holeM(vHW.xz);':mode===2?'diffuseColor.rgb*=1.0-0.6*holeM(vHW.xz);':'diffuseColor.a*=holeM(vHW.xz);';
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n'+HOLE_GLSL).replace(hook,hook+'\n{'+code+'}');
+  };
+  m.customProgramCacheKey=()=>'holeMode'+mode;m.needsUpdate=true;
+}
+// sao rải trên đĩa bán kính R (toạ độ cục bộ quanh tâm cửa sổ); mờ dần về mép đĩa
+function starsDisc(n,R,seed){
+  let sd=seed*7919+13;const rn=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
+  const pos=new Float32Array(n*3),col=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const r=R*Math.sqrt(rn()),a=rn()*6.283185,k=(1-ss(CFG.holeR[1]*.75,CFG.holeR[1],r))*(.5+.5*rn()),t=rn();
+    pos[i*3]=Math.cos(a)*r;pos[i*3+1]=0;pos[i*3+2]=Math.sin(a)*r;
+    col[i*3]=k*(t<.2?1:t<.5?.82:.95);col[i*3+1]=k*(t<.2?.9:t<.5?.9:.97);col[i*3+2]=k*(t<.2?.75:1);
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));return g;
+}
+// trăng khuyết VOXEL: lấy mẫu hình khuyết (đĩa bán kính 1 khoét bởi đĩa lệch, phase 1 = tròn, nhỏ = mảnh) trên lưới CFG.moonCells x CFG.moonCells, mỗi ô giữ lại thành 1 khối lập phương (dày 2 ô).
+// Hình khuyết được nghiêng ngay lúc lấy mẫu nên các khối vẫn thẳng hàng với lưới như mọi vật voxel khác trong game. Mỗi khối sáng tối hơi khác nhau (vài khối sẫm làm "hố" trăng). Mặt giấu kín bị bỏ.
+const _cg={};
+const VFACES=[[[1,0,0],[0,1,0],[0,0,1]],[[-1,0,0],[0,0,1],[0,1,0]],[[0,1,0],[0,0,1],[1,0,0]],[[0,-1,0],[1,0,0],[0,0,1]],[[0,0,1],[1,0,0],[0,1,0]],[[0,0,-1],[0,1,0],[1,0,0]]];   // [pháp tuyến, trục a, trục b] (a x b = pháp tuyến -> mặt quay ra ngoài)
+function voxelCrescent(phase){
+  const N=CFG.moonCells,key=phase.toFixed(2)+'_'+N;if(_cg[key])return _cg[key];
+  const s=2/N,h=s/2,c=2*clamp(phase,.12,.95),rB=1.02,ph=.4,cp=Math.cos(ph),sp=Math.sin(ph);
+  let sd=11;const rn=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
+  const cells=[],has=new Set();let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++){
+    const x=-1+(i+.5)*s,y=-1+(j+.5)*s,u=x*cp-y*sp,v=x*sp+y*cp;
+    if(u*u+v*v>1||Math.hypot(u-c,v)<=rB)continue;
+    const r=rn(),br=r<.16?.7:.86+.14*rn();
+    for(let k=0;k<2;k++){cells.push([i,j,k,br]);has.add(i+','+j+','+k)}
+    x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);
+  }
+  const ox=(x0+x1)/2,oy=(y0+y1)/2,P=[],NR=[],V=[],I=[];
+  for(const[i,j,k,br]of cells){
+    const cx=-1+(i+.5)*s-ox,cy=-1+(j+.5)*s-oy,cz=(k-.5)*s;
+    for(const[n,a,b]of VFACES){
+      if(has.has((i+n[0])+','+(j+n[1])+','+(k+n[2])))continue;   // có khối kề -> mặt này bị che
+      const o=P.length/3;
+      for(const[sa,sb]of[[-1,-1],[1,-1],[1,1],[-1,1]]){
+        P.push(cx+(n[0]+a[0]*sa+b[0]*sb)*h,cy+(n[1]+a[1]*sa+b[1]*sb)*h,cz+(n[2]+a[2]*sa+b[2]*sb)*h);NR.push(n[0],n[1],n[2]);V.push(br);
+      }
+      I.push(o,o+1,o+2,o,o+2,o+3);
+    }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(NR,3));g.setAttribute('aV',new THREE.Float32BufferAttribute(V,1));g.setIndex(I);
+  return _cg[key]=g;
+}
 let X=null;
 function build(){
   const add=(tex,additive)=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false,transparent:true,fog:false}));
     s.renderOrder=additive?0:2;s.frustumCulled=false;s.visible=false;S.add(s);return s};
   const pool=(tex,add_)=>Array.from({length:MAXB},()=>add(tex,add_));
+  // Quầng nắng / trăng dưới trần: tấm NẰM NGANG sát trần (như các lớp sương). Bản cũ là Sprite dựng đứng to 18-36m đặt cách trần 2,2m nên nửa trên chui vào tấm trần và bị cắt thẳng.
+  const flat=tex=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+    m.rotation.order='YXZ';m.rotation.x=Math.PI/2;m.renderOrder=2;m.frustumCulled=false;m.visible=false;S.add(m);return m};
+  const fpool=tex=>Array.from({length:MAXB},()=>flat(tex));
+  // ---- CỬA SỔ SAO: khoét 1 vùng mềm trong các lớp sương trần (và tối nền trần) để lộ bầu trời đêm + sao. Mây nhỏ lơ lửng KHÔNG bị đụng tới. ----
+  for(const q of _sk.fl)for(const l of q.lay)patchHole(l.m.material,0);
+  for(const m of CEILMATS)patchHole(m,2);
+  // sao trong cửa sổ: 2 lớp chấm tròn (nhỏ nhiều / to ít) nhấp nháy xen kẽ, nằm sát trần, đi theo tâm cửa sổ
+  const cStars=[];
+  for(const q of _sk.fl){if(q.f>=NF-1)continue;   // tầng cao nhất hở trời: đã có sao trên vòm
+    const grp=new THREE.Group();grp.position.y=FY(q.f+1)-SLAB-.1;grp.visible=false;q.g.add(grp);
+    [[3000,1.9,3],[340,2.9,5]].forEach(([n,sz,sd],j)=>{
+      const pts=new THREE.Points(starsDisc(n,CFG.holeR[1]+2,sd),new THREE.PointsMaterial({size:sz,sizeAttenuation:false,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,opacity:0}));patchHole(pts.material,3);   // chấm sao chỉ hiện đúng trong phần hở trời (cùng mặt nạ với sương trần)
+      pts.renderOrder=3;pts.frustumCulled=false;grp.add(pts);cStars.push({pts,grp,q,j});
+    });
+  }
+  // trăng khuyết 3D lơ lửng (như hạt mây): khối vát tròn, luôn quay mặt về người chơi, có quầng sáng nhỏ
+  const mm=new THREE.ShaderMaterial({transparent:true,uniforms:{uC:{value:new THREE.Color(1,.96,.85)},uO:{value:1}},
+    vertexShader:'attribute float aV;varying vec3 vN;varying float vV;void main(){vN=normalize(normalMatrix*normal);vV=aV;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:'uniform vec3 uC;uniform float uO;varying vec3 vN;varying float vV;void main(){float c=clamp(dot(normalize(vN),vec3(0.0,0.0,1.0)),0.0,1.0);vec3 col=uC*(0.55+0.45*c)*vV+vec3(0.10,0.11,0.16)*pow(1.0-c,2.0);gl_FragColor=vec4(col,uO);}'});
+  const cres=new THREE.Mesh(voxelCrescent(.32),mm);cres.scale.setScalar(CFG.moonSize);cres.renderOrder=2;cres.frustumCulled=false;
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:ceilMoonTex(),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));
+  halo.scale.set(CFG.moonSize*6,CFG.moonSize*6,1);halo.position.z=-.6;halo.renderOrder=1;
+  // hào quang trên trần: tấm sáng NẰM NGANG sát mặt dưới trần, ngay trên đầu trăng (không bị tấm trần cắt như sprite đứng)
+  const glow=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({map:ceilMoonTex(),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+  glow.rotation.x=Math.PI/2;glow.scale.set(CFG.moonSize*16,CFG.moonSize*16,1);glow.renderOrder=1;glow.frustumCulled=false;
+  const mg=new THREE.Group();mg.visible=false;mg.add(glow,halo,cres);S.add(mg);
+  const moon={g:mg,mesh:cres,mat:mm,halo,glow};
   // sao: điểm trên nửa vòm trời, đi theo camera
   const N=CFG.stars,pos=new Float32Array(N*3),col=new Float32Array(N*3);let sd=7;const rn=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
   for(let i=0;i<N;i++){const u=rn()*6.283,y=.05+rn()*.95,r=Math.sqrt(1-y*y),R_=CFG.dist+20;pos.set([Math.cos(u)*r*R_,y*R_,Math.sin(u)*r*R_],i*3);const w=.75+rn()*.25,t=rn();col.set([w*(.85+.15*t),w*.95,w],i*3)}
@@ -279,14 +394,15 @@ function build(){
   // đồng hồ nhỏ
   let bd=null;
   if(CFG.badge&&hud){bd=document.createElement('div');bd.style.cssText='position:absolute;right:16px;top:calc(62px + env(safe-area-inset-top,0px));background:rgba(255,255,255,.85);color:#2b2a3a;border:2px solid #fff;border-radius:12px;padding:3px 10px;font:700 13px "Trebuchet MS",Verdana,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.18)';hud.appendChild(bd)}
-  return {sunB:pool(SUNTEX.glow(),true),moonB:pool(moonTex({phase:1}),true),cSun:pool(ceilSunTex(),false),cMoon:pool(ceilMoonTex(),false),
-    stars,moonL,gl,bd,lastPaint:'',paintT:0,bdT:0,bdTxt:'',wi:-1,fade:1};
+  return {sunB:pool(SUNTEX.glow(),true),moonB:pool(moonTex({phase:1}),true),cSun:fpool(ceilSunTex()),cMoon:fpool(ceilMoonTex()),
+    anch:{},stars,moonL,gl,bd,lastPaint:'',paintT:0,bdT:0,bdTxt:'',wi:-1,fade:1,cStars,moon,tt:0};
 }
 // gán kiểu (ảnh) mặt trời / mặt trăng của thế giới W cho các sprite
 function assignWorld(wi,W){
   X.wi=wi;
   W.suns.forEach((b,i)=>{X.sunB[i].material.map=SUNTEX[b.style]?SUNTEX[b.style]():SUNTEX.glow()});
   W.moons.forEach((b,i)=>{X.moonB[i].material.map=moonTex(b)});
+  {const b=W.moons[0];X.moon.mesh.geometry=voxelCrescent(b.phase);X.moon.mat.uniforms.uC.value.setRGB(b.c[0],b.c[1]*.97,b.c[2]*.9)}   // trăng 3D dưới trần: khối voxel khuyết theo thế giới
   X.stars.material.color.setRGB(...W.starColA);X.stars.material.size=W.starSize;X.moonL.color.setRGB(...W.moonLightA);
 }
 // hướng của 1 thiên thể trên quỹ đạo: góc th (0 = mọc, π/2 = đỉnh đầu), z = lệch ngang, az = xoay quỹ đạo quanh trục dọc
@@ -337,11 +453,45 @@ function tick(dt){
   const T=cur.tint;
   for(const m of HAZE)m.uniforms.uT.value.setRGB(T[0],T[1],T[2]);
   for(const m of CEILMATS)m.color.setRGB(.949*T[0],.965*T[1],.988*T[2]);
+  // cửa sổ sao: mức mở theo giờ (mở dần ~20h30 -> 22h30, khép lại ~4h -> 5h30). Mây nhỏ lơ lửng và các lớp sương NGOÀI cửa sổ giữ nguyên.
+  X.tt+=dt;HOLET.value=X.tt;
+  const open=h>=12?ss(CFG.holeOpen[0],CFG.holeOpen[1],h):1-ss(CFG.holeClose[0],CFG.holeClose[1],h);
   for(const q of _sk.fl)for(const l of q.lay)l.m.material.color.setRGB(T[0],T[1],T[2]);
+  for(const m of CEILMATS)patchHole(m,2);   // tấm trần tạo muộn (nếu có) cũng được vá
   for(const m of unlits)m.color.setRGB(m.userData._dc.r*T[0],m.userData._dc.g*T[1],m.userData._dc.b*T[2]);
   // --- mặt trời / mặt trăng / sao ---
   const sky=_sk.dome.visible;   // chỉ tầng cao nhất thấy trời trực tiếp
-  X.stars.position.copy(C.position);X.stars.rotation.y=h*.26;X.stars.material.opacity=sky?ss(.55,1,nightK)*.95:0;X.stars.visible=sky&&nightK>.5;
+  X.stars.position.copy(C.position);X.stars.rotation.y=h*.26;X.stars.material.opacity=sky?ss(.55,1,nightK)*.95*(.88+.12*Math.sin(X.tt*2.7)):0;   // nhấp nháy nhẹX.stars.visible=sky&&nightK>.5;
+  // ---- tầng có trần: trăng khuyết 3D lơ lửng + cửa sổ sao ngay sau lưng trăng (nhìn từ người chơi) ----
+  {const m0=M0,thm=th+Math.PI+m0.dh*Math.PI/12,em=Math.sin(thm),mo=X.moon,vis=!sky&&cur.moon>0&&em>-.05&&CFG.ceilStars>0;
+   let holeK=0;
+   if(vis){
+    // CỬA SỔ CỐ ĐỊNH TRÊN TRẦN (toạ độ thế giới), KHÔNG đi theo người chơi: chạy tới đâu thì nhìn nó từ góc đó (xa -> thấy nhỏ / lệch như cửa sổ thật).
+    // Tâm = giữa trần (0,0) (đổi bằng CFG.holeCenter nếu cần).
+    const dir=arc(_f,thm,m0.z,m0.az),hd=Math.hypot(dir.x,dir.z)||1,ceil=FY(curFl+1)-SLAB;
+    let an=X.anch[curFl];
+    if(!an){   // lần đầu vào tầng: cửa sổ nằm ở GIỮA trần (tâm bản đồ = gốc toạ độ, như các lớp sương trong sky.js), nửa cạnh trần = AF(tầng)
+      const q=_sk.fl.find(o=>o.f===curFl),A=q?q.A:60;
+      an={x:0,z:0,bx:0,bz:0,hx:A,hz:A,A};
+      if(CFG.holeCenter){an.x=an.bx=CFG.holeCenter[0];an.z=an.bz=CFG.holeCenter[1]}
+      if(CFG.holeHalf){an.hx=CFG.holeHalf[0];an.hz=CFG.holeHalf[1]}
+      X.anch[curFl]=an;
+    }
+    const hRo=Math.min(CFG.holeR[1],an.A*.72),hRi=Math.min(CFG.holeR[0],hRo*.5);   // cửa sổ không bao giờ to quá nửa trần: luôn chừa viền sương quanh 4 cạnh
+    const mx=an.x+dir.x/hd*CFG.moonDrift,mz=an.z+dir.z/hd*CFG.moonDrift,my=ceil-CFG.moonBelow+Math.sin(X.tt*.5)*.3;   // trăng treo dưới trần, trôi nhẹ quanh tâm theo giờ
+    mo.g.position.set(mx,my,mz);mo.g.rotation.y=Math.atan2(C.position.x-mx,C.position.z-mz);mo.g.rotation.z=0;   // quay mặt về người chơi (như mây)
+    const op=ss(-.05,.25,em)*clamp(cur.moon*2.4,0,1)*m0.bright*X.fade;
+    mo.mat.uniforms.uO.value=op;mo.halo.material.opacity=op*.85;mo.halo.material.color.setRGB(m0.c[0],m0.c[1],m0.c[2]);mo.glow.position.y=ceil-.35-my;mo.glow.material.opacity=op*.9;mo.glow.material.color.setRGB(m0.c[0],m0.c[1],m0.c[2]);
+    HOLE.value.set(an.x,an.z,hRi,hRo);HOLED.value.set(.6,.8);HOLEB.value.set(an.bx,an.bz,an.hx,an.hz);   // tâm cố định · hướng kéo dẹt cố định
+    holeK=open*ss(-.05,.25,em)*CFG.ceilStars;
+   }
+   mo.g.visible=vis;HOLEK.value=holeK;
+   const sOp=ss(.55,1,nightK)*holeK;
+   for(const s of X.cStars){
+    const on=vis&&curFl===s.q.f&&sOp>.01;s.grp.visible=on;if(!on)continue;
+    s.grp.position.x=HOLE.value.x;s.grp.position.z=HOLE.value.y;
+    s.pts.material.opacity=sOp*(.62+.38*Math.sin(X.tt*(1.1+s.j*.7)+s.j*2.4));
+   }}
   const sdp=arc(_d,th,S0.z,S0.az);   // hướng mặt trời chính (dùng cho quầng chói)
   const sVis=sky&&e>-.1;
   const ceilY=FY(curFl+1)-SLAB-2.2;
@@ -362,7 +512,7 @@ function tick(dt){
       cs.visible=!sky&&cur.sun>.05&&eb>-.05;
       if(cs.visible){
         const R_=12+34*(1-clamp(eb,0,1)),hd=Math.hypot(dir.x,dir.z)||1,s=(24+12*(1-clamp(eb,0,1)))*b.size;
-        cs.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cs.scale.set(s,s,1);
+        cs.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cs.scale.set(s,s,1);cs.rotation.y=Math.atan2(dir.x,dir.z);   // tấm nằm ngang; đỉnh hình hướng ra xa người chơi
         cs.material.color.setRGB(b.c[0],b.c[1],b.c[2]);cs.material.opacity=clamp(cur.sun*.85,0,.95)*b.bright*X.fade;
       }
     }
@@ -376,10 +526,10 @@ function tick(dt){
         const s=70*m.size;mp.position.copy(C.position).addScaledVector(dir,CFG.dist);mp.scale.set(s,s,1);
         mp.material.color.setRGB(m.c[0],m.c[1],m.c[2]);mp.material.opacity=ss(-.08,.15,em)*clamp(cur.moon*2.4,0,1)*m.bright*X.fade;
       }
-      cm.visible=!sky&&cur.moon>0&&em>-.05;   // tầng có trần: quầng trăng xanh nhạt trên lớp sương
+      cm.visible=false;   // trăng dưới trần giờ là khối 3D (X.moon, bên dưới), không dùng tấm phẳng
       if(cm.visible){
         const R_=12+34*(1-clamp(em,0,1)),hd=Math.hypot(dir.x,dir.z)||1,s=(18+10*(1-clamp(em,0,1)))*m.size;
-        cm.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cm.scale.set(s,s,1);
+        cm.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cm.scale.set(s,s,1);cm.rotation.y=Math.atan2(dir.x,dir.z);
         cm.material.color.setRGB(m.c[0],m.c[1],m.c[2]);cm.material.opacity=clamp(cur.moon*2,0,.85)*ss(-.05,.2,em)*m.bright*X.fade;
       }
     }
@@ -399,9 +549,20 @@ function tick(dt){
     l.sp.material.opacity=l.op*(.16+.9*nightK);
     if(l.pl){
       l.pl.intensity=l.pI*(.08+1.55*nightK);
-      l.pl.visible=nightK>.03;   // ban ngày gỡ hẳn PointLight khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh)
+      PLC.push(l);
     }
   }
+  // PointLight: ban ngày gỡ hẳn khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh). Ban đêm chỉ bật các đèn GẦN camera nhất
+  // (số đèn bật luôn giữ cố định nên three.js không phải biên dịch lại shader khi đổi đèn). Đèn xa vẫn còn quầng sáng (sprite) nên nhìn không khác.
+  {const on=nightK>.03,cap=CFG.maxPointLights;
+    if(!on||!cap||PLC.length<=cap){for(const l of PLC)l.pl.visible=on}
+    else{
+      const cx=C.position.x,cy=C.position.y,cz=C.position.z;
+      for(const l of PLC){const e=l.pl.matrixWorld.elements,dx=e[12]-cx,dy=e[13]-cy,dz=e[14]-cz;l.dk=Math.sqrt(dx*dx+dy*dy+dz*dz)-(l.pl.visible?2:0)}   // đèn đang bật được cộng ưu tiên 2m: tránh nhấp nháy khi 2 đèn cách camera xấp xỉ nhau
+      PLC.sort((a,b)=>a.dk-b.dk);
+      for(let i=0;i<PLC.length;i++)PLC[i].pl.visible=i<cap;
+    }
+    PLC.length=0}
   // --- vật liệu phát sáng về đêm (mắt bot...) ---
   for(const g of glows){
     if(nightK<=g.lo){g.m.visible=false;continue}

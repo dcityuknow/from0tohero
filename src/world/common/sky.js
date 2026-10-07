@@ -98,7 +98,7 @@ const SKYFOG={
   speed:.6,          // tốc độ trôi của các lớp (m/s; mỗi lớp nhân hệ số riêng, xen kẽ chiều)
   clouds:9,          // số mây nhỏ lơ lửng mỗi tầng
   cMin:1,cMax:2.2,   // cỡ mây nhỏ (m; đám mây rộng khoảng 4 lần số này)
-  cLo:7.6,cHi:9.4,   // độ cao mây nhỏ so với sàn tầng (m): cao hơn khối chắn, thấp hơn lớp sương
+  cGap:.5,cJit:1.2,  // mây nhỏ nằm SÁT DƯỚI lớp sương trắng thấp nhất: đỉnh mây cách lớp đó cGap (m), ngẫu nhiên hạ thêm tối đa cJit (m)
   cDrift:.9,         // tốc độ trôi mây nhỏ (m/s)
   topK:.6            // tầng cao nhất (không có trần, thấy bầu trời): nhân độ đặc các lớp sương với số này (1 = đặc như tầng 1-3, nhỏ hơn = thấy trời rõ hơn)
 };
@@ -154,10 +154,11 @@ function buildSky(){
       const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*SKYFOG.f2K:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
       m.rotation.x=-Math.PI/2;m.position.y=yc-dy;m.renderOrder=1;m.frustumCulled=false;g.add(m);lay.push({t,m,k:(i%2?-1:1)*(.6+i*.25)});
     });
+    const fa=f===1?SKYFOG.layers2:SKYFOG.layers,yLow=yc-fa[fa.length-1][0];   // độ cao lớp sương thấp nhất của tầng này
     for(let i=0;i<SKYFOG.clouds;i++){
       const m=cloudObj(geosF[i%4],cmat),s=SKYFOG.cMin+Math.random()*(SKYFOG.cMax-SKYFOG.cMin);
       m.scale.set(s,s,s*CLOUD_FLAT);m.rotation.z=(Math.random()-.5)*.8;
-      m.position.set((Math.random()*2-1)*(A-5),FY(f)+SKYFOG.cLo+Math.random()*(SKYFOG.cHi-SKYFOG.cLo),(Math.random()*2-1)*(A-5));
+      m.position.set((Math.random()*2-1)*(A-5),yLow-SKYFOG.cGap-2.3*s-Math.random()*SKYFOG.cJit,(Math.random()*2-1)*(A-5));   // 2.3*s = nửa chiều cao đám mây (hình thoi cao nhất ~2.2*s)
       m.userData.v=SKYFOG.cDrift*(.5+Math.random());g.add(m);cs.push(m);
     }
     g.visible=false;S.add(g);fl.push({f,g,lay,cs,A});
