@@ -25,6 +25,7 @@ const CFG={
   ceilStars:1,               // độ sáng sao trong "cửa sổ sao" ở các tầng có trần (0 = tắt sao + không khoét sương)
   holeOpen:[20.5,22.5],      // cửa sổ sao mở dần từ giờ này tới giờ kia (giờ tối). Trước 20h30 chưa mở, từ 22h30 mở hẳn
   holeClose:[4,5.4],         // sáng sớm: cửa sổ khép lại dần trong khoảng giờ này
+  sunSize:.8,sunCells:9,sunMid:.5,sunDrift:9,   // mặt trời VOXEL hình cầu treo sát trần (tầng có trần): bán kính (m) · số ô voxel trên 1 đường kính · độ cao tâm mặt trời trong chồng sương: 0 = sát trần, 1 = ngang lớp sương thấp nhất, .5 = giữa · trôi quanh tâm trần tối đa bao nhiêu m theo giờ
   holeCenter:null,moonDrift:7,moonBelow:2.8,holeEdge:[16,34],holeHalf:null,   // holeCenter:[x,z] = tâm cửa sổ sao trên trần (null = chỗ đứng đầu tiên mỗi tầng) · moonDrift: trăng lệch khỏi tâm tối đa bao nhiêu m · moonBelow: trăng treo thấp hơn trần bao nhiêu m (nhỏ = sát trần) · holeEdge: [m,m] cách MÉP trần (tường 4 góc): trong khoảng đầu sương trắng kín hoàn toàn, tới khoảng sau mới được khoét · holeHalf:[nửa rộng x, nửa rộng z] ép tay vùng được khoét (null = tự dò theo tấm trần)
   holeR:[24,64],             // cửa sổ trên trần: bán kính [lõi luôn mở quanh tâm, hết hẳn] (m): rộng hơn trước vì giờ cửa sổ đứng yên, bạn đi quanh nó. Hình dạng KHÔNG còn là hình tròn: mép bị nhiễu (noise) bẻ thành các mảng hở trời loang lổ như khe mây
   holeNoise:[.075,.04],       // tần số nhiễu của mép cửa sổ [theo hướng nhìn ra trăng, theo chiều ngang màn hình]. Số nhỏ = mảng to hơn · tỉ lệ 2:1 -> mảng dẹt, kéo dài ngang trời
@@ -348,6 +349,37 @@ function voxelCrescent(phase){
   g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(NR,3));g.setAttribute('aV',new THREE.Float32BufferAttribute(V,1));g.setIndex(I);
   return _cg[key]=g;
 }
+// mặt trời VOXEL: quả cầu ghép từ các khối lập phương (lưới N x N x N, giữ ô có tâm trong bán kính 1), mặt giấu kín bị bỏ. Cầu đối xứng nên không cần xoay về phía người chơi -> khối luôn thẳng hàng lưới.
+const SUN_SHELLS=[[1.9,.62],[3,.45],[4.4,.3]];   // các lớp sương vàng quanh lõi voxel: [cỡ x bán kính lõi, độ đặc]
+let _sg=null;
+function voxelSphere(){
+  if(_sg)return _sg;
+  const N=CFG.sunCells,s=2/N,h=s/2;let sd=5;const rn=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
+  const cells=[],has=new Set();
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++)for(let k=0;k<N;k++){
+    const x=-1+(i+.5)*s,y=-1+(j+.5)*s,z=-1+(k+.5)*s;if(x*x+y*y+z*z>1)continue;
+    cells.push([x,y,z,i,j,k,.88+.12*rn()]);has.add(i+','+j+','+k);
+  }
+  const P=[],NR=[],V=[],I=[];
+  for(const[x,y,z,i,j,k,br]of cells)for(const[n,a,b]of VFACES){
+    if(has.has((i+n[0])+','+(j+n[1])+','+(k+n[2])))continue;
+    const o=P.length/3;
+    for(const[sa,sb]of[[-1,-1],[1,-1],[1,1],[-1,1]]){P.push(x+(n[0]+a[0]*sa+b[0]*sb)*h,y+(n[1]+a[1]*sa+b[1]*sb)*h,z+(n[2]+a[2]*sa+b[2]*sb)*h);NR.push(n[0],n[1],n[2]);V.push(br)}
+    I.push(o,o+1,o+2,o,o+2,o+3);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(NR,3));g.setAttribute('aV',new THREE.Float32BufferAttribute(V,1));g.setIndex(I);
+  return _sg=g;
+}
+// tâm cửa sổ / mặt trời / trăng của tầng đang đứng: giữa trần (0,0), tạo 1 lần cho mỗi tầng
+function getAnch(){
+  let an=X.anch[curFl];
+  if(!an){const q=_sk.fl.find(o=>o.f===curFl),A=q?q.A:60;an={x:0,z:0,bx:0,bz:0,hx:A,hz:A,A};
+    if(CFG.holeCenter){an.x=an.bx=CFG.holeCenter[0];an.z=an.bz=CFG.holeCenter[1]}
+    if(CFG.holeHalf){an.hx=CFG.holeHalf[0];an.hz=CFG.holeHalf[1]}
+    X.anch[curFl]=an}
+  return an;
+}
 let X=null;
 function build(){
   const add=(tex,additive)=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false,transparent:true,fog:false}));
@@ -394,7 +426,21 @@ function build(){
   // đồng hồ nhỏ
   let bd=null;
   if(CFG.badge&&hud){bd=document.createElement('div');bd.style.cssText='position:absolute;right:16px;top:calc(62px + env(safe-area-inset-top,0px));background:rgba(255,255,255,.85);color:#2b2a3a;border:2px solid #fff;border-radius:12px;padding:3px 10px;font:700 13px "Trebuchet MS",Verdana,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.18)';hud.appendChild(bd)}
-  return {sunB:pool(SUNTEX.glow(),true),moonB:pool(moonTex({phase:1}),true),cSun:fpool(ceilSunTex()),cMoon:fpool(ceilMoonTex()),
+  const sun3=Array.from({length:MAXB},()=>{
+    const mat=new THREE.ShaderMaterial({transparent:true,uniforms:{uC:{value:new THREE.Color(1,1,1)},uO:{value:1}},
+      vertexShader:'attribute float aV;varying vec3 vN;varying float vV;void main(){vN=normalize(normalMatrix*normal);vV=aV;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+      fragmentShader:'uniform vec3 uC;uniform float uO;varying vec3 vN;varying float vV;void main(){float c=clamp(dot(normalize(vN),vec3(0.0,0.0,1.0)),0.0,1.0);gl_FragColor=vec4(uC*(0.93+0.07*c)*vV,uO);}'});
+    const mesh=new THREE.Mesh(voxelSphere(),mat);mesh.renderOrder=3;mesh.frustumCulled=false;
+    // quầng = các lớp SƯƠNG VÀNG hình cầu lồng nhau (như mây trong sky.js): giữa đặc, mép loãng dần, không viền. [tỉ lệ so với bán kính lõi, độ đặc]
+    const gs=new THREE.SphereGeometry(1,24,16);
+    const shells=SUN_SHELLS.map(([k,a])=>{
+      const m=new THREE.Mesh(gs,new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:false,uniforms:{uC:{value:new THREE.Color(1,.9,.4)},uO:{value:1}},
+        vertexShader:'varying vec3 vN;varying vec3 vP;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vP=mv.xyz;vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*mv;}',
+        fragmentShader:'uniform vec3 uC;uniform float uO;varying vec3 vN;varying vec3 vP;void main(){float c=clamp(dot(normalize(vN),-normalize(vP)),0.0,1.0);gl_FragColor=vec4(uC,'+a.toFixed(3)+'*uO*smoothstep(0.0,0.8,c));}'}));
+      m.userData.k=k;m.renderOrder=2;m.frustumCulled=false;return m});
+    const g=new THREE.Group();g.visible=false;g.add(mesh,...shells);S.add(g);return {g,mesh,mat,shells};
+  });
+  return {sun3,sunB:pool(SUNTEX.glow(),true),moonB:pool(moonTex({phase:1}),true),cSun:fpool(ceilSunTex()),cMoon:fpool(ceilMoonTex()),
     anch:{},stars,moonL,gl,bd,lastPaint:'',paintT:0,bdT:0,bdTxt:'',wi:-1,fade:1,cStars,moon,tt:0};
 }
 // gán kiểu (ảnh) mặt trời / mặt trăng của thế giới W cho các sprite
@@ -469,14 +515,7 @@ function tick(dt){
     // CỬA SỔ CỐ ĐỊNH TRÊN TRẦN (toạ độ thế giới), KHÔNG đi theo người chơi: chạy tới đâu thì nhìn nó từ góc đó (xa -> thấy nhỏ / lệch như cửa sổ thật).
     // Tâm = giữa trần (0,0) (đổi bằng CFG.holeCenter nếu cần).
     const dir=arc(_f,thm,m0.z,m0.az),hd=Math.hypot(dir.x,dir.z)||1,ceil=FY(curFl+1)-SLAB;
-    let an=X.anch[curFl];
-    if(!an){   // lần đầu vào tầng: cửa sổ nằm ở GIỮA trần (tâm bản đồ = gốc toạ độ, như các lớp sương trong sky.js), nửa cạnh trần = AF(tầng)
-      const q=_sk.fl.find(o=>o.f===curFl),A=q?q.A:60;
-      an={x:0,z:0,bx:0,bz:0,hx:A,hz:A,A};
-      if(CFG.holeCenter){an.x=an.bx=CFG.holeCenter[0];an.z=an.bz=CFG.holeCenter[1]}
-      if(CFG.holeHalf){an.hx=CFG.holeHalf[0];an.hz=CFG.holeHalf[1]}
-      X.anch[curFl]=an;
-    }
+    const an=getAnch();
     const hRo=Math.min(CFG.holeR[1],an.A*.72),hRi=Math.min(CFG.holeR[0],hRo*.5);   // cửa sổ không bao giờ to quá nửa trần: luôn chừa viền sương quanh 4 cạnh
     const mx=an.x+dir.x/hd*CFG.moonDrift,mz=an.z+dir.z/hd*CFG.moonDrift,my=ceil-CFG.moonBelow+Math.sin(X.tt*.5)*.3;   // trăng treo dưới trần, trôi nhẹ quanh tâm theo giờ
     mo.g.position.set(mx,my,mz);mo.g.rotation.y=Math.atan2(C.position.x-mx,C.position.z-mz);mo.g.rotation.z=0;   // quay mặt về người chơi (như mây)
@@ -498,7 +537,7 @@ function tick(dt){
   for(let i=0;i<MAXB;i++){
     // ---- mặt trời i ----
     const b=W.suns[i],sp=X.sunB[i],cs=X.cSun[i];
-    if(!b){sp.visible=cs.visible=false}
+    if(!b){sp.visible=cs.visible=false;X.sun3[i].g.visible=false}
     else{
       const thb=th+b.dh*Math.PI/12,eb=Math.sin(thb),dir=arc(_e,thb,b.z,b.az);
       sp.visible=sky&&eb>-.1;
@@ -509,11 +548,19 @@ function tick(dt){
         sp.material.opacity=ss(-.1,.08,eb)*(cur.sun>0?1:.6)*clamp(cur.sun*2.2,0,1)*b.bright*X.fade;
       }
       // vệt nắng xuyên sương trần (các tầng có trần: không thấy mặt trời trực tiếp, chỉ thấy quầng sáng trên lớp sương theo hướng nắng)
-      cs.visible=!sky&&cur.sun>.05&&eb>-.05;
-      if(cs.visible){
-        const R_=12+34*(1-clamp(eb,0,1)),hd=Math.hypot(dir.x,dir.z)||1,s=(24+12*(1-clamp(eb,0,1)))*b.size;
-        cs.position.set(C.position.x+dir.x/hd*R_,ceilY,C.position.z+dir.z/hd*R_);cs.scale.set(s,s,1);cs.rotation.y=Math.atan2(dir.x,dir.z);   // tấm nằm ngang; đỉnh hình hướng ra xa người chơi
-        cs.material.color.setRGB(b.c[0],b.c[1],b.c[2]);cs.material.opacity=clamp(cur.sun*.85,0,.95)*b.bright*X.fade;
+      cs.visible=false;   // tấm nắng phẳng cũ đã bỏ: thay bằng quả cầu voxel lơ lửng
+      const s3=X.sun3[i],on3=!sky&&cur.sun>.05&&eb>-.05;s3.g.visible=on3;
+      if(on3){
+        const an=getAnch(),hd=Math.hypot(dir.x,dir.z)||1,ceil=FY(curFl+1)-SLAB,R=Math.min(CFG.sunSize*b.size,2.4),fa=curFl===1?SKYFOG.layers2:SKYFOG.layers,lowDy=fa[fa.length-1][0],
+          sy=ceil-lowDy*CFG.sunMid+Math.sin(X.tt*.4+i)*.15,   // tâm quả cầu nằm ở khoảng GIỮA chồng lớp sương trắng (sky.js: SKYFOG.layers)
+          op=ss(-.1,.08,eb)*(cur.sun>0?1:.6)*clamp(cur.sun*2.2,0,1)*b.bright*X.fade;
+        s3.g.position.set(an.x+dir.x/hd*CFG.sunDrift,sy,an.z+dir.z/hd*CFG.sunDrift);   // treo sát trần, trôi vòng quanh tâm trần theo giờ
+        s3.mesh.scale.setScalar(R);
+        // màu mặt trời theo giờ thật: cam đậm lúc bình minh / hoàng hôn (mặt trời thấp) -> vàng nắng lúc trưa (mặt trời cao)
+        const lw=1-ss(.02,.55,eb),cr=lerp(1,1,lw),cg=lerp(.88,.46,lw),cb=lerp(.32,.14,lw),tr=(1+b.c[0])/2,tg=(1+b.c[1])/2,tb=(1+b.c[2])/2;
+        s3.mat.uniforms.uC.value.setRGB(cr*tr,cg*tg,cb*tb);s3.mat.uniforms.uO.value=op;
+        for(const sh of s3.shells){sh.scale.setScalar(Math.min(R*sh.userData.k,ceil-sy-.3));   // lớp ngoài không chạm trần
+          sh.material.uniforms.uC.value.setRGB(lerp(cr*tr,1,.25),lerp(cg*tg,1,.25),lerp(cb*tb,1,.25));sh.material.uniforms.uO.value=op}
       }
     }
     // ---- mặt trăng i ----
