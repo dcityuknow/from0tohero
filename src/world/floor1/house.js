@@ -1,6 +1,6 @@
 // Nhà rubik "CMC Infinity Residence" - NHÀ NHẬT TRUYỀN THỐNG 2 TẦNG (rừng tre)
 // Tầng 1: hiên (engawa) + phòng trà, bếp, kotatsu, tansu, kệ sách, bình phong...  Cầu thang gỗ trong nhà lên tầng 2.
-// Tầng 2: có ban công lan can quanh nhà, phòng làm việc (2 màn hình), giường futon, sofa, kệ sách...
+// Tầng 2: có ban công lan can quanh nhà, phòng làm việc (dãy 6 máy tính), sofa, kệ sách...
 // Mái ngói đá phiến 2 tầng (mái dưới + mái trên cong góc), đèn lồng / đèn treo phát sáng vàng (có quầng sáng + vài PointLight).
 // Nạp SAU voxel.js, TRƯỚC nature.js để cây / đá / sông tự né nhà (xem keepOuts trong nature.js).
 (function(){
@@ -217,6 +217,40 @@ const cf=c=>typeof c==='function'?c:()=>c;
     }
   };
 
+  // như scrQuads nhưng mặt màn hình hướng về -x (dùng cho dãy bàn sát tường đông): cz = tâm theo z, xf = mặt khung theo x
+  const scrQuadsX=(v,cz,y,xf,n)=>{
+    const m=SCR_IMG[n],W=SCR_W,H=SCR_H,cw=.8/W,ch=.45/H,Z0=cz-.4,Y0=y+.2,xx=xf-.004,idx=new Uint8Array(W*H),used=new Uint8Array(W*H);
+    for(let i=0;i<W*H;i++)idx[i]=SCR_B64.indexOf(m.px[i]);
+    for(let r=0;r<H;r++)for(let c=0;c<W;c++){
+      if(used[r*W+c])continue;
+      const k=idx[r*W+c];let w=1,h=1;
+      while(c+w<W&&!used[r*W+c+w]&&idx[r*W+c+w]===k)w++;
+      grow:while(r+h<H){for(let i=0;i<w;i++){const q=(r+h)*W+c+i;if(used[q]||idx[q]!==k)break grow}h++}
+      for(let j=0;j<h;j++)for(let i=0;i<w;i++)used[(r+j)*W+c+i]=1;
+      const za=Z0+c*cw,zb=Z0+(c+w)*cw,yt=Y0+(H-r)*ch,yb=Y0+(H-r-h)*ch,hx=m.pal[k],cr=((hx>>16)&255)/255,cg=((hx>>8)&255)/255,cb2=(hx&255)/255,b=v.k;
+      v.p.push(xx,yb,za,xx,yb,zb,xx,yt,zb,xx,yt,za);
+      for(let q=0;q<4;q++){v.n.push(-1,0,0);v.c.push(cr,cg,cb2)}
+      v.i.push(b,b+1,b+2,b,b+2,b+3);v.k+=4;
+    }
+  };
+
+  // như scrQuads nhưng mặt màn hình hướng về -z (dãy bàn sát tường trước): cx = tâm theo x, zf = mặt khung theo z. Cột ảnh tăng dần về phía -x.
+  const scrQuadsN=(v,cx,y,zf,n)=>{
+    const m=SCR_IMG[n],W=SCR_W,H=SCR_H,cw=.8/W,ch=.45/H,XR=cx+.4,Y0=y+.2,zz=zf-.004,idx=new Uint8Array(W*H),used=new Uint8Array(W*H);
+    for(let i=0;i<W*H;i++)idx[i]=SCR_B64.indexOf(m.px[i]);
+    for(let r=0;r<H;r++)for(let c=0;c<W;c++){
+      if(used[r*W+c])continue;
+      const k=idx[r*W+c];let w=1,h=1;
+      while(c+w<W&&!used[r*W+c+w]&&idx[r*W+c+w]===k)w++;
+      grow:while(r+h<H){for(let i=0;i<w;i++){const q=(r+h)*W+c+i;if(used[q]||idx[q]!==k)break grow}h++}
+      for(let j=0;j<h;j++)for(let i=0;i<w;i++)used[(r+j)*W+c+i]=1;
+      const xa=XR-c*cw,xb=XR-(c+w)*cw,yt=Y0+(H-r)*ch,yb=Y0+(H-r-h)*ch,hx=m.pal[k],cr=((hx>>16)&255)/255,cg=((hx>>8)&255)/255,cb2=(hx&255)/255,b=v.k;
+      v.p.push(xa,yb,zz,xb,yb,zz,xb,yt,zz,xa,yt,zz);
+      for(let q=0;q<4;q++){v.n.push(0,0,-1);v.c.push(cr,cg,cb2)}
+      v.i.push(b,b+1,b+2,b,b+2,b+3);v.k+=4;
+    }
+  };
+
 // ---------- LOGO (lấy mẫu trực tiếp từ ảnh gốc: vòng số 8 kim loại) ----------
 // Lưới 120x66, '.' = trống, ký tự khác = độ sáng xám (0..63) -> giữ đúng hình dạng, độ cong và sắc độ của ảnh.
 const LOGO_W=120,LOGO_H=66,LOGO_ASPECT=1.8207,LOGO_B64='0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
@@ -416,6 +450,18 @@ function buildHouse(hx,hz){
     fb(cx-.05,cx+.05,y,y+.15,z-.1,z,0x2a2a30,.05);
     fb(cx-.45,cx+.45,y+.15,y+.7,z-.05,z,0x1a1a20,.05);
     scrQuads(v,cx,y,z,n);   // mặt màn hình hiển thị ảnh (gộp ô nền, xem SCR_IMG)
+  };
+  const monitorX=(cz,y,xf,n=0)=>{   // màn hình quay mặt về -x
+    fb(xf-.05,xf+.2,y,y+.05,cz-.2,cz+.2,0x2a2a30,.05);
+    fb(xf,xf+.1,y,y+.15,cz-.05,cz+.05,0x2a2a30,.05);
+    fb(xf,xf+.05,y+.15,y+.7,cz-.45,cz+.45,0x1a1a20,.05);
+    scrQuadsX(v,cz,y,xf,n);
+  };
+  const monitorN=(cx,y,zf,n=0)=>{   // màn hình quay mặt về -z
+    fb(cx-.2,cx+.2,y,y+.05,zf-.05,zf+.2,0x2a2a30,.05);
+    fb(cx-.05,cx+.05,y,y+.15,zf,zf+.1,0x2a2a30,.05);
+    fb(cx-.45,cx+.45,y+.15,y+.7,zf,zf+.05,0x1a1a20,.05);
+    scrQuadsN(v,cx,y,zf,n);
   };
   const potPlant=(x,y,z,sc=1)=>{
     fb(x-.2*sc,x+.2*sc,y,y+.35*sc,z-.2*sc,z+.2*sc,0x9a5b3a,.05);
@@ -725,30 +771,116 @@ function buildHouse(hx,hz){
   cushion(-.85,.1,FL2,0x8a2a2a);cushion(1.6,.1,FL2,0x8a2a2a);cushion(.25,1.0,FL2,0x2a5a4a);
   teapot(.1,FL2+.5,.1);cup(.4,FL2+.5,.0);cup(.4,FL2+.5,.25);
   fb(.6,.9,FL2+.5,FL2+.525,-.2,.2,0xf2efe6,.025);ell(.75,FL2+.56,0,.07,.05,.07,0xf4b6c8,.02);
-  // --- bàn làm việc: 2 màn hình, bàn phím, chuột, đèn bàn, cốc ---
-  fb(-1.5,2.0,FL2+.75,FL2+.875,-2.5,-1.75,0x946238,.125);
-  fb(-1.5,-1.375,FL2,FL2+.75,-2.5,-1.75,0x6b4a2e,.125);fb(1.875,2.0,FL2,FL2+.75,-2.5,-1.75,0x6b4a2e,.125);
-  fb(1.0,1.875,FL2,FL2+.75,-2.5,-1.75,(i,j,k)=>(j===3||j===0)?0x3a2412:WD(i,j,k),.125);
-  monitor(-.55,-2.2,FL2+.875,0);monitor(.65,-2.2,FL2+.875,1);   // trái: 4 giọt · phải: logo vòng
-  fb(-.45,.35,FL2+.875,FL2+.9,-2.05,-1.85,0x2a2a30,.025);                 // bàn phím
-  fb(.5,.6,FL2+.875,FL2+.9,-2.0,-1.9,0xdddddd,.025);                      // chuột
-  fb(1.0,1.1,FL2+.875,FL2+.975,-2.3,-2.2,0xc0392b,.025);                  // cốc
-  fb(1.5,1.7,FL2+.875,FL2+.9,-2.4,-2.2,0x2a2a30,.025);
-  fb(1.575,1.625,FL2+.9,FL2+1.3,-2.325,-2.275,0x2a2a30,.025);
-  fb(1.45,1.75,FL2+1.3,FL2+1.4,-2.45,-2.15,GLOW3,.05);                    // đèn bàn sáng
-  lamps.push({x:1.6,y:FL2+1.3,z:-2.3,s:1.3,light:false});
-  // ghế xoay
-  fb(0,.5,FL2+.45,FL2+.55,-1.3,-.8,0x2a3a55,.05);fb(0,.5,FL2+.55,FL2+1.1,-1.3,-1.2,0x2a3a55,.05);
-  fb(.2,.3,FL2+.1,FL2+.45,-1.1,-1.0,0x2a2a30,.05);
-  fb(.05,.45,FL2,FL2+.05,-1.05,-1.0,0x2a2a30,.05);fb(.23,.28,FL2,FL2+.05,-1.25,-.85,0x2a2a30,.05);
-  // --- giường futon + gối + chăn + tủ đầu giường + đèn ngủ ---
-  fb(3.0,5.5,FL2,FL2+.25,-2.5,-.5,WD,.125);
-  fb(3.05,5.45,FL2+.25,FL2+.45,-2.45,-.55,0xf0ece0,.05);
-  fb(3.6,4.9,FL2+.45,FL2+.6,-2.4,-1.9,0xffffff,.05);
-  fb(3.05,5.45,FL2+.45,FL2+.55,-1.85,-.55,(i,j,k)=>((i>>2)&1)?0x2f7a8a:0xe8f0f0,.05);
-  fb(2.35,2.95,FL2,FL2+.45,-2.45,-1.85,WD,.05);
-  fb(2.35,2.95,FL2+.45,FL2+.5,-2.45,-1.85,0x6b4a2e,.05);
-  andon(2.65,-2.15,FL2+.5,.3,.125,true);
+  // --- dãy bàn làm việc dọc tường sau: 6 máy tính (mỗi máy 1 màn hình, bàn phím, chuột, ghế xoay) ---
+  const NPC=6,PC0=-.85,PCD=1.1,DX0=-1.4,DX1=5.6;
+  fb(DX0,DX1,FL2+.75,FL2+.875,-2.5,-1.75,0x946238,.125);                    // mặt bàn dài
+  for(const x of[DX0,DX1-.125,(DX0+DX1)/2-.0625])fb(x,x+.125,FL2,FL2+.75,-2.5,-1.75,0x6b4a2e,.125);   // chân bàn (2 đầu + giữa)
+  fb(DX0,DX1,FL2+.375,FL2+.45,-2.5,-2.4,0x3a2412,.05);                      // thanh giằng sau
+  for(let n=0;n<NPC;n++){
+    const cx=PC0+n*PCD;
+    monitor(cx,-2.2,FL2+.875,n%2);                                         // xen kẽ: 4 giọt · logo vòng
+    fb(cx-.4,cx+.4,FL2+.875,FL2+.9,-2.05,-1.85,0x2a2a30,.025);              // bàn phím
+    fb(cx+.5,cx+.6,FL2+.875,FL2+.9,-2.0,-1.9,0xdddddd,.025);                // chuột
+    if(n%2===0)fb(cx+.62,cx+.72,FL2+.875,FL2+.975,-2.3,-2.2,0xc0392b,.025);  // cốc
+    // ghế xoay (chỉ 2 ghế ở dãy sau: máy 2 và máy 5)
+    if(n===1||n===4){
+    const ch=[0x2a3a55,0x3a2a55,0x2a5545][n%3];
+    fb(cx-.25,cx+.25,FL2+.45,FL2+.55,-1.3,-.8,ch,.05);fb(cx-.25,cx+.25,FL2+.55,FL2+1.1,-1.3,-1.2,ch,.05);
+    fb(cx-.05,cx+.05,FL2+.1,FL2+.45,-1.1,-1.0,0x2a2a30,.05);
+    fb(cx-.2,cx+.2,FL2,FL2+.05,-1.05,-1.0,0x2a2a30,.05);fb(cx-.025,cx+.025,FL2,FL2+.05,-1.25,-.85,0x2a2a30,.05);
+    }
+  }
+  // --- nối tiếp dãy bàn dọc tường đông: thêm 2 máy (màn hình quay về -x) + 1 ghế ---
+  fb(4.875,5.75,FL2+.75,FL2+.875,-1.75,1.75,0x946238,.125);
+  for(const z of[-1.75,-.0625,1.625])fb(4.875,5.0,FL2,FL2+.75,z,z+.125,0x6b4a2e,.125);
+  for(let n=0;n<2;n++){   // 2 máy (đã bỏ máy thứ 3 sát góc vì kẹt góc)
+    const cz=-1.1+n*1.1;
+    monitorX(cz,FL2+.875,5.35,(n+1)%2);
+    fb(4.98,5.18,FL2+.875,FL2+.9,cz-.4,cz+.4,0x2a2a30,.025);                // bàn phím
+    fb(5.0,5.1,FL2+.875,FL2+.9,cz+.5,cz+.6,0xdddddd,.025);                  // chuột
+    if(n===1)fb(5.0,5.1,FL2+.875,FL2+.975,cz-.72,cz-.62,0xc0392b,.025);      // cốc
+  }
+  {const ch=0x2a5545,xc=4.175;
+    fb(3.925,4.425,FL2+.45,FL2+.55,-.25,.25,ch,.05);fb(3.925,4.025,FL2+.55,FL2+1.1,-.25,.25,ch,.05);
+    fb(xc-.05,xc+.05,FL2+.1,FL2+.45,-.05,.05,0x2a2a30,.05);
+    fb(xc-.025,xc+.025,FL2,FL2+.05,-.2,.2,0x2a2a30,.05);fb(xc-.2,xc+.2,FL2,FL2+.05,-.025,.025,0x2a2a30,.05);}
+  // --- góc tường trước (cạnh cửa sổ): thêm 2 máy, màn hình quay về -z ---
+  fb(2.5,4.875,FL2+.75,FL2+.875,1.0,1.75,0x946238,.125);
+  for(const x of[2.5,4.75])fb(x,x+.125,FL2,FL2+.75,1.0,1.75,0x6b4a2e,.125);
+  for(let n=0;n<2;n++){
+    const cx=3.1+n*1.1;
+    monitorN(cx,FL2+.875,1.35,n%2);
+    fb(cx-.4,cx+.4,FL2+.875,FL2+.9,1.02,1.22,0x2a2a30,.025);               // bàn phím
+    fb(cx-.6,cx-.5,FL2+.875,FL2+.9,1.02,1.12,0xdddddd,.025);               // chuột
+  }
+  // --- CỜ QUỐC KỲ treo trên tường, ngay phía trên mỗi màn hình (cỡ .9 x .6m ~ bằng màn hình) ---
+  {
+    const FW=.9,FH=.6,FT=.03,FY0=FL2+1.6;
+    const star=(X,Y,cx,cy,R,rot=Math.PI/2)=>{
+      const pts=[];for(let q=0;q<10;q++){const a=rot+q*Math.PI/5,r=q%2?R*.382:R;pts.push([cx+r*Math.cos(a),cy+r*Math.sin(a)])}
+      let ins=false;for(let a=0,b=9;a<10;b=a++){const[xa,ya]=pts[a],[xb,yb]=pts[b];if((ya>Y)!==(yb>Y)&&X<(xb-xa)*(Y-ya)/(yb-ya)+xa)ins=!ins}
+      return ins};
+    // mỗi cờ: (X,Y) với X 0..3 (trái->phải), Y 0..2 (dưới->trên) -> màu
+    const FLAGS={
+      vn:(X,Y)=>star(X,Y,1.5,1.0,.62)?0xffff00:0xda251d,
+      ru:(X,Y)=>Y>1.333?0xffffff:(Y>.667?0x0039a6:0xd52b1e),
+      ng:(X,Y)=>(X>1&&X<2)?0xffffff:0x008751,
+      bd:(X,Y)=>Math.hypot(X-1.35,Y-1)<.6?0xf42a41:0x006a4e,
+      id:(X,Y)=>Y>1?0xce1126:0xffffff,
+      in:(X,Y)=>{const dx=X-1.5,dy=Y-1,d=Math.hypot(dx,dy);
+        if(Y>.5&&Y<1.5&&(d<.05||(d>.25&&d<.34)))return 0x000080;
+        if(Y>.5&&Y<1.5&&d<.34){const t=(((Math.atan2(dy,dx)/(Math.PI/12))%1)+1)%1;if(t<.14||t>.86)return 0x000080}
+        return Y>1.333?0xff9933:(Y>.667?0xffffff:0x138808)},
+      cn:(X,Y)=>{
+        if(star(X,Y,.5,1.5,.42))return 0xffde00;
+        for(const [px,py] of [[1.0,1.8],[1.2,1.6],[1.2,1.3],[1.0,1.1]])
+          if(star(X,Y,px,py,.14,Math.atan2(1.5-py,.5-px)))return 0xffde00;
+        return 0xde2910},
+      ph:(X,Y)=>{
+        if(Math.hypot(X-.52,Y-1)<.22||star(X,Y,.18,1.83,.17)||star(X,Y,.18,.17,.17)||star(X,Y,1.42,1.0,.17,0))return 0xfcd116;
+        if(X<1.732*(1-Math.abs(Y-1)))return 0xffffff;
+        return Y>1?0x0038a8:0xce1126},
+      ua:(X,Y)=>Y>1?0x0057b7:0xffd700,
+      kr:(X,Y)=>{
+        const dx=X-1.5,dy=Y-1,d=Math.hypot(dx,dy);
+        // 4 quẻ (trigram): 3 thanh song song, vuông góc trục chéo của cờ
+        for(const [sx,sy,kind] of [[-1,1,0],[1,-1,1],[1,1,2],[-1,-1,3]]){
+          const ax=sx*.83,ay=sy*.55,px=dx-ax*1.05,py=dy-ay*1.05,a=px*ax+py*ay,b=-px*ay+py*ax;
+          const bar=(a2)=>Math.abs(a-a2)<.05&&Math.abs(b)<.25;
+          const broken=(a2)=>bar(a2)&&Math.abs(b)>.05;
+          const sol=(a2)=>bar(a2);
+          const pat=[[sol,sol,sol],[broken,broken,broken],[broken,sol,broken],[sol,broken,sol]][kind];
+          if(pat[0](-.2)||pat[1](0)||pat[2](.2))return 0x070707;
+        }
+        if(d<.5){
+          const rx=dx*.83+dy*.55,ry=-dx*.55+dy*.83;
+          if(Math.hypot(rx+.25,ry)<.25)return 0xcd2e3a;
+          if(Math.hypot(rx-.25,ry)<.25)return 0x0047a0;
+          return ry>0?0xcd2e3a:0x0047a0;
+        }
+        return 0xffffff}
+    };
+    const ORDER=['vn','ru','ng','bd','id','in','cn','ph','ua','kr'];
+    let fi=0;
+    const rod=(x0,x1,y,z0,z1)=>fb(x0,x1,y,y+.03,z0,z1,0x3a2412,.03);
+    const flagB=cx=>{const k=ORDER[fi++],f=FLAGS[k],x0=cx-FW/2;     // tường sau (nhìn từ +z, u tăng theo +x)
+      fp(x0,x0+FW,FY0,FY0+FH,-2.5,-2.5+FT,.03,(x,y)=>f((x-x0)/FW*3,(y-FY0)/FH*2));
+      rod(x0-.03,x0+FW+.03,FY0+FH,-2.5,-2.5+FT*2)};
+    const flagE=cz=>{const k=ORDER[fi++],f=FLAGS[k],z0=cz-FW/2;      // tường đông (nhìn từ -x, u tăng theo +z)
+      fp(5.75-FT,5.75,FY0,FY0+FH,z0,z0+FW,.03,(x,y,z)=>f((z-z0)/FW*3,(y-FY0)/FH*2));
+      rod(5.75-FT*2,5.75,FY0+FH,z0-.03,z0+FW+.03)};
+    const flagF=cx=>{const k=ORDER[fi++],f=FLAGS[k],x1=cx+FW/2;      // tường trước (nhìn từ -z, u tăng theo -x)
+      fp(x1-FW,x1,FY0,FY0+FH,1.75-FT,1.75,.03,(x,y)=>f((x1-x)/FW*3,(y-FY0)/FH*2));
+      rod(x1-FW-.03,x1+.03,FY0+FH,1.75-FT*2,1.75)};
+    for(let n=0;n<NPC;n++)flagB(PC0+n*PCD);       // 6 cờ trên tường sau
+    flagE(-1.1);flagE(0);                          // 2 cờ trên tường đông
+    flagF(3.1);flagF(4.2);                         // 2 cờ trên tường trước
+  }
+  // đèn bàn sáng ở đầu dãy bên phải
+  fb(5.2,5.4,FL2+.875,FL2+.9,-2.4,-2.2,0x2a2a30,.025);
+  fb(5.275,5.325,FL2+.9,FL2+1.3,-2.325,-2.275,0x2a2a30,.025);
+  fb(5.15,5.45,FL2+1.3,FL2+1.4,-2.45,-2.15,GLOW3,.05);
+  lamps.push({x:5.3,y:FL2+1.3,z:-2.3,s:1.3,light:true});
   // --- kệ sách tường trái ---
   fp(-5.75,-5.25,FL2,FL2+2.0,-.75,1.5,.125,shelfFn(16,18));
   // --- sofa thấp + logo Infinity trên tường ---
@@ -761,9 +893,6 @@ function buildHouse(hx,hz){
   // bảng gỗ đen phía sau logo (sát mặt trong tường z=1.75)
   fp(-5.2,-3.0,5.55,6.85,1.68,1.75,.1,(x,y,z,i,j)=>(i<2||i>=20||j<2||j>=11)?BLKF2[(i*3+j)%3]:BLK2[(i*7+j*3)%4]);
   logo(v,-4.1,6.2,1.62,1.8,true);
-  // --- tủ thấp + cây cạnh cửa sổ phải ---
-  fp(5.25,5.75,FL2,FL2+.5,-.25,1.0,.125,(x,y,z,i,j,k)=>(j===0||k%5===0)?0x3a2412:WD(i,j,k));
-  potPlant(5.5,FL2+.5,.4,.8);
   potPlant(-4.6,FL2,.1,1.1);
   // --- ĐÈN TREO TẦNG 2 ---
   pendant(0,WT2,-.375,.25,.45,.25,true);          // đèn treo duy nhất, giữa trần tầng 2
@@ -851,13 +980,12 @@ function buildHouse(hx,hz){
   cb(1.4,2.4,GF,1.5,2.125,2.5);                          // kệ giày
   cb(-5.4,-4.6,GF,1.5,1.65,2.45);                        // bệ bonsai
   // nội thất tầng 2
-  cb(-1.5,2.0,FL2,FL2+.9,-2.5,-1.75);                    // bàn làm việc
-  cb(3.0,5.5,FL2,FL2+.55,-2.5,-.5);                      // giường
-  cb(2.35,2.95,FL2,FL2+.5,-2.45,-1.85);                  // tủ đầu giường
+  cb(-1.4,5.6,FL2,FL2+.9,-2.5,-1.75);                     // dãy bàn làm việc (6 máy)
   cb(-5.75,-5.25,FL2,FL2+2.0,-.75,1.5);                  // kệ sách
   cb(-.5,1.0,FL2,FL2+.5,-.4,.6);                         // bàn thấp
   cb(-5.2,-3.2,FL2,FL2+.9,.8,1.75);                      // sofa
-  cb(5.25,5.75,FL2,FL2+.5,-.25,1.0);                     // tủ thấp
+  cb(2.5,4.875,FL2,FL2+.9,1.0,1.75);                      // bàn tường trước (2 máy)
+  cb(4.875,5.75,FL2,FL2+.9,-1.75,1.75);                  // dãy bàn tường đông (2 máy)
   // đồ ngoài
   cb(-6.8,-4.2,0,2.75,5.1,5.3);                          // biển hiệu
   cb(4.65,5.35,0,1.3,5.25,5.95);                         // đèn đá
