@@ -14,11 +14,16 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #mm{position:absolute;left:16px;top:calc(16px + env(safe-area-inset-top,0px));width:150px;height:150px;background:rgba(255,255,255,.8);border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 2px #2b2a3a}
 #gren{position:absolute;right:16px;bottom:calc(64px + env(safe-area-inset-bottom,0px))}
 #msg{position:absolute;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(255,255,255,.92);border-radius:14px;padding:8px 16px;font-size:16px;opacity:0;transition:opacity .25s;white-space:nowrap}
-#scope{position:absolute;inset:0;display:none;background:radial-gradient(circle at center,transparent 0,transparent 28vmin,#000 28.4vmin)}
-#scope::before,#scope::after{content:"";position:absolute;background:#000}
-#scope::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}
-#scope::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
-.sc #scope{display:block}.sc #cross{display:none}
+#scope{position:absolute;inset:0;display:none;pointer-events:none}
+.sc #scope{display:block}.sc #cross,.ads #cross{display:none}
+.srim{position:absolute;left:50%;top:50%;width:calc(var(--lr)*2);height:calc(var(--lr)*2);margin:calc(var(--lr)*-1) 0 0 calc(var(--lr)*-1);border-radius:50%;box-sizing:border-box;background:rgba(0,10,14,.14);animation:scin .22s ease-out;
+  box-shadow:inset 0 0 calc(var(--lr)*.35) rgba(0,0,0,.6),          /* tối dần ở mép kính */
+             0 0 0 calc(var(--lr)*.1) #0d0d12,                      /* viền kính dày */
+             0 0 0 calc(var(--lr)*.115) #3a3a46,                    /* vành sáng ngoài */
+             0 0 0 200vmax rgba(0,0,0,.45)}                         /* làm tối cảnh bên ngoài kính */
+.srim::before,.srim::after{content:"";position:absolute;background:#000}
+.srim::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}
+.srim::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
 #hurt{position:absolute;inset:0;background:radial-gradient(transparent 40%,rgba(255,40,80,.55));opacity:0;transition:opacity .25s}
 #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(207,232,255,.55);backdrop-filter:blur(3px);cursor:pointer}
 #card{background:var(--card);color:var(--ink);border-radius:22px;padding:22px 24px;width:min(94vw,700px);max-height:94vh;overflow-y:auto;text-align:center;border:3px solid var(--pink);box-sizing:border-box}
@@ -42,3 +47,4 @@ kbd{display:inline-block;min-width:20px;padding:0 6px;margin:0 2px;border-radius
 @keyframes pulse{50%{transform:scale(1.06)}}
 @media (prefers-reduced-motion:reduce){.tile,#go{animation:none}}
 @media (max-width:520px){#ctrl{grid-template-columns:1fr 1fr}.tile{flex-direction:column;gap:4px}}
+@keyframes scin{from{background-color:rgba(0,0,0,.9)}to{background-color:rgba(0,10,14,.14)}}   /* vừa áp mắt vào kính: tối rồi sáng dần */
