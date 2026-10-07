@@ -6,6 +6,33 @@ const HURT_TILT_MAX=.2;      // nghiêng tối đa (rad): .2 ~ 11 độ (chết 
 const HURT_TILT_TAU=.7;      // giây: độ nghiêng giảm còn ~37% sau chừng này giây. Lớn hơn = nghiêng lâu hơn; bị đánh liên tục (boss cận chiến) thì giữ nghiêng đều
 let hurtTilt=0,hurtTiltT=0;  // hurtTilt: góc đang hiển thị, hurtTiltT: góc mục tiêu (giảm dần về 0)
 let hurtT=0,lodN=0,botSeq=0;   // thời gian còn lại của vệt đỏ khi trúng đòn (thay cho setTimeout mỗi lần trúng: bot cận chiến gọi hurt() mỗi khung)
+// ---- KÍNH NGẮM KIỂU CoD: vẽ thêm 1 lượt cảnh zoom vào mặt kính hình tròn ở giữa màn hình ----
+const ADS_TIME=.35;   // giây đưa ống ngắm lên mắt (hạ xuống nhanh hơn ~30%)
+const SCP={r:.36,zoom:6,fog:3};   // r: bán kính mặt kính (tỉ lệ cạnh ngắn màn hình) · zoom: số lần phóng đại · fog: nhân khoảng sương khi nhìn qua kính (nhìn xa hơn)
+const scopeCam=new THREE.PerspectiveCamera(10,1,.05,600);
+let scEl=$('scope');if(!scEl){scEl=document.createElement('div');scEl.id='scope';$('hud').appendChild(scEl)}
+{const rim=document.createElement('div');rim.className='srim';scEl.appendChild(rim)}   // viền kính + tâm ngắm (CSS .srim)
+function scopeR(){return Math.round(Math.min(innerWidth,innerHeight)*SCP.r)}
+function scopeLayout(){document.documentElement.style.setProperty('--lr',scopeR()+'px')}
+addEventListener('resize',scopeLayout);scopeLayout();
+// Cảnh qua kính được vẽ vào 1 texture vuông rồi dán lên 1 ĐĨA TRÒN -> mặt kính tròn thật sự, 4 góc vẫn thấy cảnh bình thường (không cần stencil)
+const scRT=new THREE.WebGLRenderTarget(2,2,{samples:4});
+const scQS=new THREE.Scene(),scQC=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+scQS.add(new THREE.Mesh(new THREE.CircleGeometry(1,64),new THREE.MeshBasicMaterial({map:scRT.texture,depthTest:false,depthWrite:false,fog:false})));
+function renderScope(){
+  const w=innerWidth,h=innerHeight,r=scopeR(),d=r*2,x=Math.round(w/2-r),y=Math.round(h/2-r);
+  scopeCam.position.copy(C.position);scopeCam.quaternion.copy(C.quaternion);
+  const half=Math.tan(C.fov*Math.PI/360)*d/h;   // nửa-tan của vùng mà mặt kính che trong cảnh thường
+  scopeCam.fov=2*Math.atan(half/SCP.zoom)*180/Math.PI;scopeCam.updateProjectionMatrix();
+  const px=Math.max(2,Math.round(d*R.getPixelRatio()));if(scRT.width!==px)scRT.setSize(px,px);
+  const fg=S.fog&&S.fog.isFog?S.fog:null,n0=fg&&fg.near,f0=fg&&fg.far,ac=R.autoClear;
+  if(fg){fg.near*=SCP.fog;fg.far*=SCP.fog}
+  R.autoClear=false;
+  R.setRenderTarget(scRT);R.clear();R.render(S,scopeCam);R.setRenderTarget(null);   // lượt 1: cảnh zoom -> texture
+  R.setViewport(x,y,d,d);R.render(scQS,scQC);R.setViewport(0,0,w,h);                // lượt 2: dán texture lên đĩa tròn giữa màn hình
+  R.autoClear=ac;
+  if(fg){fg.near=n0;fg.far=f0}
+}
 // ---- MẠNG HỒI SINH: hạ boss tầng 1 / 2 / 3 được +1 / +2 / +3 mạng (cộng dồn). Hết máu mà còn mạng thì hồi sinh NGAY TẠI CHỖ chết ----
 let lives=0,reviveT=0;   // reviveT: giây bất tử sau khi hồi sinh (tránh bị bot đứng sát đánh chết lại ngay)
 const LVT={vi:'Hồi sinh! Còn %d mạng',en:'Revived! %d lives left',ru:'Возрождение! Осталось жизней: %d',ng:'You don revive! %d life remain',bn:'পুনরুজ্জীবিত! আর %d টি জীবন বাকি',id:'Bangkit lagi! Sisa %d nyawa',hi:'पुनर्जीवित! %d जीवन बाकी',zh:'复活！还剩 %d 条命',fil:'Nabuhay muli! %d buhay na lang',uk:'Відродження! Лишилось життів: %d',ko:'부활! 남은 목숨 %d개'};
@@ -106,8 +133,10 @@ function frame(now){
     animVM(dt);
   }
   tickBoss(dt);if(playing)Archer.tick(dt);tickParts(dt);mapT-=dt;if(mapT<=0){mapT=.08;drawMap()}if(!playing)scoped=false;
-  const sc=scoped&&cur==='sniper'&&rel<=0;document.body.classList.toggle('sc',sc);vm.visible=!sc&&!dead;
-  const tf=sc?20:75;if(Math.abs(C.fov-tf)>.1){C.fov+=(tf-C.fov)*Math.min(1,dt*16);C.updateProjectionMatrix()}
+  const want=scoped&&cur==='sniper'&&rel<=0;   // want: người chơi đang muốn ngắm · sc: ống ngắm đã áp sát mắt -> chuyển sang cảnh qua kính
+  adsT=want?Math.min(1,adsT+dt/ADS_TIME):Math.max(0,adsT-dt/(ADS_TIME*.7));if(rel>0||dead)adsT=0;
+  const sc=want&&adsT>=1;document.body.classList.toggle('sc',sc);document.body.classList.toggle('ads',adsT>.02);vm.visible=!dead;   // luôn vẽ súng, kể cả khi ngắm: thân ống ngắm bằng voxel bao quanh mặt kính tròn
+  const tf=75;if(Math.abs(C.fov-tf)>.1){C.fov+=(tf-C.fov)*Math.min(1,dt*16);C.updateProjectionMatrix()}
   if(reviveT>0)reviveT-=dt;
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
@@ -121,6 +150,7 @@ function frame(now){
   {const bg=S.background;   // lượt 1: thế giới · lượt 2: súng/tay vẽ đè lên (xóa depth, tắt background để không xóa hình lượt 1)
     C.layers.set(0);R.clear();R.render(S,C);
     if(vm.visible){C.layers.set(1);S.background=null;R.clearDepth();R.render(S,C);S.background=bg}
-    C.layers.set(0)}
+    C.layers.set(0);
+    if(sc)renderScope()}
 }
 requestAnimationFrame(frame);

@@ -14,6 +14,7 @@ function rub(par,w,h,d,nx,ny,nz,x,y,z,fn,tag){
 }
 const part=(g,c,w,h,d,x,y,z,nx=1,ny=1,nz=1)=>rub(g,w,h,d,nx,ny,nz,x,y,z,typeof c==='function'?c:one(c));
 let vm=null,muzzle=null,flash=null;
+let adsT=0;   // 0->1: tiến độ đưa ống ngắm lên mắt (main.js cập nhật mỗi khung)
 const DK=pal(0x3a3850,0x55536e,0x2b2a3a),YL2=pal(0xf2b84b,0xffd76a,0xe0a030),BL2=pal(0x4d9dff,0x7fbfff,0x3a7fe0),OR=pal(0xff9a3c,0xffb56b,0xe0801f);
 function buildVM(){
   if(vm)C.remove(vm);
@@ -25,10 +26,10 @@ function buildVM(){
   flash=new THREE.Mesh(UG,new THREE.MeshBasicMaterial({color:0xffe066}));flash.scale.set(.16,.16,.06);flash.visible=false;flash.position.copy(muzzle.position);
   G.add(muzzle,flash);
   const mb=MG.position.clone();
-  vm.userData={G,MG,SL,la,pn:wb.pn,lb:la.position.clone(),lt,sg:wb.sg,mb,ho:new THREE.Vector3(lt.x-mb.x,(lt.y-mb.y)*.5,lt.z-mb.z),st:0,pistol:cur==='pistol'||cur==='grenade'};
+  vm.userData={G,MG,SL,la,pn:wb.pn,lb:la.position.clone(),lt,sg:wb.sg,mb,ho:new THREE.Vector3(lt.x-mb.x,(lt.y-mb.y)*.5,lt.z-mb.z),st:0,ads:wb.ads,pistol:cur==='pistol'||cur==='grenade'};
   C.add(vm);vm.traverse(o=>o.layers.set(1));vm.position.y=-.35;   // súng/tay ở layer 1 -> vẽ lượt riêng, không bị tường/quái che hay cắt
 }
-function pick(w){if(throwT>0||autoP)return;holding=false;if(w!=='grenade')prevW=w;cur=w;rel=0;scoped=false;buildVM();$('wn').textContent=t(w);$('mg').textContent=W[w].mag;
+function pick(w){if(throwT>0||autoP)return;holding=false;adsT=0;if(w!=='grenade')prevW=w;cur=w;rel=0;scoped=false;buildVM();$('wn').textContent=t(w);$('mg').textContent=W[w].mag;
   document.querySelectorAll('.wb').forEach(b=>b.classList.toggle('on',b.dataset.w===w))}
 document.querySelectorAll('.wb').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();pick(b.dataset.w)}));
 pick(cur);
@@ -96,4 +97,10 @@ function animVM(dt){
     g.la.position.copy(g.lb);g.la.visible=!g.pistol;
   }
   g.SL.position.z=sl;
+  // đưa ống ngắm lên mắt: súng trượt vào giữa màn hình (0->.7), rồi áp sát vào mắt (.3->1); tay trái đi theo
+  if(adsT>0&&g.ads&&rel<=0){
+    const cl=x=>Math.min(1,Math.max(0,x)),e=x=>x*x*(3-2*x),a=e(cl(adsT/.7)),b=e(cl((adsT-.3)/.7));
+    g.G.position.x+=g.ads.x*a;g.G.position.y+=g.ads.y*a;g.G.position.z+=g.ads.z*b;
+    g.la.position.x+=g.ads.x*a;g.la.position.y+=g.ads.y*a;g.la.position.z+=g.ads.z*b;
+  }
 }

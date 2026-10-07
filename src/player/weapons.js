@@ -47,6 +47,11 @@ function buildRifle(G,MG,SL){
   return {la:arm(.06,-.3,-.95,.4,-.2,true),lt:new THREE.Vector3(.14,-.44,-.62),mz:[.14,-.195,-1.66],sg:new THREE.Vector3(.1,-.12,-.46)};
 }
 
+// Mảng kính ống ngắm: đen, hơi trong suốt (dùng chung cho mọi lần dựng súng ngắm)
+const GLASS_M=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.72,depthWrite:false});
+const GLASS_G=new THREE.CircleGeometry(1,28);
+function scopeLens(x,y,z,r){const m=new THREE.Mesh(GLASS_G,GLASS_M);m.scale.setScalar(r);m.position.set(x,y,z);m.renderOrder=3;return m}   // mặt phẳng quay về phía người chơi (+z)
+
 // ---- Súng ngắm (ống ngắm lớn, nòng dài có giảm thanh) ----
 function buildSniper(G,MG,SL){
   const f=new VB(),s=new VB(),m=new VB();
@@ -59,18 +64,19 @@ function buildSniper(G,MG,SL){
   f.box(.14,-.235,-1.25,.075,.05,.4,chk(0x4d9dff,0x3a7fe0),.02);
   // ống ngắm
   f.cyl(.14,-.1,-.78,.032,.42,DKC,.016,'z');
-  f.cyl(.14,-.1,-.98,.045,.1,0x2b2a3a,.016,'z');f.cyl(.14,-.1,-1.035,.04,.012,0x9ad8ff,.012,'z');
-  f.cyl(.14,-.1,-.54,.04,.08,0x2b2a3a,.016,'z');f.cyl(.14,-.1,-.498,.03,.01,0x6fb6ff,.01,'z');
+  f.cyl(.14,-.1,-.98,.045,.1,0x2b2a3a,.016,'z');
+  f.cyl(.14,-.1,-.54,.04,.08,0x2b2a3a,.016,'z');
   f.cyl(.14,-.058,-.78,.014,.03,0xffd23f,.01,'y');f.cyl(.174,-.1,-.78,.014,.03,0xffd23f,.01,'x');
   f.box(.14,-.145,-.68,.04,.05,.05,DKC,.014);f.box(.14,-.145,-.88,.04,.05,.05,DKC,.014);
   for(let k=0;k<5;k++)f.box(.14,-.29-.03*k,-.42+.012*k,.06,.03,.075,chk(0x3a3850,0x4d9dff),.015);
   f.box(.14,-.18,-.24,.075,.15,.18,DKC,.024);f.box(.14,-.11,-.26,.06,.03,.12,0x4d9dff,.015);
+  G.add(scopeLens(.14,-.1,-.496,.036),scopeLens(.14,-.1,-1.036,.042));   // kính sau (mắt nhìn) + kính trước
   // chốt bolt
   s.box(.19,-.15,-.55,.05,.02,.02,0xc9c9d6,.012);s.cyl(.225,-.15,-.55,.016,.03,0xffd23f,.012,'x');
   m.box(0,0,0,.07,.1,.1,YLC,.02);
   MG.position.set(.14,-.31,-.72);
   G.add(f.mesh());SL.add(s.mesh());MG.add(m.mesh());
-  return {la:arm(.06,-.3,-1.0,.4,-.2,true),lt:new THREE.Vector3(.14,-.42,-.72),mz:[.14,-.195,-2.14],sg:new THREE.Vector3(.22,-.13,-.5)};
+  return {la:arm(.06,-.3,-1.0,.4,-.2,true),lt:new THREE.Vector3(.14,-.42,-.72),mz:[.14,-.195,-2.14],sg:new THREE.Vector3(.22,-.13,-.5),ads:new THREE.Vector3(-.14,.1,.43)};   // ads: độ dời của súng để mắt kính sau trùng tâm camera
 }
 
 // ---- Lựu đạn (kiểu MK2 "quả dứa": thân xanh ô-liu chia ô, cần gạt, chốt vòng) ----
