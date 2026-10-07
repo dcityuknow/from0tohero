@@ -37,7 +37,8 @@ const FACTS={
   'FLASH':'Flash, lead moderator của Optimum. Anh giữ Discord, duyệt nội dung và hỗ trợ thành viên khi cần. Anh ở Đức, hiện cũng là moderator cho Ritual, trước đó từng làm cộng đồng cho Polyhedra, Redbelly, Aleo và Avalanche.',
   'ABBAS':'Abbas, Tech Ambassador của Optimum. Anh viết thread giải thích RLNC, cách dữ liệu đi giữa các node, và vì sao Optimum là lớp hạ tầng chứ không phải một chain mới. Anh là người giải thích kỹ thuật cho cộng đồng.',
   'CHANDLER OTTERBEIN':'Chandler Otterbein, phụ trách Strategy & Operations (chiến lược và vận hành) của Optimum. Anh ở Optimum từ khá sớm, khoảng năm 2024. Trước đó anh là chủ tịch NEU Blockchain, từng làm tại Brown Brothers Harriman và từng ở student advisory board của Enterprise Ethereum Alliance. Mảng của anh gồm vận hành, nghiên cứu và cách dự án đi ra bên ngoài.',
-  'HAR PREET SINGH':'Har Preet Singh, VP Engineering (Phó chủ tịch kỹ thuật) của Optimum. Anh dẫn dắt đội kỹ thuật, phụ trách phần đưa mump2p chạy thật trên mạng. Trước khi vào Optimum, anh làm blockchain và hệ thống phân tán khoảng mười năm, từng ở Umee, Ignite (tức Tendermint) và FIWARE. Nói ngắn gọn, anh là người biến nghiên cứu RLNC thành sản phẩm mà validator đang dùng.'
+  'HAR PREET SINGH':'Har Preet Singh, VP Engineering (Phó chủ tịch kỹ thuật) của Optimum. Anh dẫn dắt đội kỹ thuật, phụ trách phần đưa mump2p chạy thật trên mạng. Trước khi vào Optimum, anh làm blockchain và hệ thống phân tán khoảng mười năm, từng ở Umee, Ignite (tức Tendermint) và FIWARE. Nói ngắn gọn, anh là người biến nghiên cứu RLNC thành sản phẩm mà validator đang dùng.',
+  'ALAN SUNNY':'Alan Sunny, Head of TCSM của Optimum. Ông phụ trách mảng hỗ trợ kỹ thuật cho khách hàng: làm cầu nối giữa đội nghiên cứu/engineering và các validator, node operator, team chain đang tích hợp Optimum. Công việc chính là hướng dẫn triển khai, xử lý sự cố và giúp khách dùng mump2p / hạ tầng tăng tốc dữ liệu thành công. Trước Optimum, ông làm Technical Customer Success ở Obol, và kỹ sư node/blockchain ở Blockdaemon và Ankr. Ông ở Anh (Newcastle).'
 };   // thêm / sửa dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi, khóa = tên in trên bảng, viết hoa, bỏ dấu, bỏ "PROF."). Người không có mục: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
 const COMMON='Optimum (x.com/get_optimum) là hạ tầng bộ nhớ hiệu năng cao / mạng tăng tốc dữ liệu cho mọi blockchain, xây trên RLNC, công nghệ ra đời từ nghiên cứu ở MIT. Sản phẩm đầu tiên mump2p tăng tốc lan truyền dữ liệu Ethereum; kế tiếp là deRAM (bộ nhớ phi tập trung) và deROM; Flexnode là node ai cũng chạy được. Tháng 4/2025 Optimum huy động 11 triệu USD, có 1kx, Spartan, Robot Ventures, Triton Capital, Finality Capital, SNZ ủng hộ. Đội ngũ công khai danh tính, nhiều người từ MIT, Harvard và Meta.';
 const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko; ngôn ngữ khác tự dịch bằng trLine)
@@ -76,7 +77,12 @@ const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko
   'HAR PREET SINGH':{
     vi:'Anh dẫn dắt đội kỹ thuật, phần đưa mump2p chạy thật trên mạng. Trước Optimum, anh làm blockchain và hệ thống phân tán khoảng mười năm, từng ở Umee, Ignite tức Tendermint, và FIWARE. Anh là người biến nghiên cứu RLNC thành sản phẩm mà validator đang dùng.',
     en:'He leads the engineering team, the part that makes mump2p run for real on the network. Before Optimum he spent about ten years in blockchain and distributed systems, at Umee, Ignite (formerly Tendermint) and FIWARE. He turned the RLNC research into a product that validators actually use.',
-    ko:'엔지니어링 팀을 이끌며 mump2p가 실제 네트워크에서 돌아가게 만드는 일을 맡고 있습니다. 옵티멈 이전에는 약 10년간 블록체인과 분산 시스템 분야에서 Umee, Ignite(Tendermint), FIWARE 등을 거쳤습니다. RLNC 연구를 검증자들이 실제로 쓰는 제품으로 만든 사람입니다.'}
+    ko:'엔지니어링 팀을 이끌며 mump2p가 실제 네트워크에서 돌아가게 만드는 일을 맡고 있습니다. 옵티멈 이전에는 약 10년간 블록체인과 분산 시스템 분야에서 Umee, Ignite(Tendermint), FIWARE 등을 거쳤습니다. RLNC 연구를 검증자들이 실제로 쓰는 제품으로 만든 사람입니다.'},
+  'ALAN SUNNY':{
+    vi:'Ông phụ trách hỗ trợ kỹ thuật cho khách hàng: làm cầu nối giữa đội nghiên cứu, engineering và các validator, node operator, team chain đang tích hợp Optimum, hướng dẫn triển khai và xử lý sự cố. Trước Optimum, ông làm Technical Customer Success ở Obol, và kỹ sư node, blockchain ở Blockdaemon và Ankr. Ông ở Newcastle, nước Anh.',
+    en:'He runs technical support for customers: he is the bridge between the research and engineering teams and the validators, node operators and chain teams integrating Optimum, helping with deployment and troubleshooting. Before Optimum he did Technical Customer Success at Obol, and was a node and blockchain engineer at Blockdaemon and Ankr. He is based in Newcastle, UK.',
+    ko:'고객 기술 지원을 맡고 있으며, 연구·엔지니어링 팀과 옵티멈을 도입하는 검증자, 노드 운영자, 체인 팀 사이를 이어 주고 배포 안내와 문제 해결을 돕습니다. 옵티멈 이전에는 Obol에서 Technical Customer Success를, Blockdaemon과 Ankr에서 노드·블록체인 엔지니어로 일했습니다. 영국 뉴캐슬에 있습니다.'}
+
 };
 const T={
   vi:{greet:['Xin chào, tôi là hướng dẫn viên của khu triển lãm Optimum.','Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu bức tranh đó.'],
@@ -90,6 +96,7 @@ const T={
       amb:'{n} là Tech Ambassador của Optimum, người giải thích kỹ thuật cho cộng đồng.',
       eng:'{n} là VP Engineering của Optimum, dẫn dắt đội kỹ thuật.',
       ops:'{n} phụ trách Strategy & Operations của Optimum, tức chiến lược và vận hành.',
+      tcsm:'{n} là Head of TCSM của Optimum, phụ trách hỗ trợ kỹ thuật cho khách hàng.',
       team:'{n} là thành viên trong đội ngũ Optimum.',
       proj:'Optimum là hạ tầng bộ nhớ hiệu năng cao cho mọi blockchain, xây trên công nghệ RLNC đến từ MIT.',
       outro:['Mời bạn xem tiếp các bức tranh bên cạnh.','Bạn có thể bước tiếp để xem thêm.'],
@@ -105,6 +112,7 @@ const T={
       amb:'{n} is the Tech Ambassador of Optimum, explaining the technology to the community.',
       eng:'{n} is the VP of Engineering at Optimum, leading the engineering team.',
       ops:'{n} is in charge of Strategy and Operations at Optimum.',
+      tcsm:'{n} is the Head of TCSM at Optimum, in charge of technical support for customers.',
       team:'{n} is a member of the Optimum team.',
       proj:'Optimum is high-performance memory infrastructure for any blockchain, built on RLNC technology from MIT.',
       outro:['Feel free to continue to the next paintings.','Step along to see more.'],
@@ -120,6 +128,7 @@ const T={
       amb:'{n}님은 옵티멈의 테크 앰배서더로서 커뮤니티에 기술을 설명하고 있습니다.',
       eng:'{n}님은 옵티멈의 엔지니어링 총괄 VP로서 개발팀을 이끌고 있습니다.',
       ops:'{n}님은 옵티멈의 전략 및 운영을 맡고 있습니다.',
+      tcsm:'{n}님은 옵티멈의 Head of TCSM으로서 고객 기술 지원을 맡고 있습니다.',
       team:'{n}님은 옵티멈 팀의 일원입니다.',
       proj:'옵티멈은 MIT에서 나온 RLNC 기술로 만든, 모든 블록체인을 위한 고성능 메모리 인프라입니다.',
       outro:['다음 그림도 둘러보세요.'],
@@ -133,7 +142,7 @@ const trAll=(lang,a)=>Promise.all(a.map(x=>tr1(lang,x)));
 const langName=lang=>{try{return LN.find(x=>x[0]===lang)[1]}catch(e){return lang}};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\b(Ceo|Cmo|Apac|Vp)\b/g,m=>m.toUpperCase());
-const kindOf=r=>/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/ADMIN/i.test(r)?'admin':/MODERATOR/i.test(r)?'mod':/AMBASSADOR/i.test(r)?'amb':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
+const kindOf=r=>/TCSM/i.test(r)?'tcsm':/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/ADMIN/i.test(r)?'admin':/MODERATOR/i.test(r)?'mod':/AMBASSADOR/i.test(r)?'amb':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
 function getLang(){return typeof L!=='undefined'?L:'vi'}   // L = ngôn ngữ đang chọn (i18n.js)
 function template(info,lang){
   const k=keyOf(info),t=TT(lang),n=SPOKEN[k]||title(info.n1),bio=BIO[k]&&(BIO[k][lang]||BIO[k].en);
