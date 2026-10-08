@@ -3,13 +3,15 @@
 // Nạp SAU house.js, TRƯỚC nature.js: mở rộng window.HouseZone để cây / đá / sông tự né phòng.
 (function(){
 const PX=7,PZ=-19.5;               // tâm chòi (x,z) trên sàn tầng 1 (chỗ tường hồng cũ: bk(0,0,-13,...) * MAPK)
-const FL=.875, RY=5.0;             // mặt sàn · chân mái (nâng cao để tranh to không chạm mái)
+const FL=.875, RY=5.3;             // mặt sàn · chân mái = mức trần CAO NHẤT của trần lượn sóng (nâng cao để tranh to không chạm trần)
+const RAILY=RY-.65;                // mức dưới đáy trần thấp nhất: đèn ray (nếu bật SHOW_FIXTURES) treo từ đây
 const DZ=1.75;                      // phần sâu thêm mỗi bên cho hành lang rộng (bản cũ DZ=0)
 const HX=17.25, HZ=3.25+DZ;            // nửa rộng (rộng ra để bày tranh 2 bên) / nửa sâu của sàn
 const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 cột / trụ đá trên mỗi hàng (đều nhau, 8 thay vì 6)
 
 // ĐÈN RỌI RAY (track light): 2 thanh ray đen chạy dọc trần phía trên 2 mép hành lang, trên ray gắn các đèn ống đen xoay chĩa vào từng tranh (tranh to có 2 đèn).
 const TRACK_Z=1.4, TRACK_X=16;   // ray cách tâm sảnh ±TRACK_Z (m), dài ±TRACK_X (m)
+const SHOW_FIXTURES=false;       // false = đèn rọi chìm trong trần (như ảnh minh họa, chỉ thấy dải đèn ấm); true = dựng lại thanh ray + đèn ống đen + chùm sáng dưới trần
 const TRACK_SPOT=true;           // true = mỗi đèn có SpotLight thật chiếu vào tranh (đẹp hơn nhưng tốn GPU); false = chỉ có thân đèn + mắt đèn phát sáng
 const TRACK_DAY=0, TRACK_NIGHT=1.5;   // cường độ SpotLight ban ngày (0 = tắt hẳn) / ban đêm (đã hạ từ 2.8 cho đỡ chói)
 const TRACKL=[], prevTrack=[];   // danh sách SpotLight đang dùng, và các vật của lần dựng trước (để rebuild không bị nhân đôi)
@@ -278,11 +280,37 @@ function build(hx,hz){
   rail(-HX,-HX+e,-HZ,HZ,false);                              // trái
   rail(HX-e,HX,-HZ,-1.25,false);rail(HX-e,HX,1.25,HZ,false); // phải (có lối bậc ở giữa)
 
-  // ---- trần: mặt dưới của mái ngói (đen) + lưới đèn LED trắng bên dưới ----
+  // ---- trần lượn sóng: các lớp voxel gỗ ấm xếp bậc thang như đường đồng mức + dải đèn ấm chạy theo các bậc ----
   const EM=new VB();   // các vật phát sáng gom 1 mesh (lưới trần, dải LED, tinh thể trong kệ kính)
-  for(const zz of[-4.2,-2.1,0,2.1,4.2])EM.box(0,RY-.03,zz,2*HX,.06,.16,0xffffff,.06);
-  for(let q=-7;q<=7;q++)EM.box(q*2.35,RY-.03,0,.16,.06,2*HZ-.3,0xffffff,.06);
-  for(const x of[-11,0,11]){const pl=new THREE.PointLight(0xffffff,.3,16,1);pl.position.set(hx+x,RY-.4,hz);S.add(pl);prevTrack.push(pl);FILLL.push(pl)}   // đèn bù sáng nội thất
+  // Trần = lưới ô 0.25m, mỗi ô có 1 "mức" 1..5 (mỗi mức thấp hơn 0.125m so với mức trước). Mặt sóng chạy dọc sảnh và uốn lượn theo x, nên các bậc tạo thành những đường đồng mức ngoằn ngoèo.
+  // Dải đèn ấm (EM, không ăn đèn) dán lên mặt đứng của các bậc thuộc mức LITK -> ánh sáng chạy ngoằn ngoèo theo đường bậc.
+  {const CEL=.25,CST=.125,CLV=5,CX0=-16.25,CNX=130,CZ0=-(HZ-.5),CNZ=Math.round(2*(HZ-.5)/CEL);
+   const WOOD=[0x6a4a33,0x7a5538,0x8d6a45,0xa07a50,0xb58e5e],LITK=[2,4],LITC=0xffe9bf;
+   const cl=new Array(CNX*CNZ);
+   for(let j=0;j<CNZ;j++)for(let i=0;i<CNX;i++){
+     const x=CX0+(i+.5)*CEL,z=CZ0+(j+.5)*CEL;
+     const u=z*.85+1.3*Math.sin(x*.33)+.7*Math.sin(x*.12+1.9)+.35*Math.sin(x*.8+z*.5);   // pha sóng: z cho dải dọc, sin(x) làm dải uốn lượn
+     cl[j*CNX+i]=1+Math.round((.5+.5*Math.sin(u))*(CLV-1));
+   }
+   const lv=(i,j)=>(i<0||j<0||i>=CNX||j>=CNZ)?-1:cl[j*CNX+i];
+   const DIRS=[[-1,0],[1,0],[0,-1],[0,1]];
+   for(let j=0;j<CNZ;j++)for(let i=0;i<CNX;i++){
+     const L=cl[j*CNX+i],cx=CX0+(i+.5)*CEL,cz=CZ0+(j+.5)*CEL;
+     let Lm=L;for(const[di,dj]of DIRS){const n=lv(i+di,j+dj);if(n>0&&n<Lm)Lm=n}
+     const n=L-Lm+1,yb=RY-L*CST,base=WOOD[L-1],sh=((i*3+j*5)%3-1)*0x030303;
+     v.box(cx,yb+n*CST/2,cz,CEL,n*CST,CEL,base+sh,CST);      // cột chỉ dày vừa đủ che các mặt đứng (không đặc tới mái)
+     for(const[di,dj]of DIRS){
+       const m=lv(i+di,j+dj);if(m<1||m>=L)continue;           // chỉ ô thấp hơn (mức lớn hơn) mới có mặt đứng quay về ô cao hơn
+       for(let k=m;k<L;k++){
+         if(LITK.indexOf(k)<0)continue;
+         const y=RY-(k+.5)*CST;
+         if(dj)EM.box(cx,y,cz+dj*(CEL/2+.025),CEL,.1,.05,LITC,.05);
+         else EM.box(cx+di*(CEL/2+.025),y,cz,.05,.1,CEL,LITC,.05);
+       }
+     }
+   }
+  }
+  for(const x of[-11,0,11]){const pl=new THREE.PointLight(0xfff0d8,.3,16,1);pl.position.set(hx+x,RY-.9,hz);S.add(pl);prevTrack.push(pl);FILLL.push(pl)}   // đèn bù sáng nội thất
 
   // ---- dầm gỗ quanh đỉnh tường ----
   for(const z of[-HZ+.25,HZ-.25])fb(-HX+.15,HX-.15,RY-.4,RY,z-.2,z+.2,(i,j,k)=>(i+k)&1?0x4d2313:0x431d10,.2);
@@ -443,11 +471,11 @@ function build(hx,hz){
     const hy=FL+1.95,ry=f>0?0:Math.PI;hm.position.set(hx+cx,hy,hz+cz);hm.rotation.y=ry;S.add(hm);prevTrack.push(hm);
     HOLO.push({m:hm,y0:hy,ry,ph:cx*.7+cz});
   }
-  // ---- ĐÈN RỌI RAY ----
+  // ---- ĐÈN RỌI: SpotLight chìm trong trần chiếu vào từng tranh; thanh ray + đèn ống đen + chùm sáng chỉ dựng khi SHOW_FIXTURES=true ----
   const BLK=0x15151a;
-  for(const rz of[-TRACK_Z,TRACK_Z]){
-    fb(-TRACK_X,TRACK_X,RY-.1,RY,rz-.06,rz+.06,BLK,.06);                          // thanh ray
-    for(const x of[-TRACK_X,-TRACK_X/2,0,TRACK_X/2,TRACK_X])fb(x-.1,x+.1,RY-.16,RY-.1,rz-.1,rz+.1,BLK,.05);   // bộ cấp nguồn / kẹp ray
+  if(SHOW_FIXTURES)for(const rz of[-TRACK_Z,TRACK_Z]){
+    fb(-TRACK_X,TRACK_X,RAILY-.1,RAILY,rz-.06,rz+.06,BLK,.06);                          // thanh ray
+    for(const x of[-TRACK_X,-TRACK_X/2,0,TRACK_X/2,TRACK_X])fb(x-.1,x+.1,RAILY-.16,RAILY-.1,rz-.1,rz+.1,BLK,.05);   // bộ cấp nguồn / kẹp ray
   }
   const _dir=new THREE.Vector3(),_dn=new THREE.Vector3(0,-1,0);
   for(const e of GUIDE_EASELS){
@@ -455,11 +483,12 @@ function build(hx,hz){
     {const hm=new THREE.Mesh(new THREE.PlaneGeometry(1.5*e.s,1.5*e.s),HALOMAT);          // vầng sáng ngay trước mặt tranh
      hm.position.set(e.x+e.fx*.3,e.y+.12*e.s,e.z+e.fz*.3);hm.rotation.y=Math.atan2(e.fx,e.fz);S.add(hm);prevTrack.push(hm)}
     for(let q=0;q<n;q++){
-      const off=n===1?0:(q?.3:-.3)*e.s,px=lx+off*e.fz,py=RY-.55;           // đèn trượt trên ray, thẳng với tranh (dọc theo mặt tranh)
-      fb(px-.07,px+.07,RY-.2,RY-.1,rz-.07,rz+.07,BLK,.035);                  // đế gắn vào ray
-      fb(px-.025,px+.025,py,RY-.2,rz-.025,rz+.025,BLK,.025);                  // cổ đèn
+      const off=n===1?0:(q?.3:-.3)*e.s,px=lx+off*e.fz,py=RAILY-.55;           // đèn trượt trên ray, thẳng với tranh (dọc theo mặt tranh)
       const tx=lx+e.fx*.2+off*e.fz,ty=e.y,tz=lz+e.fz*.2-off*e.fx;          // điểm đèn chĩa tới: giữa mặt tranh
       _dir.set(tx-px,ty-py,tz-rz).normalize();
+      if(SHOW_FIXTURES){
+      fb(px-.07,px+.07,RAILY-.2,RAILY-.1,rz-.07,rz+.07,BLK,.035);
+      fb(px-.025,px+.025,py,RAILY-.2,rz-.025,rz+.025,BLK,.025);
       const w=new VB();                                                       // thân đèn ống, dựng thẳng đứng hướng xuống rồi xoay chĩa vào tranh
       w.cyl(0,-.3,0,.1,.6,BLK,.04,'y');w.box(0,-.01,0,.2,.05,.2,0x2a2a30,.05);   // ống + nắp
       w.cyl(0,-.6,0,.105,.03,0x2a2a30,.03,'y',.07);                           // viền miệng đèn
@@ -469,9 +498,10 @@ function build(hx,hz){
       {const lx2=hx+px+_dir.x*.62,ly2=py+_dir.y*.62,lz2=hz+rz+_dir.z*.62,bx=hx+tx,bz=hz+tz,L=Math.hypot(bx-lx2,ty-ly2,bz-lz2);
        const bg=new THREE.Mesh(new THREE.CylinderGeometry(.07,.42*e.s+.1,L,20,1,true),BEAMMAT);   // chóp: nhỏ ở miệng đèn, loe ra ở tranh
        bg.position.set((lx2+bx)/2,(ly2+ty)/2,(lz2+bz)/2);bg.quaternion.copy(m.quaternion);S.add(bg);prevTrack.push(bg)}
+      }
       if(TRACK_SPOT&&q===0){   // mỗi tranh 1 SpotLight thật (đèn thứ 2 của tranh to chỉ phát sáng) để giữ số đèn vừa phải
         const sp=new THREE.SpotLight(0xfff0d2,TRACK_DAY,10,.4+.12*(e.s-1),.55,1);   // tranh càng to chùm sáng càng rộng
-        sp.position.set(hx+px,py-.55,hz+rz);sp.target.position.set(hx+lx+e.fx*.2,ty,hz+lz+e.fz*.2);
+        sp.position.set(hx+px,SHOW_FIXTURES?py-.55:RAILY-.15,hz+rz);sp.target.position.set(hx+lx+e.fx*.2,ty,hz+lz+e.fz*.2);
         S.add(sp);S.add(sp.target);prevTrack.push(sp,sp.target);TRACKL.push(sp);
       }
     }
