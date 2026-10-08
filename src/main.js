@@ -45,7 +45,26 @@ function hurt(n){
   if(P.hp<=0&&lives>0){lives--;P.hp=100;reviveT=3;P.vy=0;showMsg((LVT[L]||LVT.en).replace('%d',lives));updLives();$('hurt').style.opacity=0;return}   // hồi sinh tại chỗ: giữ nguyên vị trí / tầng / đạn
   if(P.hp<=0&&!dead){dead=true;playing=false;md=false;deadT=0;thudSnd();if(document.exitPointerLock)document.exitPointerLock();
     ovState='dead';renderOv();setTimeout(()=>{if(dead)$('ov').style.display='flex'},1400)}}   // chờ nhân vật ngã xong mới hiện bảng thua
-function restart(){hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();P.x=0;P.z=16*MAPK;P.y=0;P.vy=0;P.fy=undefined;P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();clearParts();clearHoles();clearBul();resetLevel()}
+// ---- ĐIỂM XUẤT HIỆN NGẪU NHIÊN: mỗi lần vào game / chơi lại, người chơi đứng ở 1 trong các vị trí dưới đây, nhìn theo góc yaw / pitch (rad) ----
+// Cách thêm vị trí: đứng đúng chỗ + hướng nhìn muốn, mở Console (F12) gõ  spawnPos()  -> nó in sẵn 1 dòng {x,y,z,yaw,pitch}, dán thêm vào mảng này.
+// y = độ cao CHÂN (P.y). Vị trí dưới nước: cứ để y như spawnPos() in ra, vật lý bơi (nature/swim.js) tự xử lý.
+const SPAWNS=[
+  {name:'default',x:0,y:0,z:16*MAPK,yaw:0,pitch:0},   // vị trí gốc của game (giữ làm 1 trong các lựa chọn; xóa dòng này nếu không muốn)
+  // {name:'flags',x:0,y:0,z:0,yaw:0,pitch:0},     // phòng cờ + máy tính
+  // {name:'river',x:0,y:0,z:0,yaw:0,pitch:0},     // cầu + sông
+  // {name:'pavilion',x:0,y:0,z:0,yaw:0,pitch:0},  // chòi triển lãm
+  // {name:'underwater',x:0,y:0,z:0,yaw:0,pitch:0},// dưới hồ
+];
+let lastSpawn=-1;
+function spawnRandom(){
+  let i=Math.floor(Math.random()*SPAWNS.length);
+  if(SPAWNS.length>1&&i===lastSpawn)i=(i+1+Math.floor(Math.random()*(SPAWNS.length-1)))%SPAWNS.length;   // không lặp lại đúng chỗ vừa rồi
+  lastSpawn=i;const s=SPAWNS[i];
+  P.x=s.x;P.y=s.y;P.z=s.z;P.vy=0;P.fy=undefined;P.ground=false;slideT=0;
+  yaw=s.yaw||0;pitch=s.pitch||0;
+}
+window.spawnPos=()=>{const f=n=>+n.toFixed(2),r=n=>+n.toFixed(3),o="{name:'new',x:"+f(P.x)+",y:"+f(P.y)+",z:"+f(P.z)+",yaw:"+r(yaw)+",pitch:"+r(pitch)+"},";console.log(o);return o};
+function restart(){hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();spawnRandom();P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();clearParts();clearHoles();clearBul();resetLevel()}
 // ---- Đồng hồ FPS ở góc trái dưới màn hình: xanh = mượt, vàng = trung bình, đỏ = giật lag. Chỉnh ngưỡng ở FPSC ----
 const FPSC={good:50,mid:30,every:.5};   // >= good: xanh · >= mid: vàng · thấp hơn: đỏ · every: giây giữa 2 lần cập nhật số
 const fpsEl=document.createElement('div');fpsEl.id='fps';fpsEl.className='pill';
@@ -154,3 +173,4 @@ function frame(now){
     if(sc)renderScope()}
 }
 requestAnimationFrame(frame);
+spawnRandom();   // vào game lần đầu: đặt vị trí + góc nhìn ngẫu nhiên (chơi lại: restart() gọi lại)
