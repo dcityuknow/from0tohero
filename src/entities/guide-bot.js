@@ -252,29 +252,47 @@ function placeBubble(g){
 const SKIN=0xf1c9a5,HAIR=0x24170f,COAT=0x1f2d4a,GOLD=0xe8c04a,PANT=0x2b2b33,SHOE=0x3a2412,CYAN=0x7fe9ff;
 const part=fn=>{const v=new VB();fn(v);return v.mesh()};
 const bx=(v,x,y,z,w,h,d,c,s)=>v.box(x,y,z,w,h,d,c,s||.1);
-// dựng 1 người voxel; o = {coat,pant,hair,skin,tie,cap,long}: hướng dẫn viên chính có mũ vàng, nhân viên phụ mặc vest khác màu (không mũ)
+// Logo vòng ∞ dạng KHỐI VOXEL: ảnh gốc được lấy mẫu thành lưới 40x24 ô (mỗi ô 1 khối màu, nhúng sẵn dạng base64 RGB) rồi dựng thành 1 tấm khối mỏng trên ngực / lưng áo.
+const LOGO_C=40,LOGO_R=24;
+const LOGO_RGB=Uint8Array.from(atob("KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw2KCw2KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1Jyw1KSw1NDY+VFdbdHZ4foCCd3l8W11hOT1DKC02Jyw2KCw1KCw1KCw1KCw1Jyw1KCw2MTU8UlRXc3V5f4GEfn+DZmlsQkRLKi02KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1MzU8ampsk5SUlpeVjo6OkJCQmJiYqKiosrCxi4uNP0FIKCw2KCw1KCw1KCw2MTM7bXBxqaqpvb29wMDAxsbGzc3N1dbU0tPTp6eoTlBWKCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1PD5Cc3Nzfn1+fn5+g4ODioqLi4yMioqKiImIkI+QpqWmtLS0enx+S05TREdNYWRmmpqar66vvLq7xMPDwL+/vr+/xcXFzs7P1tbW4+Pj4ODgfX+CKS42KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1ODk9aGhod3d3fX19jY2NpqamsLCwnJyfjo+RkJGUmpqciIiHk5OTq6urtba1tLW1sLCwtra20NDPysrLp6eplpaYnZ2grK2trKysv7+/2tra5ubm7e/uhIaJKCw0KCw1KCw1KCw1KCw1KCw1KCw1KCw1Jy00LjE4WVlZc3NyfHx8nJycvr29foCDNzxCKCw1KCw1Jyw1LjE6XmJnjo+Qk5OTmZmZpaamurm6ysrKgIOIOTtEKCw1KCw1KCw1MTU8ZWdrl5iYrq6u4ODg6uvq8PDwYWNpJy01KCw1KCw1KCw1KCw1KCw1KCw1KCw0QkJFa2trdXV1lJSUzMzMYGNmKSw0KCw1KCw1KCw1KCw1KCw0KCw1LzI7X2Fmf4CEh4mMc3V4Oz1FKCw1KCw1KCw1KCw1KCw1KCw1KCw0PkFGf39/tra26Ojo8fHx0tPULDA4KCw1KCw1KCw1KCw1KCw1KCw1LC83VFNUb29veXl5zczMhIaJKC01KCw1KCw1KCw1KCw1KCw1KCw0KCw1KCw1KCw1KCw1Jyw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1R0pMg4KD2NjY7u7u+Pf3W11kKCw1KCw1KCw1KCw1KCw1KCw1MTU6X15db29viYmJ2NjZRUlOKCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1LTE5Zmdovb296Ojo+Pf2kZOXKCw1KCw1KCw1KCw1KCw1KCw1Njk9Y2NhcXJxn5+fxsfHLjI5KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KC01Wlxdp6en5eXl9PT0sbS2KCw1KCw1KCw1KCw1KCw1KCw1Njk9Y2NidHR0o6OjwcPDKy82KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KC00WFlao6Oj5+fn9fX1ubu9KCw1KCw1KCw1KCw1KCw1KCw1NDc7YF9ec3NzlZWV0dLTNzxCKCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KC00YGJjsrKy6+vr9vb1o6aoKCw1KCw1KCw1KCw1KCw1KCw1MDQ6V1ZWb29vgICA3d3cXF9jKCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1MjU8dnd2zc3N7u7u+Pj4d3l+KCw1KCw1KCw1KCw1KCw1KCw1KS01SkpLa2trdHR0s7OzsbGyNDg/KCw1KCw1KCw1KCw1KCw1KCw1KCw3Jy01KS01MTU9NDhAKi82Jy01KCw1KCw1KCw1KCw1KCw1KCw1KSw1Ki41Xl9hnp6d4eHh7+/v7OzsPkFIKCw1KCw1KCw1KCw1KCw1KCw1Jy00OTtAXl5eb29vfHx8wsLClJWWOT1DKCw1KCw1KCw1KCw1KCw1LDE4XF9jlJWWrq+uvLy9tre3fX+CNjpCKCw1KCw1KCw1KCw1KCw1LTE4YWJknJyczs7O5ubm8/Pzl5ibJy01KCw1KCw1KCw1KCw1KCw1KCw1KCw1KS01Tk5RZ2dncnJygICAsbGxrq6ubG9xRUdOOT1DPkJHXl9ljY6PlpeWmZmZoKCgo6Okr6+v0NDQw8XFc3R5RklQOj5FPkFIWVxflJWVtLS0zczM3t7e6+3syMjKMzc/KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1LjI6Y2NlbGxsdXV1f39/k5OTrKyssrKyr6+vrKysoaCglJOToqKitra2qauspKanq6ysm5uburm50dDRy8vLwsLCwcHBxsbGxcXF09PT3d3d5ubm0NHSRUlQKCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1LjM6cnR2hISEdXV1fHx9gYGBhYWFiYmJjI2NlZOUsLGxn6CiQkdNKCw0KCw1NzxChoeKpqenoqGitra2wMDAw8PDycnJ0NDQ1tbW2tnatbW3QUVMKCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1Jy01UFRZi4yQoKGhn5+en5+fpqamr6+vmZueWV1kKC02KCw2KCw1KCw1KCw2KCw2R0tSjI+Sr6+vubm5u7u7w8PDxsfGqKmsaGlvKi42KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1Ky83PEBIQ0dPPkJKLDA4KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1Ki42Oz9HSExUQkdOLzM7KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1KCw1"),c=>c.charCodeAt(0));
+// dir=+1: mặt trước (+z) · dir=-1: mặt sau (-z, lật ngang để logo vẫn đọc đúng khi nhìn từ phía sau). w,h: kích thước tấm (m)
+function logoV(v,cx,cy,z,w,h,dir){
+  const px=w/LOGO_C;
+  bx(v,cx,cy,z*dir,w,h,.01,(i,j,k,nx,ny)=>{
+    let c=Math.min(LOGO_C-1,Math.floor(i*LOGO_C/nx));if(dir<0)c=LOGO_C-1-c;
+    const r=Math.min(LOGO_R-1,Math.floor((ny-1-j)*LOGO_R/ny)),o=(r*LOGO_C+c)*3;
+    return (LOGO_RGB[o]<<16)|(LOGO_RGB[o+1]<<8)|LOGO_RGB[o+2];
+  },px);
+}
+// dựng 1 người voxel; o = {coat,pant,hair,skin,tie,cap,long,shoe,belt,logo,capColor}: hướng dẫn viên chính có mũ vàng, nhân viên phụ mặc vest khác màu (không mũ)
 function makeBot(o){
   o=o||{};const coat=o.coat??COAT,pant=o.pant??PANT,hair=o.hair??HAIR,skin=o.skin??SKIN;
   const root=new THREE.Group(),body=new THREE.Group();root.add(body);
   const mk=(m,x,y,z,p)=>{const g=new THREE.Group();g.position.set(x,y,z);g.add(m);(p||body).add(g);return g};
-  const legL=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,pant);bx(v,0,-.75,.05,.2,.1,.3,SHOE)}),-.12,.8,0);
-  const legR=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,pant);bx(v,0,-.75,.05,.2,.1,.3,SHOE)}),.12,.8,0);
+  const legL=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,pant);bx(v,0,-.75,.05,.2,.1,.3,o.shoe??SHOE)}),-.12,.8,0);
+  const legR=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,pant);bx(v,0,-.75,.05,.2,.1,.3,o.shoe??SHOE)}),.12,.8,0);
   const armL=mk(part(v=>{bx(v,0,-.3,0,.15,.6,.15,coat);bx(v,0,-.65,0,.15,.1,.15,skin)}),-.35,1.35,0);
   const armR=mk(part(v=>{bx(v,0,-.3,0,.15,.6,.15,coat);bx(v,0,-.65,0,.15,.1,.15,skin)}),.35,1.35,0);
-  mk(part(v=>{bx(v,0,1.1,0,.5,.6,.3,coat);bx(v,0,.85,.16,.5,.1,.02,GOLD,.02);bx(v,.12,1.2,.16,.12,.08,.02,0xffffff,.02);bx(v,0,1.33,.155,.14,.08,.02,0xf4f4f4,.02);
-    if(o.tie)bx(v,0,1.15,.162,.05,.32,.02,o.tie,.02)}),0,0,0);
+  mk(part(v=>{bx(v,0,1.1,0,.5,.6,.3,coat);bx(v,0,.85,.16,.5,.1,.02,o.belt??GOLD,.02);
+    if(!o.logo)bx(v,.12,1.2,.16,.12,.08,.02,0xffffff,.02);   // khăn túi ngực (bộ đồng phục logo thì thay bằng logo)
+    bx(v,0,1.33,.155,.14,.08,.02,0xf4f4f4,.02);
+    if(o.logo){logoV(v,.135,1.2,.155,.2,.12,1);logoV(v,0,1.15,.155,.28,.168,-1)}   // logo ngực (bên phải ảnh nhìn từ phía trước, né cà vạt) + logo giữa lưng
+    if(o.tie){bx(v,0,1.15,.162,.05,.32,.02,o.tie,.02);if(o.logo)bx(v,0,1.31,.164,.07,.06,.02,o.tie,.02)}   // cà vạt (+ nút thắt)
+  }),0,0,0);
   const head=mk(part(v=>{
     bx(v,0,.25,0,.4,.4,.4,skin);
     bx(v,0,.4,-.02,.44,.12,.44,hair,.04);bx(v,0,.2,-.2,.44,.3,.06,hair,.04);
     if(o.long){bx(v,0,-.02,-.2,.44,.5,.06,hair,.04);bx(v,-.23,.12,-.06,.05,.4,.3,hair,.04);bx(v,.23,.12,-.06,.05,.4,.3,hair,.04)}   // tóc dài
-    if(o.cap!==false){bx(v,0,.5,0,.46,.1,.46,coat,.05);bx(v,0,.5,.26,.3,.04,.1,GOLD,.02)}      // mũ hướng dẫn viên
+    if(o.cap!==false){bx(v,0,.5,0,.46,.1,.46,o.capColor??coat,.05);bx(v,0,.5,.26,.3,.04,.1,GOLD,.02)}      // mũ hướng dẫn viên
     bx(v,-.09,.27,.205,.06,.06,.02,0x111111,.02);bx(v,.09,.27,.205,.06,.06,.02,0x111111,.02);
     bx(v,-.23,.25,0,.04,.1,.1,CYAN,.02);bx(v,.23,.25,0,.04,.1,.1,CYAN,.02);   // tai nghe
   }),0,1.4,0);
   const mouth=mk(part(v=>bx(v,0,0,0,.1,.03,.02,0x8a2b2b,.01)),0,.15,.205,head);
   return{root,body,legL,legR,armL,armR,head,mouth};
 }
-const MAIN=makeBot({}),{root,body,legL,legR,armL,armR,head,mouth}=MAIN;
+// HƯỚNG DẪN VIÊN CHÍNH: sơ mi trắng, cà vạt xanh navy, quần + giày đen, logo giữa ngực và giữa lưng (nhân viên phụ giữ nguyên đồ cũ)
+const GUIDE_LOOK={coat:0xf3f5fb,pant:0x15151b,shoe:0x0e0e12,belt:0x0e0e12,tie:0x1b2038,logo:true,capColor:COAT};
+const MAIN=makeBot(GUIDE_LOOK),{root,body,legL,legR,armL,armR,head,mouth}=MAIN;
 root.visible=false;S.add(root);
 
 // ---- 3 NHÂN VIÊN PHỤ: đi tuần trong dải riêng của mỗi người, dừng lại ngắm tranh gần nhất, quay sang khách khi khách đến gần (không đọc thoại) ----
