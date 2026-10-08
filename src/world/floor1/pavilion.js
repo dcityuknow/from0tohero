@@ -11,11 +11,11 @@ const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 c�
 // ĐÈN RỌI RAY (track light): 2 thanh ray đen chạy dọc trần phía trên 2 mép hành lang, trên ray gắn các đèn ống đen xoay chĩa vào từng tranh (tranh to có 2 đèn).
 const TRACK_Z=1.4, TRACK_X=16;   // ray cách tâm sảnh ±TRACK_Z (m), dài ±TRACK_X (m)
 const TRACK_SPOT=true;           // true = mỗi đèn có SpotLight thật chiếu vào tranh (đẹp hơn nhưng tốn GPU); false = chỉ có thân đèn + mắt đèn phát sáng
-const TRACK_DAY=.8, TRACK_NIGHT=2.8;   // cường độ SpotLight ban ngày / ban đêm
+const TRACK_DAY=0, TRACK_NIGHT=1.5;   // cường độ SpotLight ban ngày (0 = tắt hẳn) / ban đêm (đã hạ từ 2.8 cho đỡ chói)
 const TRACKL=[], prevTrack=[];   // danh sách SpotLight đang dùng, và các vật của lần dựng trước (để rebuild không bị nhân đôi)
 const LENSGLOW=new THREE.MeshBasicMaterial({vertexColors:true});LENSGLOW.visible=false;
 // HÀO QUANG: (1) vầng sáng mềm phủ lên mặt mỗi tranh (cộng sáng, nhìn thấy cả ngày lẫn đêm), (2) chùm sáng mờ đi từ miệng đèn xuống tranh.
-const TRACK_HALO=.5, TRACK_BEAM=.12;   // độ đậm vầng sáng / chùm sáng ban đêm (0 = tắt); ban ngày tự giảm
+const TRACK_HALO=.16, TRACK_BEAM=.05;   // độ đậm vầng sáng / chùm sáng ban đêm (0 = tắt); ban ngày tắt hẳn (đã hạ từ .5 / .12 cho đỡ chói)
 const _cv=(w,h,fn)=>{const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'),w,h);return new THREE.CanvasTexture(c)};
 const HALOMAT=new THREE.MeshBasicMaterial({map:_cv(128,128,(g,w,h)=>{const r=g.createRadialGradient(w/2,h*.4,0,w/2,h*.5,w/2);
   r.addColorStop(0,'rgba(255,244,205,1)');r.addColorStop(.35,'rgba(255,230,170,.55)');r.addColorStop(.7,'rgba(255,215,140,.14)');r.addColorStop(1,'rgba(255,210,130,0)');g.fillStyle=r;g.fillRect(0,0,w,h)}),
@@ -28,8 +28,10 @@ const BEAMMAT=new THREE.MeshBasicMaterial({map:_cv(4,64,(g,w,h)=>{const r=g.crea
   const dc=window.DayCycle,k=dc&&dc.cur?dc.cur.lamp:0,t=Math.min(1,Math.max(0,(k-.25)/.65)),sm=t*t*(3-2*t);
   const I=TRACK_DAY+(TRACK_NIGHT-TRACK_DAY)*sm;
   for(const l of TRACKL)l.intensity=I;
-  HALOMAT.opacity=TRACK_HALO*(.6+.4*sm);BEAMMAT.opacity=TRACK_BEAM*(.4+.6*sm);
-  LENSGLOW.visible=k>.25;LENSGLOW.color.setRGB(1+.3*sm,1+.25*sm,1+.05*sm);
+  const on=sm>.002;   // chỉ bật khi trời bắt đầu tối; ban ngày ẩn hẳn vầng sáng + chùm sáng + mắt đèn
+  HALOMAT.visible=BEAMMAT.visible=on;
+  HALOMAT.opacity=TRACK_HALO*sm;BEAMMAT.opacity=TRACK_BEAM*sm;
+  LENSGLOW.visible=on;LENSGLOW.color.setRGB(1+.1*sm,1+.08*sm,1+.02*sm);
 })();
 const POST=0x6b2d1c, RED=0x8a3b22, RED2=0x9c4a2c, DARK=0x2a1a10;
 const STONE=[0x5a5a5a,0x6a6a6a,0x4c4c4c,0x777777,0x3e3e3e];

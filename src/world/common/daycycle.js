@@ -36,6 +36,8 @@ const CFG={
   shadowDist:90,             // khoảng cách đặt "camera bóng" tới người chơi (m). Trước là 130 và far=300: lúc mặt trời thấp (chiều tà / bình minh) khối nhìn của bóng
                              // kéo dài thành dải ~220m nên phải vẽ vào bản đồ bóng gấp ~3 lần số vật so với buổi trưa. 90 + far=shadowDist+60 cắt bớt phần dải thừa (sương đã che từ ~55m)
   shadowMinSun:.15,          // chỉ vẽ bóng khi cường độ nắng > số này (trước .06). Chiều tà nắng yếu + môi trường sáng nên bóng gần như không thấy, tắt sớm cho đỡ nặng
+  lampGlow:.55,              // độ đậm quầng sáng đèn lồng / đèn đá ban đêm (cũ ~.9; 0 = tắt quầng)
+  lampLight:1,               // hệ số cường độ PointLight của đèn ban đêm (cũ 1.55)
   maxPointLights:5,          // tối đa số PointLight bật cùng lúc, chỉ giữ các đèn GẦN camera nhất (mỗi PointLight bắt MỌI vật liệu ăn đèn tính thêm 1 lần cho từng đỉnh). 0 = không giới hạn
   shadowStride:3,            // cập nhật bóng mỗi N khung (3 = còn 1/3 tải; vật đứng yên không thấy khác, chỉ bóng bot trễ chút). Trước là 2
   dist:400                   // khoảng cách vẽ mặt trời / mặt trăng / sao quanh camera (vòm trời bán kính 450, far=600)
@@ -593,15 +595,17 @@ function tick(dt){
   // --- đèn ---
   for(let i=lamps.length-1;i>=0;i--){
     const l=lamps[i];if(!l.sp.parent){lamps.splice(i,1);continue}   // tầng đã dỡ -> bỏ
-    l.sp.material.opacity=l.op*(.16+.9*nightK);
+    const lk=ss(.2,.9,nightK);   // đèn chỉ sáng khi trời bắt đầu tối (nightK > .2); ban ngày tắt hẳn
+    l.sp.visible=lk>.002;
+    l.sp.material.opacity=l.op*CFG.lampGlow*lk;
     if(l.pl){
-      l.pl.intensity=l.pI*(.08+1.55*nightK);
+      l.pl.intensity=l.pI*CFG.lampLight*lk;
       PLC.push(l);
     }
   }
   // PointLight: ban ngày gỡ hẳn khỏi shader (Lambert tính sáng theo từng ĐỈNH, mỗi đèn nhân với hàng triệu đỉnh). Ban đêm chỉ bật các đèn GẦN camera nhất
   // (số đèn bật luôn giữ cố định nên three.js không phải biên dịch lại shader khi đổi đèn). Đèn xa vẫn còn quầng sáng (sprite) nên nhìn không khác.
-  {const on=nightK>.03,cap=CFG.maxPointLights;
+  {const on=nightK>.2,cap=CFG.maxPointLights;
     if(!on||!cap||PLC.length<=cap){for(const l of PLC)l.pl.visible=on}
     else{
       const cx=C.position.x,cy=C.position.y,cz=C.position.z;
