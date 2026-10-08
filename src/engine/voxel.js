@@ -4,7 +4,7 @@
 const VMAT=new THREE.MeshLambertMaterial({vertexColors:true,emissive:0x1e1e1e});
 // KHOẢNG HỞ GIỮA CÁC KHỐI: 1 = SÁT NHAU (không còn khe) -> mặt chung của 2 khối kề nhau trùng khít và bị BỎ HẲN (mesh() / meshLOD() bên dưới).
 // Bản cũ dùng .93 (khe 7%, nên mặt chung không trùng khít và không bỏ được). Thử lại kiểu cũ: thêm ?vgap=.93 vào địa chỉ trang.
-const VGAP=(()=>{const v=parseFloat(new URLSearchParams(location.search).get('vgap'));return v>0&&v<=1?v:.99})();
+const VGAP=(()=>{const v=parseFloat(new URLSearchParams(location.search).get('vgap'));return v>0&&v<=1?v:1})();
 const VTIGHT=VGAP>=.999;
 // Công tắc thử: thêm ?cull=0 vào địa chỉ trang để TẮT việc bỏ mặt khuất (vẫn sát khối) - dùng để xem một lỗi hiển thị có do bỏ mặt hay không.
 const VCULL=new URLSearchParams(location.search).get('cull')!=='0';
