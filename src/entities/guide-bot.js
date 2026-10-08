@@ -19,6 +19,10 @@ const CFG={
   tts:true,                   // đọc thành tiếng
   showText:false,             // false = chỉ ĐỌC, không hiện chữ trên màn hình (nếu máy không đọc được thì tự hiện chữ thay thế)
   rate:1.2,                   // tốc độ đọc (1 = bình thường; 1.1–1.3 nhanh vừa; tăng nữa dễ khó nghe)
+  mp3:true,                   // true = nhìn tranh thì PHÁT FILE MP3 (assets/audio/guide-bot/<mã ngôn ngữ>/<tên>.mp3); thiếu file -> tự dùng cách đọc cũ (AI / kịch bản mẫu + TTS). false = luôn dùng cách đọc cũ
+  audioDir:'assets/audio/guide-bot', // thư mục chứa mp3: <audioDir>/<mã ngôn ngữ>/muriel-medard.mp3 (vi en ru ng bn id hi zh fil uk ko)
+  mp3Langs:null,              // null = thử mp3 ở mọi ngôn ngữ (file nào thiếu -> dùng AI + giọng Google như cũ). Hoặc liệt kê, vd ['vi','en'] = chỉ thử mp3 ở các ngôn ngữ này, ngôn ngữ khác dùng AI luôn (đỡ lỗi 404 đỏ trong Console)
+  mp3MinSec:3,                // mp3 ngắn hơn số giây này coi là FILE MẪU (tiếng chuông) -> bỏ qua, dùng AI + giọng Google. Chép mp3 thật (dài hơn) đè lên là tự dùng
   cloudTTS:true,              // nếu máy KHÔNG có giọng tự nhiên đúng ngôn ngữ -> dùng giọng Google Dịch (cần mạng). false = chỉ dùng giọng có sẵn trong máy; không có giọng đúng ngôn ngữ thì chỉ hiện chữ, không đọc bằng giọng sai
   ai:null                     // async (info, lang) => string | null — mặc định gắn AITalk (Groq) ở dưới; null/lỗi => kịch bản mẫu
 };
@@ -243,6 +247,8 @@ let warmLang=null;
 function warm(g){   // gọi khi người chơi lại gần chòi (<45m) hoặc đổi ngôn ngữ: viết sẵn lời bằng AI + dịch sẵn kịch bản mẫu cho cả 8 tranh
   const lang=GuideBot.getLang();if(warmLang===lang)return;warmLang=lang;
   g.easels.forEach((e,i)=>setTimeout(()=>{tplLines(e,lang);ensure(e,lang)},i*500));
+  if(CFG.mp3)g.easels.forEach((e,i)=>setTimeout(()=>loadMp3(mp3Url(e,lang)),300+i*150));   // tải sẵn mp3 để nhìn vào tranh là phát ngay
+  if(!GREETP[lang])GREETP[lang]=greetLines(lang);
   trAll(lang,TT(lang).greet).then(l=>preloadTTS(l[0],lang));tr1(lang,TT(lang).name);
 }
 
@@ -435,6 +441,35 @@ function startTTS(text,lang,tk,onDone,onNoVoice){   // gọi onDone khi đọc x
     next();
   }else local();
 }
+// ---- MP3 CÓ SẴN (nhìn tranh) ----
+// Đường dẫn: <CFG.audioDir>/<ngôn ngữ>/<tên-viết-thường-nối-gạch>.mp3  vd assets/audio/guide-bot/vi/muriel-medard.mp3 (tên lấy từ keyOf: bỏ dấu, bỏ PROF./DR.)
+// Mỗi ngôn ngữ 1 thư mục (vi en ru ng bn id hi zh fil uk ko); ngôn ngữ nào / người nào chưa có file -> trả null để dùng cách đọc cũ.
+const slug=info=>keyOf(info).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const mp3Url=(info,lang)=>CFG.audioDir.replace(/\/+$/,'')+'/'+lang+'/'+slug(info)+'.mp3';
+const MP3C={};
+function loadMp3(url){   // Promise<Audio|null>; nhớ kết quả (file không có = nhớ là không có tới khi tải lại trang)
+  if(MP3C[url])return MP3C[url];
+  const lg=url.split('/').slice(-2,-1)[0];
+  if(CFG.mp3Langs&&CFG.mp3Langs.indexOf(lg)<0)return MP3C[url]=Promise.resolve(null);   // ngôn ngữ chưa làm mp3: không tải, dùng AI luôn
+  return MP3C[url]=new Promise(res=>{
+    let a;try{a=new Audio();a.preload='auto'}catch(e){return res(null)}
+    let fin=false;const end=(ok,keep)=>{if(fin)return;fin=true;clearTimeout(to);a.oncanplay=a.onerror=null;if(!keep)delete MP3C[url];res(ok?a:null);if(!ok&&keep)note('mp3','không có / không đọc được: '+url+' -> dùng giọng đọc dự phòng')};
+    const to=setTimeout(()=>end(false,false),6000);   // mạng chậm: lần này bỏ qua nhưng không nhớ là "không có"
+    a.oncanplay=()=>{const d=a.duration;if(isFinite(d)&&d<CFG.mp3MinSec){note('mp3','file mẫu / quá ngắn ('+d.toFixed(1)+'s): '+url+' -> dùng AI + giọng Google');end(false,true)}else end(true,true)};a.onerror=()=>end(false,true);
+    a.src=url;try{a.load()}catch(e){end(false,true)}
+  });
+}
+function playMp3(a,tk,idx,head){   // Promise<boolean>: true = đã bắt đầu phát
+  return new Promise(res=>{
+    try{a.pause();a.currentTime=0}catch(e){}
+    setHead(head);setBody('');showing=CFG.showText;
+    curAudio=a;st.speaking=idx;st.talking=true;
+    a.onended=()=>{if(tk!==token)return;st.talking=false;st.speaking=-1;setTimeout(()=>{if(tk===token)showing=false},1200)};
+    a.onerror=()=>{if(tk===token){st.talking=false;st.speaking=-1;showing=false}};
+    const p=a.play();
+    if(p&&p.then)p.then(()=>res(true),e=>{st.talking=false;note('mp3','trình duyệt không cho phát: '+(e&&e.name));res(false)});else res(true);
+  });
+}
 function say(text,tk,head,lang){
   return new Promise(res=>{
     if(tk!==token)return res();
@@ -464,6 +499,13 @@ async function speakPicture(idx,g){
   const info=g.easels[idx],lang=GuideBot.getLang(),mine=++token;   // ngắt câu đang đọc ngay, rồi mới chờ AI
   cancelTTS();
   st.last[idx]=st.t;st.speaking=idx;st.talking=false;
+  if(CFG.mp3){                                   // ưu tiên file mp3 làm sẵn
+    const a=await loadMp3(mp3Url(info,lang));
+    if(mine!==token)return;
+    if(a&&await playMp3(a,mine,idx,(SPOKEN[keyOf(info)]||title(info.n1))+' — '+title(info.n2)))return;
+    if(mine!==token)return;
+    st.speaking=idx;st.talking=false;
+  }
   const key=keyOf(info)+'|'+lang,lines=await getLines(info,lang);
   if(mine!==token)return;
   // dùng xong bản này thì bỏ đi và viết sẵn 1 bản KHÁC cho lần sau (mỗi lần đọc 1 kiểu)
@@ -473,11 +515,26 @@ async function speakPicture(idx,g){
   speakLines(lines,nm+' · '+(SPOKEN[keyOf(info)]||title(info.n1))+' — '+title(info.n2),lang,idx);
 }
 
+// Lời chào khi người chơi bước vào chòi: do AI viết mỗi lần một kiểu (hết key / mất mạng -> kịch bản chào có sẵn)
+const GREETP={};
+async function greetLines(l){
+  try{
+    if(typeof AITalk!=='undefined'&&typeof AIP!=='undefined'){
+      AIP.guide={head:`Bạn là hướng dẫn viên của khu triển lãm Optimum vừa chạy lại đón một khách vừa bước vào sảnh. Hãy viết lời chào ấm áp, tự nhiên 2-3 câu (tổng 25-40 từ): chào khách, nói bạn là hướng dẫn viên của khu triển lãm Optimum, và mời khách nhìn vào bất kỳ bức chân dung nào để nghe giới thiệu về người trong tranh. Mỗi lần chào một kiểu khác nhau (lần này: "${pick(['vui vẻ, thân thiện','lịch sự, trang trọng','hào hứng, như đang đón người quen','nhẹ nhàng, thong thả'])}"). Dự án: ${COMMON} Chỉ dùng thông tin đã có; không bịa. Chỉ trả về đúng lời nói, không giải thích, không dùng ký hiệu đặc biệt.`,combat:'',info:''};
+      const t=await Promise.race([AITalk.line('guide',{hp:1,maxhp:1,x:0,z:0,fl:0}),new Promise(r=>setTimeout(()=>r(null),3500))]);
+      const s=t&&typeof t==='string'?splitS(t).slice(0,4):[];
+      if(s.length)return s;
+    }
+  }catch(e){}
+  return trAll(l,TT(l).greet);
+}
 async function greet(){
   const l=GuideBot.getLang(),tk=token+1;
-  const [g,nm]=await Promise.all([trAll(l,TT(l).greet),tr1(l,TT(l).name)]);
+  const pre=GREETP[l];GREETP[l]=null;
+  const [g,nm]=await Promise.all([pre||greetLines(l),tr1(l,TT(l).name)]);
   if(token+1!==tk||!st.onDeck)return;   // đã đọc câu khác / người chơi đã rời sảnh
   speakLines(g,nm,l,-1);
+  setTimeout(()=>{if(!GREETP[l])GREETP[l]=greetLines(l)},4000);   // viết sẵn lời chào kiểu khác cho lần sau
 }
 
 // ---------- NHÌN TRANH ----------
