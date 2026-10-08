@@ -38,7 +38,8 @@ const FACTS={
   'ABBAS':'Abbas, Tech Ambassador của Optimum. Anh viết thread giải thích RLNC, cách dữ liệu đi giữa các node, và vì sao Optimum là lớp hạ tầng chứ không phải một chain mới. Anh là người giải thích kỹ thuật cho cộng đồng.',
   'CHANDLER OTTERBEIN':'Chandler Otterbein, phụ trách Strategy & Operations (chiến lược và vận hành) của Optimum. Anh ở Optimum từ khá sớm, khoảng năm 2024. Trước đó anh là chủ tịch NEU Blockchain, từng làm tại Brown Brothers Harriman và từng ở student advisory board của Enterprise Ethereum Alliance. Mảng của anh gồm vận hành, nghiên cứu và cách dự án đi ra bên ngoài.',
   'HAR PREET SINGH':'Har Preet Singh, VP Engineering (Phó chủ tịch kỹ thuật) của Optimum. Anh dẫn dắt đội kỹ thuật, phụ trách phần đưa mump2p chạy thật trên mạng. Trước khi vào Optimum, anh làm blockchain và hệ thống phân tán khoảng mười năm, từng ở Umee, Ignite (tức Tendermint) và FIWARE. Nói ngắn gọn, anh là người biến nghiên cứu RLNC thành sản phẩm mà validator đang dùng.',
-  'ALAN SUNNY':'Alan Sunny, Head of TCSM của Optimum. Ông phụ trách mảng hỗ trợ kỹ thuật cho khách hàng: làm cầu nối giữa đội nghiên cứu/engineering và các validator, node operator, team chain đang tích hợp Optimum. Công việc chính là hướng dẫn triển khai, xử lý sự cố và giúp khách dùng mump2p / hạ tầng tăng tốc dữ liệu thành công. Trước Optimum, ông làm Technical Customer Success ở Obol, và kỹ sư node/blockchain ở Blockdaemon và Ankr. Ông ở Anh (Newcastle).'
+  'ALAN SUNNY':'Alan Sunny, Head of TCSM của Optimum. Ông phụ trách mảng hỗ trợ kỹ thuật cho khách hàng: làm cầu nối giữa đội nghiên cứu/engineering và các validator, node operator, team chain đang tích hợp Optimum. Công việc chính là hướng dẫn triển khai, xử lý sự cố và giúp khách dùng mump2p / hạ tầng tăng tốc dữ liệu thành công. Trước Optimum, ông làm Technical Customer Success ở Obol, và kỹ sư node/blockchain ở Blockdaemon và Ankr. Ông ở Anh (Newcastle).',
+  'SAJIDA ZOUARHI':'Sajida Zouarhi, Chief Product Officer của Optimum. Cô có hơn 10 năm trong crypto. Trước khi về Optimum, cô giữ các vai trò product, research và strategy tại ConsenSys, Tezos (Nomadic Labs) và Blocknative. Ở ConsenSys, cô từng dẫn dắt product kỹ thuật quanh Ethereum, trong đó có giai đoạn The Merge và client Hyperledger Besu. Ở Blocknative, cô phụ trách mảng gas network và quan sát mempool. Cô gia nhập Optimum từ năm 2025 với vai trò Head of Product, sau đó là CPO. Tại đây cô chịu trách nhiệm đưa OptimumP2P và mump2p ra validator: làm cho block và attestation lan truyền nhanh hơn, ổn định hơn, giảm băng thông, mà không đụng consensus. Cô cũng là người hay nói về cost of uncertainty, tức độ trễ không đều trên đường blockspace của Ethereum ảnh hưởng thế nào tới builder, relay và phần thưởng của validator.'
 };   // thêm / sửa dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi, khóa = tên in trên bảng, viết hoa, bỏ dấu, bỏ "PROF."). Người không có mục: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
 const COMMON='Optimum (x.com/get_optimum) là hạ tầng bộ nhớ hiệu năng cao / mạng tăng tốc dữ liệu cho mọi blockchain, xây trên RLNC, công nghệ ra đời từ nghiên cứu ở MIT. Sản phẩm đầu tiên mump2p tăng tốc lan truyền dữ liệu Ethereum; kế tiếp là deRAM (bộ nhớ phi tập trung) và deROM; Flexnode là node ai cũng chạy được. Tháng 4/2025 Optimum huy động 11 triệu USD, có 1kx, Spartan, Robot Ventures, Triton Capital, Finality Capital, SNZ ủng hộ. Đội ngũ công khai danh tính, nhiều người từ MIT, Harvard và Meta.';
 const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko; ngôn ngữ khác tự dịch bằng trLine)
@@ -81,8 +82,11 @@ const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko
   'ALAN SUNNY':{
     vi:'Ông phụ trách hỗ trợ kỹ thuật cho khách hàng: làm cầu nối giữa đội nghiên cứu, engineering và các validator, node operator, team chain đang tích hợp Optimum, hướng dẫn triển khai và xử lý sự cố. Trước Optimum, ông làm Technical Customer Success ở Obol, và kỹ sư node, blockchain ở Blockdaemon và Ankr. Ông ở Newcastle, nước Anh.',
     en:'He runs technical support for customers: he is the bridge between the research and engineering teams and the validators, node operators and chain teams integrating Optimum, helping with deployment and troubleshooting. Before Optimum he did Technical Customer Success at Obol, and was a node and blockchain engineer at Blockdaemon and Ankr. He is based in Newcastle, UK.',
-    ko:'고객 기술 지원을 맡고 있으며, 연구·엔지니어링 팀과 옵티멈을 도입하는 검증자, 노드 운영자, 체인 팀 사이를 이어 주고 배포 안내와 문제 해결을 돕습니다. 옵티멈 이전에는 Obol에서 Technical Customer Success를, Blockdaemon과 Ankr에서 노드·블록체인 엔지니어로 일했습니다. 영국 뉴캐슬에 있습니다.'}
-
+    ko:'고객 기술 지원을 맡고 있으며, 연구·엔지니어링 팀과 옵티멈을 도입하는 검증자, 노드 운영자, 체인 팀 사이를 이어 주고 배포 안내와 문제 해결을 돕습니다. 옵티멈 이전에는 Obol에서 Technical Customer Success를, Blockdaemon과 Ankr에서 노드·블록체인 엔지니어로 일했습니다. 영국 뉴캐슬에 있습니다.'},
+  'SAJIDA ZOUARHI':{
+    vi:'Cô có hơn 10 năm trong crypto, từng làm product, research và strategy tại ConsenSys, Tezos và Blocknative. Ở Optimum, cô đưa OptimumP2P và mump2p ra validator để block lan nhanh và ổn định hơn mà không đụng consensus.',
+    en:'She has over 10 years in crypto, with product, research and strategy roles at ConsenSys, Tezos and Blocknative. At Optimum she brings OptimumP2P and mump2p to validators, so blocks propagate faster and more reliably without touching consensus.',
+    ko:'크립토 경력 10년 이상으로, ConsenSys, Tezos, Blocknative에서 제품, 리서치, 전략 업무를 맡았습니다. 옵티멈에서는 OptimumP2P와 mump2p를 검증자에게 제공해, 합의는 건드리지 않고 블록을 더 빠르고 안정적으로 전파합니다.'}
 };
 const T={
   vi:{greet:['Xin chào, tôi là hướng dẫn viên của khu triển lãm Optimum.','Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu bức tranh đó.'],
@@ -97,6 +101,7 @@ const T={
       eng:'{n} là VP Engineering của Optimum, dẫn dắt đội kỹ thuật.',
       ops:'{n} phụ trách Strategy & Operations của Optimum, tức chiến lược và vận hành.',
       tcsm:'{n} là Head of TCSM của Optimum, phụ trách hỗ trợ kỹ thuật cho khách hàng.',
+      cpo:'{n} là Chief Product Officer của Optimum, phụ trách sản phẩm.',
       team:'{n} là thành viên trong đội ngũ Optimum.',
       proj:'Optimum là hạ tầng bộ nhớ hiệu năng cao cho mọi blockchain, xây trên công nghệ RLNC đến từ MIT.',
       outro:['Mời bạn xem tiếp các bức tranh bên cạnh.','Bạn có thể bước tiếp để xem thêm.'],
@@ -113,6 +118,7 @@ const T={
       eng:'{n} is the VP of Engineering at Optimum, leading the engineering team.',
       ops:'{n} is in charge of Strategy and Operations at Optimum.',
       tcsm:'{n} is the Head of TCSM at Optimum, in charge of technical support for customers.',
+      cpo:'{n} is the Chief Product Officer at Optimum, in charge of product.',
       team:'{n} is a member of the Optimum team.',
       proj:'Optimum is high-performance memory infrastructure for any blockchain, built on RLNC technology from MIT.',
       outro:['Feel free to continue to the next paintings.','Step along to see more.'],
@@ -129,6 +135,7 @@ const T={
       eng:'{n}님은 옵티멈의 엔지니어링 총괄 VP로서 개발팀을 이끌고 있습니다.',
       ops:'{n}님은 옵티멈의 전략 및 운영을 맡고 있습니다.',
       tcsm:'{n}님은 옵티멈의 Head of TCSM으로서 고객 기술 지원을 맡고 있습니다.',
+      cpo:'{n}님은 옵티멈의 최고 제품 책임자(CPO)입니다.',
       team:'{n}님은 옵티멈 팀의 일원입니다.',
       proj:'옵티멈은 MIT에서 나온 RLNC 기술로 만든, 모든 블록체인을 위한 고성능 메모리 인프라입니다.',
       outro:['다음 그림도 둘러보세요.'],
@@ -142,7 +149,7 @@ const trAll=(lang,a)=>Promise.all(a.map(x=>tr1(lang,x)));
 const langName=lang=>{try{return LN.find(x=>x[0]===lang)[1]}catch(e){return lang}};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\b(Ceo|Cmo|Apac|Vp)\b/g,m=>m.toUpperCase());
-const kindOf=r=>/TCSM/i.test(r)?'tcsm':/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/ADMIN/i.test(r)?'admin':/MODERATOR/i.test(r)?'mod':/AMBASSADOR/i.test(r)?'amb':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
+const kindOf=r=>/TCSM/i.test(r)?'tcsm':/PRODUCT OFFICER|CPO/i.test(r)?'cpo':/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/ADMIN/i.test(r)?'admin':/MODERATOR/i.test(r)?'mod':/AMBASSADOR/i.test(r)?'amb':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
 function getLang(){return typeof L!=='undefined'?L:'vi'}   // L = ngôn ngữ đang chọn (i18n.js)
 function template(info,lang){
   const k=keyOf(info),t=TT(lang),n=SPOKEN[k]||title(info.n1),bio=BIO[k]&&(BIO[k][lang]||BIO[k].en);
@@ -245,22 +252,37 @@ function placeBubble(g){
 const SKIN=0xf1c9a5,HAIR=0x24170f,COAT=0x1f2d4a,GOLD=0xe8c04a,PANT=0x2b2b33,SHOE=0x3a2412,CYAN=0x7fe9ff;
 const part=fn=>{const v=new VB();fn(v);return v.mesh()};
 const bx=(v,x,y,z,w,h,d,c,s)=>v.box(x,y,z,w,h,d,c,s||.1);
-const root=new THREE.Group(),body=new THREE.Group();root.add(body);
-const mk=(m,x,y,z,p)=>{const g=new THREE.Group();g.position.set(x,y,z);g.add(m);(p||body).add(g);return g};
-const legL=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,PANT);bx(v,0,-.75,.05,.2,.1,.3,SHOE)}),-.12,.8,0);
-const legR=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,PANT);bx(v,0,-.75,.05,.2,.1,.3,SHOE)}),.12,.8,0);
-const armL=mk(part(v=>{bx(v,0,-.3,0,.15,.6,.15,COAT);bx(v,0,-.65,0,.15,.1,.15,SKIN)}),-.35,1.35,0);
-const armR=mk(part(v=>{bx(v,0,-.3,0,.15,.6,.15,COAT);bx(v,0,-.65,0,.15,.1,.15,SKIN)}),.35,1.35,0);
-mk(part(v=>{bx(v,0,1.1,0,.5,.6,.3,COAT);bx(v,0,.85,.16,.5,.1,.02,GOLD,.02);bx(v,.12,1.2,.16,.12,.08,.02,0xffffff,.02);bx(v,0,1.33,.155,.14,.08,.02,0xf4f4f4,.02)}),0,0,0);
-const head=mk(part(v=>{
-  bx(v,0,.25,0,.4,.4,.4,SKIN);
-  bx(v,0,.4,-.02,.44,.12,.44,HAIR,.04);bx(v,0,.2,-.2,.44,.3,.06,HAIR,.04);
-  bx(v,0,.5,0,.46,.1,.46,COAT,.05);bx(v,0,.5,.26,.3,.04,.1,GOLD,.02);      // mũ hướng dẫn viên
-  bx(v,-.09,.27,.205,.06,.06,.02,0x111111,.02);bx(v,.09,.27,.205,.06,.06,.02,0x111111,.02);
-  bx(v,-.23,.25,0,.04,.1,.1,CYAN,.02);bx(v,.23,.25,0,.04,.1,.1,CYAN,.02);   // tai nghe
-}),0,1.4,0);
-const mouth=mk(part(v=>bx(v,0,0,0,.1,.03,.02,0x8a2b2b,.01)),0,.15,.205,head);
+// dựng 1 người voxel; o = {coat,pant,hair,skin,tie,cap,long}: hướng dẫn viên chính có mũ vàng, nhân viên phụ mặc vest khác màu (không mũ)
+function makeBot(o){
+  o=o||{};const coat=o.coat??COAT,pant=o.pant??PANT,hair=o.hair??HAIR,skin=o.skin??SKIN;
+  const root=new THREE.Group(),body=new THREE.Group();root.add(body);
+  const mk=(m,x,y,z,p)=>{const g=new THREE.Group();g.position.set(x,y,z);g.add(m);(p||body).add(g);return g};
+  const legL=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,pant);bx(v,0,-.75,.05,.2,.1,.3,SHOE)}),-.12,.8,0);
+  const legR=mk(part(v=>{bx(v,0,-.35,0,.2,.7,.2,pant);bx(v,0,-.75,.05,.2,.1,.3,SHOE)}),.12,.8,0);
+  const armL=mk(part(v=>{bx(v,0,-.3,0,.15,.6,.15,coat);bx(v,0,-.65,0,.15,.1,.15,skin)}),-.35,1.35,0);
+  const armR=mk(part(v=>{bx(v,0,-.3,0,.15,.6,.15,coat);bx(v,0,-.65,0,.15,.1,.15,skin)}),.35,1.35,0);
+  mk(part(v=>{bx(v,0,1.1,0,.5,.6,.3,coat);bx(v,0,.85,.16,.5,.1,.02,GOLD,.02);bx(v,.12,1.2,.16,.12,.08,.02,0xffffff,.02);bx(v,0,1.33,.155,.14,.08,.02,0xf4f4f4,.02);
+    if(o.tie)bx(v,0,1.15,.162,.05,.32,.02,o.tie,.02)}),0,0,0);
+  const head=mk(part(v=>{
+    bx(v,0,.25,0,.4,.4,.4,skin);
+    bx(v,0,.4,-.02,.44,.12,.44,hair,.04);bx(v,0,.2,-.2,.44,.3,.06,hair,.04);
+    if(o.long){bx(v,0,-.02,-.2,.44,.5,.06,hair,.04);bx(v,-.23,.12,-.06,.05,.4,.3,hair,.04);bx(v,.23,.12,-.06,.05,.4,.3,hair,.04)}   // tóc dài
+    if(o.cap!==false){bx(v,0,.5,0,.46,.1,.46,coat,.05);bx(v,0,.5,.26,.3,.04,.1,GOLD,.02)}      // mũ hướng dẫn viên
+    bx(v,-.09,.27,.205,.06,.06,.02,0x111111,.02);bx(v,.09,.27,.205,.06,.06,.02,0x111111,.02);
+    bx(v,-.23,.25,0,.04,.1,.1,CYAN,.02);bx(v,.23,.25,0,.04,.1,.1,CYAN,.02);   // tai nghe
+  }),0,1.4,0);
+  const mouth=mk(part(v=>bx(v,0,0,0,.1,.03,.02,0x8a2b2b,.01)),0,.15,.205,head);
+  return{root,body,legL,legR,armL,armR,head,mouth};
+}
+const MAIN=makeBot({}),{root,body,legL,legR,armL,armR,head,mouth}=MAIN;
 root.visible=false;S.add(root);
+
+// ---- 3 NHÂN VIÊN PHỤ: đi tuần trong dải riêng của mỗi người, dừng lại ngắm tranh gần nhất, quay sang khách khi khách đến gần (không đọc thoại) ----
+const STAFF=[
+  {look:{coat:0x24324f,hair:0x15110d,skin:0xe3b78f,tie:0xb23a3a,cap:false},band:[-15,-6]},
+  {look:{coat:0x30333c,pant:0x23252b,hair:0x5a3a22,skin:0xf1c9a5,cap:false,long:true},band:[-4.5,4.5]},
+  {look:{coat:0x1d3b4a,hair:0x1c1c1c,skin:0xc99872,tie:0xe8c04a,cap:false},band:[6,15]}
+].map((d,i)=>{const m=makeBot(d.look);m.root.visible=false;S.add(m.root);return{m,band:d.band,x:0,z:0,yaw:0,hy:0,init:false,wp:null,wait:1+i*1.7,ph:i*2,focus:null,gesture:0}});
 
 // ---------- TRẠNG THÁI ----------
 const st={x:0,z:0,yaw:0,headYaw:0,init:false,wp:null,wait:0,walkPh:0,pointK:0,onDeck:false,
@@ -421,11 +443,57 @@ function lookedEasel(P,g){
   return best;
 }
 
+// ---------- NHÂN VIÊN PHỤ ----------
+function updateStaff(dt,g,P,on,clampZ){
+  for(let n=0;n<STAFF.length;n++){
+    const s=STAFF[n],m=s.m,x0=g.cx+s.band[0],x1=g.cx+s.band[1],z0=clampZ(-1e9)+.2,z1=clampZ(1e9)-.2;
+    if(!s.init){s.x=x0+(x1-x0)*.5;s.z=(z0+z1)/2+(n-1)*.5;s.yaw=n*1.3;s.init=true}
+    m.root.visible=true;
+    let spd=0,face=null,tx=0,tz=0;
+    if(s.wait>0){
+      s.wait-=dt;
+      if(s.wait<=0){   // chọn điểm đến mới trong dải của mình
+        s.wp={x:x0+Math.random()*(x1-x0),z:z0+Math.random()*(z1-z0)};s.focus=null;s.gesture=0;
+      }
+    }else if(s.wp){
+      tx=s.wp.x;tz=s.wp.z;const d=Math.hypot(tx-s.x,tz-s.z);
+      if(d<.2){   // tới nơi: đứng lại, ngắm bức tranh gần nhất (nếu trong 5m)
+        s.wp=null;s.wait=3+Math.random()*6;let bd=5,be=null;
+        for(const e of g.easels){const dd=Math.hypot(e.x-s.x,e.z-s.z);if(dd<bd){bd=dd;be=e}}
+        s.focus=be;s.gesture=Math.random()<.5?1:0;
+      }else spd=CFG.walk*.85;
+    }else s.wait=1;
+    if(spd>0)face=Math.atan2(tx-s.x,tz-s.z);
+    else{
+      const dp=P?Math.hypot(P.x-s.x,P.z-s.z):1e9;
+      if(on&&dp<6)face=Math.atan2(P.x-s.x,P.z-s.z);                       // khách đến gần: quay sang khách
+      else if(s.focus)face=Math.atan2(s.focus.x-s.x,s.focus.z-s.z);      // không thì nhìn tranh
+    }
+    // tránh chồng lên hướng dẫn viên chính và người chơi
+    const sx=s.x,sz=s.z;
+    if(spd>0){const d=Math.hypot(tx-s.x,tz-s.z)||1,st2=Math.min(d,spd*dt);s.x+=(tx-s.x)/d*st2;s.z+=(tz-s.z)/d*st2}
+    for(const [ox,oz,r] of[[st.x,st.z,.9],P&&on?[P.x,P.z,.7]:[1e9,1e9,0]]){const dx=s.x-ox,dz=s.z-oz,dd=Math.hypot(dx,dz);if(dd<r&&dd>.001){s.x=ox+dx/dd*r;s.z=oz+dz/dd*r}}
+    for(let q=0;q<STAFF.length;q++)if(q!==n){const o2=STAFF[q],dx=s.x-o2.x,dz=s.z-o2.z,dd=Math.hypot(dx,dz);if(dd<.8&&dd>.001){s.x+=dx/dd*(.8-dd)*.5;s.z+=dz/dd*(.8-dd)*.5}}
+    s.z=Math.max(z0,Math.min(z1,s.z));
+    if(face!==null)s.yaw+=wrap(face-s.yaw)*Math.min(1,dt*6);
+    const mv=spd>.05;
+    s.ph+=spd*dt*2.4;
+    const k=Math.min(1,spd/1.2),sw=Math.sin(s.ph)*k*.7,t=st.t+n*1.7,pt=s.gesture&&!mv&&s.focus?1:0;
+    m.legL.rotation.x=sw;m.legR.rotation.x=-sw;
+    m.armL.rotation.x=-sw*.8;
+    m.armR.rotation.x=sw*.8*(1-pt)+(-1.2+Math.sin(t*2.2)*.06)*pt;    // thỉnh thoảng giơ tay chỉ vào tranh
+    m.body.position.y=Math.abs(Math.sin(s.ph))*.04*k;
+    const hy=face!==null&&!mv?Math.max(-.6,Math.min(.6,wrap(face-s.yaw))):0;s.hy+=(hy-s.hy)*Math.min(1,dt*8);
+    m.head.rotation.y=s.hy;
+    m.root.position.set(s.x,g.FL,s.z);m.root.rotation.y=s.yaw;
+  }
+}
+
 // ---------- VÒNG LẶP ----------
 function update(dt){
   const g=window.PavilionGuide;
   if(!g||!g.easels){root.visible=false;return}
-  if(typeof curFl!=='undefined'&&curFl!==0){root.visible=false;st.onDeck=false;if(showing||st.talking)stopSpeech();placeBubble(g);return}   // chòi chỉ có ở tầng 1 (curFl=0): sang tầng khác thì ẩn bot
+  if(typeof curFl!=='undefined'&&curFl!==0){for(const s of STAFF)s.m.root.visible=false;root.visible=false;st.onDeck=false;if(showing||st.talking)stopSpeech();placeBubble(g);return}   // chòi chỉ có ở tầng 1 (curFl=0): sang tầng khác thì ẩn bot
   if(typeof playing!=='undefined'&&!playing){if(showing||st.talking)stopSpeech();placeBubble(g);return}   // menu / tạm dừng: bot đứng yên, ngừng đọc
   st.t+=dt;
   const zx0=g.cx-g.HX+CFG.xPad,zx1=g.cx+g.HX-CFG.xPad,zz0=g.cz+CFG.zMin,zz1=g.cz+CFG.zMax;
@@ -439,6 +507,7 @@ function update(dt){
   if(P&&(on||Math.hypot(P.x-g.cx,P.z-g.cz)<45))warm(g);
   if(!on&&st.onDeck)stopSpeech();
   st.onDeck=on;
+  updateStaff(dt,g,P,on,clampZ);
 
   // --- nhìn tranh ---
   if(on){
