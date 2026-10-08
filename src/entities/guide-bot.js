@@ -243,7 +243,7 @@ let warmLang=null;
 function warm(g){   // gọi khi người chơi lại gần chòi (<45m) hoặc đổi ngôn ngữ: viết sẵn lời bằng AI + dịch sẵn kịch bản mẫu cho cả 8 tranh
   const lang=GuideBot.getLang();if(warmLang===lang)return;warmLang=lang;
   g.easels.forEach((e,i)=>setTimeout(()=>{tplLines(e,lang);ensure(e,lang)},i*500));
-  trAll(lang,TT(lang).greet);tr1(lang,TT(lang).name);
+  trAll(lang,TT(lang).greet).then(l=>preloadTTS(l[0],lang));tr1(lang,TT(lang).name);
 }
 
 // ---------- KHUNG CHỮ ----------
@@ -372,49 +372,63 @@ function cancelTTS(){
   if(curAudio){curAudio.onended=curAudio.onerror=null;try{curAudio.pause()}catch(e){}curAudio=null}
 }
 const chunks=(t,n)=>{const out=[];while(t.length>n){let i=t.lastIndexOf(' ',n);if(i<n*.4)i=n;out.push(t.slice(0,i).trim());t=t.slice(i).trim()}if(t)out.push(t);return out};
-let cloudBadUntil=0;const TTSC={},NOTED={};
+let cloudBadUntil=0,cloudFail=0;const TTSC={},NOTED={};
+const TTS_CH=150;                                   // mỗi đoạn gửi Google Dịch tối đa ~150 ký tự (đoạn dài hay bị từ chối)
 const note=(k,m)=>{if(!NOTED[k+m]){NOTED[k+m]=1;console.info('[GuideBot] '+k+': '+m)}};
 const gUrls=[
-  (q,tl)=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+tl+'&q='+q,
-  (q,tl)=>'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl='+tl+'&q='+q
+  (q,tl,n)=>'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='+tl+'&total=1&idx=0&textlen='+n+'&q='+q,
+  (q,tl,n)=>'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl='+tl+'&total=1&idx=0&textlen='+n+'&q='+q,
+  (q,tl,n)=>'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl='+tl+'&total=1&idx=0&textlen='+n+'&q='+q
 ];
 function mkAudio(url){const a=new Audio();a.referrerPolicy='no-referrer';a.preload='auto';a.src=url;return a}   // no-referrer: Google hay từ chối khi có Referer
+const getPv=lang=>{if(!window.speechSynthesis)return null;if(!VOICES.length)loadVoices();return pickVoice(lang)};
 // Tải trước âm thanh của câu kế tiếp (chỉ khi dùng giọng Google) để không bị hở giữa các câu
 function preloadTTS(text,lang){
   try{
     if(!CFG.tts||!CFG.cloudTTS||Date.now()<cloudBadUntil)return;
-    const pv=window.speechSynthesis?pickVoice(lang):null;if(pv&&pv.neural)return;
-    const c=chunks(pron(text,lang),180)[0],k=lang+'|'+c;if(!c||TTSC[k])return;
-    const a=mkAudio(gUrls[0](encodeURIComponent(c),GTTS[lang]||'en'));a.load();TTSC[k]=a;
+    const pv=getPv(lang);if(pv&&pv.neural)return;
+    const c=chunks(pron(text,lang),TTS_CH)[0],k=lang+'|'+c;if(!c||TTSC[k])return;
+    const a=mkAudio(gUrls[0](encodeURIComponent(c),GTTS[lang]||'en',c.length));a.load();TTSC[k]=a;
   }catch(e){}
 }
+// Thứ tự giọng: (1) giọng neural đúng ngôn ngữ trong máy -> (2) giọng Google Dịch (có thử lại + tự bỏ qua tạm thời khi lỗi liên tiếp) -> (3) giọng thường đúng ngôn ngữ trong máy
+// -> (4) không có giọng nào: chỉ khi đó mới hiện chữ thay thế. Nếu Google lỗi GIỮA CHỪNG thì phần còn lại chuyển sang giọng trong máy (hoặc hiện chữ), không cắt cụt lời.
 function startTTS(text,lang,tk,onDone,onNoVoice){   // gọi onDone khi đọc xong (hoặc không đọc được)
-  const t2=pron(text,lang),pv=window.speechSynthesis?pickVoice(lang):null;
+  const t2=pron(text,lang),pv0=getPv(lang);
   let finished=false;const done=()=>{if(!finished){finished=true;onDone()}};
-  const local=()=>{
-    if(!pv){note('giọng '+lang,'không có giọng đúng ngôn ngữ trong máy và giọng Google không dùng được -> chỉ hiện chữ (gõ GuideBot.voices() trong Console để xem giọng có sẵn)');if(onNoVoice)onNoVoice();return done()}
-    try{note('giọng '+lang,'dùng giọng trong máy: '+pv.v.name);const u=new SpeechSynthesisUtterance(t2);u.voice=pv.v;u.lang=pv.v.lang;u.rate=CFG.rate;u.pitch=1;u.onend=u.onerror=done;speechSynthesis.speak(u)}catch(e){done()}
+  const local=txt=>{
+    const pv=getPv(lang);
+    if(!pv){note('giọng '+lang,'không có giọng đúng ngôn ngữ trong máy và giọng Google không dùng được -> tạm hiện chữ thay thế (gõ GuideBot.voices() trong Console để xem giọng có sẵn)');if(onNoVoice)onNoVoice();return done()}
+    try{
+      note('giọng '+lang,'dùng giọng trong máy: '+pv.v.name);
+      const u=new SpeechSynthesisUtterance(txt||t2);u.voice=pv.v;u.lang=pv.v.lang;u.rate=CFG.rate;u.pitch=1;u.onend=u.onerror=done;
+      setTimeout(()=>{if(tk!==token)return done();try{speechSynthesis.speak(u)}catch(e){done()}},80);   // chờ 80ms sau cancel(): Chrome hay nuốt câu nếu speak() ngay sau cancel()
+    }catch(e){done()}
   };
-  if(CFG.cloudTTS&&(!pv||!pv.neural)&&Date.now()>=cloudBadUntil){
-    const parts=chunks(t2,180);let i=0;
+  if(CFG.cloudTTS&&(!pv0||!pv0.neural)&&Date.now()>=cloudBadUntil){
+    const parts=chunks(t2,TTS_CH);let i=0;
     const next=()=>{
       if(tk!==token||i>=parts.length)return done();
-      const c=parts[i++],first=i===1,q=encodeURIComponent(c),tl=GTTS[lang]||'en',pk=lang+'|'+c;let u=0;
+      const c=parts[i++],first=i===1,q=encodeURIComponent(c),tl=GTTS[lang]||'en',pk=lang+'|'+c,rest=parts.slice(i-1).join(' ');let u=0;
       const tryUrl=()=>{
         if(tk!==token)return done();
         let a=null;
         if(u===0&&TTSC[pk]){a=TTSC[pk];delete TTSC[pk]}                       // đã tải trước
         if(!a){
-          if(u>=gUrls.length){cloudBadUntil=Date.now()+300000;note('giọng '+lang,'giọng Google lỗi (bị chặn / không có mạng), tạm tắt 5 phút');return first?local():done()}
-          try{a=mkAudio(gUrls[u](q,tl))}catch(e){u++;return tryUrl()}
+          if(u>=gUrls.length){                                                   // cả 3 đường đều lỗi
+            cloudFail++;
+            if(cloudFail>=2){const w=Math.min(120000,15000*Math.pow(2,cloudFail-2));cloudBadUntil=Date.now()+w;note('giọng '+lang,'giọng Google lỗi liên tiếp (bị chặn / không có mạng), tạm bỏ qua '+Math.round(w/1000)+'s')}
+            return local(rest);                                                  // phần còn lại -> giọng trong máy (hoặc chữ)
+          }
+          try{a=mkAudio(gUrls[u](q,tl,c.length))}catch(e){u++;return tryUrl()}
         }
         u++;curAudio=a;let bad=false;
-        const fail=()=>{if(bad)return;bad=true;clearTimeout(to);tryUrl()};
-        const to=setTimeout(fail,4500);                                          // 4.5s chưa phát được -> thử đường khác
+        const fail=()=>{if(bad)return;bad=true;clearTimeout(to);try{a.onplaying=a.onended=a.onerror=null;a.pause()}catch(e){}tryUrl()};
+        const to=setTimeout(fail,first&&u===1?8000:5000);                        // chưa phát được -> thử đường khác
         a.onplaying=()=>{clearTimeout(to);note('giọng '+lang,'dùng giọng Google Dịch')};
-        a.onended=()=>{clearTimeout(to);cloudBadUntil=0;next()};a.onerror=fail;
+        a.onended=()=>{clearTimeout(to);cloudFail=0;cloudBadUntil=0;next()};a.onerror=fail;
         const pl=a.play();
-        if(pl&&pl.catch)pl.catch(e=>{if(e&&e.name==='NotAllowedError'){bad=true;clearTimeout(to);first?local():done()}else fail()});
+        if(pl&&pl.catch)pl.catch(e=>{if(e&&e.name==='NotAllowedError'){bad=true;clearTimeout(to);note('giọng '+lang,'trình duyệt chặn tự phát âm thanh (cần bấm / chạm trang 1 lần)');local(rest)}else fail()});
       };
       tryUrl();
     };
