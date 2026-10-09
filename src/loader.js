@@ -47,6 +47,7 @@
     // Gameplay: bắn, hiệu ứng, vật phẩm, lựu đạn
     'gameplay/combat.js','gameplay/effects.js','ui/minimap.js','gameplay/items.js','gameplay/grenade.js','gameplay/fall.js',
     'gameplay/fruit-eat.js',   // cầm (E) + ăn (chuột trái) trái cây ở bàn giữa chòi, hồi máu (cần fruit-kit.js, pavilion.js, items.js, viewmodel.js nạp trước)
+    'data/team-media.js','data/team-images.js',   // ảnh + link từng người (điền trong team-media.js; team-images.js do tools/embed-team-images.js sinh ra)
     'gameplay/portrait-info.js',   // bấm E gần tranh trong chòi -> ô thông tin kiểu bảng điện tử 10 giây (cần pavilion.js, guide-bot.js nạp trước)
     'gameplay/engrave.js',
     // Occlusion culling
