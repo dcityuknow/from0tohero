@@ -76,6 +76,9 @@ body.touch #msg{bottom:calc(64px + env(safe-area-inset-bottom,0px));font-size:14
   btn('R',    130, 112,  52,()=>reload());
   btn('ADS',   96, 172,  52,()=>{if(cur==='sniper')scoped=!scoped});
   btn('SLIDE', 22, 136,  58,()=>keys.ShiftLeft=1,()=>setTimeout(()=>keys.ShiftLeft=0,120));
+  // Nút E (tương tác): giả lập phím E -> fruit-eat.js (nhặt/cất trái), portrait-info.js (mở tranh), engrave.js (khắc tên) đều nhận như phím thật
+  const keyE=t=>window.dispatchEvent(new KeyboardEvent(t,{code:'KeyE',key:'e',bubbles:true,cancelable:true}));
+  btn('E',    200, 108,  52,()=>keyE('keydown'),()=>keyE('keyup'));
   const order=['pistol','rifle','sniper','grenade'];
   btn('⇄',     22, 204,  52,()=>{const i=order.indexOf(cur);for(let n=1;n<=4;n++){const w=order[(i+n)%4];if(w==='grenade'){if(gren>0){pick4();return}}else{pick(w);return}}});
   setInterval(()=>mob.style.display=playing?'block':'none',150);
