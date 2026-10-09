@@ -9,30 +9,111 @@ A first-person shooter built with Three.js (r128). Every model in the game is ma
 
 ## Project structure
 ```
-block-arena/
+Block Arena/
 ├─ index.html
+├─ package.json
+├─ README.md
+├─ tools/
+│  └─ embed-team-images.js          nhúng ảnh đội vào JS
 ├─ assets/
-│  ├─ css/style.css
-│  └─ data/talking.txt        boss dialogue lines (one line per sentence, any language)
+│  ├─ css/
+│  │  └─ style.css
+│  ├─ data/
+│  │  ├─ talking.txt                 thoại boss (mỗi câu một dòng)
+│  │  └─ groq-keys.txt               key Groq (đừng commit key thật)
+│  └─ audio/
+│     ├─ nhac1.mp3
+│     ├─ nhac2.mp3
+│     └─ guide-bot/                  8 ngôn ngữ × 16 giọng
+│        ├─ bn/   en/   fil/   hi/
+│        ├─ ru/   uk/   vi/   zh/
+│        └─ mỗi thư mục: abbas, alan-sunny, chandler-otterbein, david-song,
+│           eli-laipson, flash, har-preet-singh, jeffrey-elliott, kent-lin,
+│           kishori-konwar, lewej-whitelow, muriel-medard, nancy-lynch,
+│           sajida-zouarhi, sriram-viswanath, swarna  (.mp3)
 └─ src/
-   ├─ loader.js               LIST of JS files in load order (add new files here)
-   ├─ main.js                 main loop, damage handling, restart
-   ├─ core/                   core.js (renderer/camera) · config.js (weapon stats, drops) · state.js
-   ├─ world/
-   │  ├─ common/              world.js (floor 1, MAPK, FHT) · sky.js · level.js (4 floors, stairs, gates) · physics.js · floors.js (lazy load / unload)
-   │  ├─ nature/              shared nature engine for every floor (split from the old nature.js, shares state via window.NatureKit):
-   │  │                       kit.js (CFG, THM themes, RNG) · placement.js (keep-out zones) · plants.js (trees, rocks, logs, butterflies)
-   │  │                       lake.js (rivers: depth, carving) · state.js (FL, lakeAt, isWater, wetAt) · fx.js (splash, ripples, bullets in water)
-   │  │                       fish.js · swim.js (wade / swim / hold breath) · build.js (buildFloor) · runtime.js (frame loop, load / unload, window.Nature)
-   │  ├─ floor1/              house.js · pavilion.js · statues.js · teaset.js · bath.js
-   │  └─ floor2/              greatwall.js
-   ├─ i18n/                   lang-data.js (translations) · i18n.js (language selection)
-   ├─ engine/                 input.js · sound.js · music.js · voxel.js (voxel building core) · occlusion.js (occlusion culling)
-   ├─ player/                 player.js (hands) · weapons.js (4 weapons) · viewmodel.js (reload, bolt action)
-   ├─ entities/               bot-model · boss-model · steering · boss · spawner · boss-talk · floor-manager
-   │                          bot-throw (bots pick up and throw rocks) · ally (recruit defeated bosses as allies)
-   ├─ gameplay/               combat · effects · items · grenade
-   └─ ui/                     minimap · mobile (touch controls) · ui (start / pause screen)
+   ├─ loader.js                      thứ tự nạp JS (thêm file mới ở đây)
+   ├─ main.js                        vòng lặp chính, sát thương, restart
+   ├─ core/
+   │  ├─ core.js                     renderer / camera
+   │  ├─ config.js                   chỉ số vũ khí, drop
+   │  └─ state.js
+   ├─ data/
+   │  ├─ team-images.js              chưa có trong loader.js
+   │  └─ team-media.js               chưa có trong loader.js
+   ├─ i18n/
+   │  ├─ lang-data.js
+   │  └─ i18n.js
+   ├─ engine/
+   │  ├─ input.js
+   │  ├─ sound.js
+   │  ├─ music.js
+   │  ├─ voxel.js
+   │  ├─ occlusion.js
+   │  └─ merge.js                    chưa có trong loader.js
+   ├─ player/
+   │  ├─ player.js
+   │  ├─ weapons.js
+   │  └─ viewmodel.js
+   ├─ entities/
+   │  ├─ bot-model.js
+   │  ├─ boss-model.js
+   │  ├─ boss2-model.js
+   │  ├─ steering.js
+   │  ├─ boss.js
+   │  ├─ spawner.js
+   │  ├─ ai-talk.js
+   │  ├─ boss-talk.js
+   │  ├─ floor-manager.js
+   │  ├─ guide-bot.js
+   │  ├─ guide-bot - Copy.js         bản copy, không nạp
+   │  ├─ bot-throw.js
+   │  ├─ ally.js
+   │  └─ archer.js
+   ├─ gameplay/
+   │  ├─ combat.js
+   │  ├─ effects.js
+   │  ├─ items.js
+   │  ├─ grenade.js
+   │  ├─ fall.js
+   │  ├─ engrave.js
+   │  ├─ fruit-eat.js                chưa có trong loader.js
+   │  └─ portrait-info.js            chưa có trong loader.js
+   ├─ ui/
+   │  ├─ minimap.js
+   │  ├─ mobile.js
+   │  ├─ ui.js
+   │  └─ profile.js
+   └─ world/
+      ├─ common/
+      │  ├─ world.js                 MAPK, FHT
+      │  ├─ sky.js
+      │  ├─ daycycle.js
+      │  ├─ level.js
+      │  ├─ physics.js
+      │  ├─ floors.js                lazy load / unload
+      │  └─ build.js                 chưa có trong loader.js
+      ├─ floor1/
+      │  ├─ house.js
+      │  ├─ pavilion.js
+      │  ├─ statues.js
+      │  ├─ teaset.js
+      │  ├─ bath.js
+      │  ├─ stairgrove.js
+      │  └─ fruit-kit.js             chưa có trong loader.js
+      ├─ floor2/
+      │  └─ greatwall.js
+      └─ nature/
+         ├─ kit.js
+         ├─ placement.js
+         ├─ plants.js
+         ├─ lake.js
+         ├─ state.js
+         ├─ fx.js
+         ├─ fish.js
+         ├─ swim.js
+         ├─ build.js
+         └─ runtime.js
 ```
 
 ## Quick tweaks
