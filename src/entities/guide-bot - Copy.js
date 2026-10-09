@@ -722,6 +722,5 @@ let prev=performance.now();
 // AI: GuideBot.cfg.ai đã gắn sẵn với AITalk (ai-talk.js). Gõ AITalk.status() trong Console để xem tình trạng key.
 // Hết key / hết hạn mức / mất mạng => tự dùng kịch bản mẫu (dịch bằng trLine nếu không phải vi/en/ko).
 const voices=()=>{loadVoices();const l=getLang(),pri=(TTSL[l]||'en').split('-')[0],list=VOICES.filter(v=>normL(v.lang).startsWith(pri)).map(v=>v.name+' ['+v.lang+']');console.log('Ngôn ngữ',l,'| giọng trong máy:',list.length?list:'(KHÔNG có)','| sẽ dùng:',(pickVoice(l)||{v:{name:'(không có -> thử giọng Google)'}}).v.name);return list};
-window.GuideBot={voices,cfg:CFG,getLang,stop:stopSpeech,speak:i=>window.PavilionGuide&&speakPicture(i,window.PavilionGuide),root,
-  bio:(info,lang)=>{const b=BIO[keyOf(info)];return b?(b[lang]||b.en||b.vi||''):''}};
+window.GuideBot={voices,cfg:CFG,getLang,stop:stopSpeech,speak:i=>window.PavilionGuide&&speakPicture(i,window.PavilionGuide),root};
 })();
