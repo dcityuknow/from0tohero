@@ -14,33 +14,33 @@ Block Arena/
 ├─ package.json
 ├─ README.md
 ├─ tools/
-│  └─ embed-team-images.js          nhúng ảnh đội vào JS
+│  └─ embed-team-images.js          embeds team images into JS
 ├─ assets/
 │  ├─ css/
 │  │  └─ style.css
 │  ├─ data/
-│  │  ├─ talking.txt                 thoại boss (mỗi câu một dòng)
-│  │  └─ groq-keys.txt               key Groq (đừng commit key thật)
+│  │  ├─ talking.txt                 boss dialogue (one line per sentence)
+│  │  └─ groq-keys.txt               Groq keys (do not commit real keys)
 │  └─ audio/
 │     ├─ nhac1.mp3
 │     ├─ nhac2.mp3
-│     └─ guide-bot/                  8 ngôn ngữ × 16 giọng
+│     └─ guide-bot/                  8 languages × 16 voices
 │        ├─ bn/   en/   fil/   hi/
 │        ├─ ru/   uk/   vi/   zh/
-│        └─ mỗi thư mục: abbas, alan-sunny, chandler-otterbein, david-song,
+│        └─ each folder: abbas, alan-sunny, chandler-otterbein, david-song,
 │           eli-laipson, flash, har-preet-singh, jeffrey-elliott, kent-lin,
 │           kishori-konwar, lewej-whitelow, muriel-medard, nancy-lynch,
 │           sajida-zouarhi, sriram-viswanath, swarna  (.mp3)
 └─ src/
-   ├─ loader.js                      thứ tự nạp JS (thêm file mới ở đây)
-   ├─ main.js                        vòng lặp chính, sát thương, restart
+   ├─ loader.js                      JS load order (add new files here)
+   ├─ main.js                        main loop, damage, restart
    ├─ core/
    │  ├─ core.js                     renderer / camera
-   │  ├─ config.js                   chỉ số vũ khí, drop
+   │  ├─ config.js                   weapon stats, drops
    │  └─ state.js
    ├─ data/
-   │  ├─ team-images.js              chưa có trong loader.js
-   │  └─ team-media.js               chưa có trong loader.js
+   │  ├─ team-images.js
+   │  └─ team-media.js
    ├─ i18n/
    │  ├─ lang-data.js
    │  └─ i18n.js
@@ -50,7 +50,7 @@ Block Arena/
    │  ├─ music.js
    │  ├─ voxel.js
    │  ├─ occlusion.js
-   │  └─ merge.js                    chưa có trong loader.js
+   │  └─ merge.js
    ├─ player/
    │  ├─ player.js
    │  ├─ weapons.js
@@ -66,7 +66,6 @@ Block Arena/
    │  ├─ boss-talk.js
    │  ├─ floor-manager.js
    │  ├─ guide-bot.js
-   │  ├─ guide-bot - Copy.js         bản copy, không nạp
    │  ├─ bot-throw.js
    │  ├─ ally.js
    │  └─ archer.js
@@ -77,8 +76,8 @@ Block Arena/
    │  ├─ grenade.js
    │  ├─ fall.js
    │  ├─ engrave.js
-   │  ├─ fruit-eat.js                chưa có trong loader.js
-   │  └─ portrait-info.js            chưa có trong loader.js
+   │  ├─ fruit-eat.js
+   │  └─ portrait-info.js
    ├─ ui/
    │  ├─ minimap.js
    │  ├─ mobile.js
@@ -86,13 +85,13 @@ Block Arena/
    │  └─ profile.js
    └─ world/
       ├─ common/
-      │  ├─ world.js                 MAPK, FHT
+      │  ├─ world.js                 map keys, FHT
       │  ├─ sky.js
       │  ├─ daycycle.js
       │  ├─ level.js
       │  ├─ physics.js
       │  ├─ floors.js                lazy load / unload
-      │  └─ build.js                 chưa có trong loader.js
+      │  └─ build.js
       ├─ floor1/
       │  ├─ house.js
       │  ├─ pavilion.js
@@ -100,7 +99,7 @@ Block Arena/
       │  ├─ teaset.js
       │  ├─ bath.js
       │  ├─ stairgrove.js
-      │  └─ fruit-kit.js             chưa có trong loader.js
+      │  └─ fruit-kit.js
       ├─ floor2/
       │  └─ greatwall.js
       └─ nature/
