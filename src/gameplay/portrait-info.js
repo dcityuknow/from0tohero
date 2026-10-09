@@ -3,6 +3,9 @@
 // trong suốt (cùng phong cách bảng "VALIDATORS" trong pavilion.js), bung ra CÙNG LÚC; chữ trong từng ô XỔ DẦN từng ký tự (nhanh) kèm tiếng pip pip pip, gõ xong thì hiện thêm 10 giây rồi mờ dần và tắt. Bấm E lần nữa = tắt sớm.
 //   - Thẻ tên: ẢNH CHÂN DUNG thật + tên + chức vụ + nhóm        - Tiểu sử (lấy từ guide-bot.js)
 //   - Ô ảnh: ảnh thật ngoài đời / họp báo, tự chuyển ảnh mỗi vài giây   - Ô liên kết: X, LinkedIn, website, Optimum — NGẮM vào dòng + CLICK TRÁI để mở
+// Ô ảnh: ưu tiên ảnh bạn khai báo (gallery) -> nếu chưa có thì TỰ LẤY ảnh từ Wikipedia/Wikimedia Commons (chỉ nhận bài viết khớp tên + đúng lĩnh vực, ghi nguồn/giấy phép)
+//        -> nếu Wikipedia cũng không có thì tự vẽ SƠ ĐỒ NODE OPTIMUM theo chức vụ của người đó (động, sinh động). Mỗi lần bấm E ảnh bắt đầu từ tấm kế tiếp, rồi tự đổi mỗi vài giây.
+//        Tùy chọn trong team-media.js: wiki:'Tên bài Wikipedia' (ép dùng bài này) hoặc wiki:false (tắt tự lấy ảnh cho người đó).
 // Dữ liệu ảnh + link của từng người: src/data/team-media.js (window.PortraitMedia). Chưa điền thì ô đó hiện chỗ trống, game vẫn chạy bình thường.
 // Chạy bằng file:// (bấm đúp index.html) thì trình duyệt chặn ảnh làm texture WebGL -> dùng tools/embed-team-images.js để nhúng ảnh vào src/data/team-images.js.
 // Nạp SAU pavilion.js (đọc window.PavilionGuide.easels mỗi lần bấm, nên chòi rebuild vẫn đúng). Không cần sửa main.js / pavilion.js.
@@ -52,6 +55,111 @@ function getImg(src,P){   // trả {st:'load'|'ok'|'bad',im}; panel P (nếu có
 function cover(g,im,x,y,w,h,bias){   // phủ kín khung (cắt phần thừa); bias<.5 = ưu tiên phần trên (mặt người)
   const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,k=Math.max(w/iw,h/ih),sw=w/k,sh=h/k;
   g.drawImage(im,(iw-sw)/2,(ih-sh)*(bias==null?.5:bias),sw,sh,x,y,w,h);
+}
+
+// ---------- ẢNH TỪ WIKIPEDIA (tự động, chỉ khi người đó chưa có gallery) ----------
+// An toàn: chỉ nhận bài có TÊN khớp (sai lệch nhỏ ok) và mô tả đúng lĩnh vực (kỹ thuật/khoa học/crypto...). Ngoài ảnh đại diện, chỉ lấy ảnh có TÊN FILE chứa tên người đó.
+// Wikimedia cho phép gọi từ trình duyệt (CORS), không cần API key. Mất mạng / không có bài -> rơi về sơ đồ node.
+const WIKI={},VIS={},WIKI_API='https://en.wikipedia.org/w/api.php';
+const WIKI_HINT=/comput|engineer|scien|crypto|blockchain|network|professor|technolog|entrepreneur|software|information|mathemat|coding|startup|founder|executive|investor|research|developer|economist/i;
+const simp=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+function lev(a,b){const d=[];for(let i=0;i<=a.length;i++){d[i]=[i]}for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+async function jget(params){
+  const u=new URL(WIKI_API),q=Object.assign({format:'json',formatversion:'2',origin:'*'},params);for(const k in q)u.searchParams.set(k,q[k]);
+  const ac=typeof AbortController!=='undefined'?new AbortController():null,to=setTimeout(()=>{if(ac)ac.abort()},9000);
+  try{const r=await fetch(u.toString(),{signal:ac?ac.signal:undefined});if(!r.ok)throw new Error('http '+r.status);return await r.json()}finally{clearTimeout(to)}
+}
+async function wikiFetch(e,m){
+  const name=String(e.n1).replace(/^(PROF|DR)\.?\s+/i,'').trim(),nn=simp(name);let page=null;
+  if(typeof m.wiki==='string'&&m.wiki){   // ép dùng bài này
+    const j=await jget({action:'query',titles:m.wiki,redirects:1,prop:'pageimages',piprop:'thumbnail|name',pithumbsize:900});
+    page=j.query&&j.query.pages&&j.query.pages[0];if(!page||page.missing)return[];
+  }else{
+    if(nn.split(' ').length<2)return[];   // tên 1 từ (vd "SWARNA", "FLASH") quá dễ nhầm -> bỏ qua
+    const j=await jget({action:'query',generator:'search',gsrsearch:name,gsrlimit:4,prop:'pageimages|extracts|description',piprop:'thumbnail|name',pithumbsize:900,exintro:1,explaintext:1,exchars:400,exlimit:4,redirects:1});
+    const ps=((j.query&&j.query.pages)||[]).slice().sort((a,b)=>a.index-b.index);
+    page=ps.find(p=>{const t=simp(String(p.title).replace(/\s*\(.*\)\s*$/,'')),txt=(p.description||'')+' '+(p.extract||'');
+      return t&&lev(t,nn)<=Math.max(1,Math.floor(nn.length/8))&&WIKI_HINT.test(txt)&&!/may refer to|disambiguation/i.test(txt)});
+    if(!page)return[];
+  }
+  const list=[],toks=nn.split(' ').filter(t=>t.length>=4),lead=page.thumbnail&&page.thumbnail.source?{src:page.thumbnail.source,cap:'WIKIPEDIA'}:null;
+  if(lead)list.push(lead);
+  try{
+    const j2=await jget({action:'query',generator:'images',titles:page.title,gimlimit:40,prop:'imageinfo',iiprop:'url|mime|size|extmetadata',iiurlwidth:900,iiextmetadatafilter:'LicenseShortName'});
+    for(const p of((j2.query&&j2.query.pages)||[])){
+      const ii=p.imageinfo&&p.imageinfo[0];if(!ii)continue;
+      const fn=String(p.title).replace(/^File:/,''),lic=ii.extmetadata&&ii.extmetadata.LicenseShortName&&String(ii.extmetadata.LicenseShortName.value||'').toUpperCase();
+      if(page.pageimage&&fn.replace(/ /g,'_')===String(page.pageimage).replace(/ /g,'_')){if(lead&&lic)lead.cap='WIKIPEDIA · '+lic;continue}
+      if(!/^image\/(jpeg|png|webp)$/.test(ii.mime||'')||(ii.width||0)<300||(ii.height||0)<300)continue;
+      const fs=simp(fn);if(!toks.some(t=>fs.indexOf(t)>=0))continue;   // tên file phải chứa tên người đó
+      list.push({src:ii.thumburl||ii.url,cap:'WIKIPEDIA'+(lic?' · '+lic:'')});
+      if(list.length>=6)break;
+    }
+  }catch(_){}
+  return list;
+}
+function listFor(e,m){   // ảnh khai báo > Wikipedia > ảnh chân dung > (rỗng = vẽ sơ đồ node)
+  const gal=galOf(m);if(gal.length)return gal;
+  const w=WIKI[keyOf(e.n1)];if(w&&w.st==='ok'&&w.list.length)return w.list;
+  return m.photo?[{src:m.photo,cap:e.n1}]:[];
+}
+function wikiStart(e,m,P){   // bắt đầu (1 lần) tìm ảnh Wikipedia; panel P (nếu có) được cập nhật khi có kết quả
+  if(m.wiki===false||galOf(m).length)return null;
+  const k=keyOf(e.n1);let r=WIKI[k];
+  if(r&&r.err&&performance.now()-r.t>30000){delete WIKI[k];r=null}   // lỗi mạng -> thử lại sau 30 giây
+  if(!r){
+    r=WIKI[k]={st:'load',list:[],w:[],err:false,t:0};const R=r;
+    wikiFetch(e,m).then(l=>{R.list=l;R.st=l.length?'ok':'none'}).catch(err=>{R.st='none';R.err=true;R.t=performance.now();console.warn('[PortraitInfo] Wikipedia:',err&&err.message||err)})
+      .then(()=>{const w=R.w;R.w=[];for(const p of w){try{if(p.alive&&p.setList)p.setList(listFor(e,m))}catch(_){}}});
+  }
+  if(P&&r.st==='load'&&r.w.indexOf(P)<0)r.w.push(P);
+  return r;
+}
+
+// ---------- SƠ ĐỒ NODE (khi không có ảnh nào) ----------
+const ROLE_NODES=[
+  [/ADVISOR/,['RESEARCH','THEORY','STRATEGY','PEER REVIEW','MENTORING','STANDARDS']],
+  [/CTO|ENGINEER|TPM|TCSM|DEVELOPER|CHIEF TECH/,['RLNC CORE','P2P LAYER','NODES','BENCHMARKS','CLIENTS','TESTNET']],
+  [/CMO|MARKETING|BRAND/,['BRAND','CONTENT','GROWTH','MEDIA','PARTNERS','EVENTS']],
+  [/MODERATOR|COMMUNITY|AMBASSADOR/,['COMMUNITY','SOCIAL','EVENTS','SUPPORT','EDUCATION','GOVERNANCE']],
+  [/CEO|CO[- ]?FOUNDER|FOUNDER|CHIEF/,['VISION','PROTOCOL','PARTNERS','FUNDING','ECOSYSTEM','GOVERNANCE']]
+];
+const roleNodes=e=>{const t=String(e.n2).toUpperCase();for(const[re,l]of ROLE_NODES)if(re.test(t))return l;return['RLNC','NODES','NETWORK','COMMUNITY','PROTOCOL','ECOSYSTEM']};
+function netPaint(g,w,h,P,e,x,y,bw,bh){
+  const TAU=Math.PI*2,role=roleNodes(e),N=role.length,cx=x+bw/2,cy=y+bh/2-4,rx=Math.min(128,bw/2-92),ry=bh/2-26,a=P.at||0,R=seedRnd(e.n1),vis=P.frac,hue0=R()*360,dir=R()<.5?-1:1;
+  head(g,P,'NETWORK  ·  ROLE MAP',P.wikiLoading?'SCANNING WIKIPEDIA...':'NO PUBLIC PHOTOS  ·  OPTIMUM NODE MAP');
+  g.save();g.shadowBlur=0;g.fillStyle='rgba(8,38,66,.45)';g.fillRect(x,y,bw,bh);g.strokeStyle='rgba(130,238,255,.5)';g.lineWidth=1.5;g.strokeRect(x,y,bw,bh);
+  g.beginPath();g.rect(x,y,bw,bh);g.clip();
+  g.strokeStyle='rgba(130,238,255,.16)';g.lineWidth=1;for(const k of[1,.45]){g.beginPath();g.ellipse(cx,cy,rx*k,ry*k,0,0,TAU);g.stroke()}
+  const M=12;   // vòng node nhỏ bên trong, quay chậm
+  for(let i=0;i<M;i++){
+    const t=a*.32*dir+i/M*TAU,px=cx+Math.cos(t)*rx*.45,py=cy+Math.sin(t)*ry*.45,pv=clamp(vis*M*1.3-i,0,1);if(pv<=0)continue;
+    g.strokeStyle='rgba(150,235,255,.22)';g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+(px-cx)*pv,cy+(py-cy)*pv);g.stroke();
+    g.fillStyle='hsl('+((hue0+i*30)%360)+',85%,68%)';g.beginPath();g.arc(px,py,2.6*pv,0,TAU);g.fill();
+  }
+  const pos=[];
+  role.forEach((lab,i)=>{
+    const pr=clamp(vis*N*1.15-i,0,1),ang=-Math.PI/2+i/N*TAU+Math.sin(a*.5+i)*.04,nx=cx+Math.cos(ang)*rx,ny=cy+Math.sin(ang)*ry,px=cx+(nx-cx)*pr,py=cy+(ny-cy)*pr;
+    pos.push({px,py,ang,pr});if(pr<=0)return;
+    const col='hsl('+((hue0+i/N*300)%360)+',85%,66%)';
+    g.strokeStyle=col;g.globalAlpha=.55;g.lineWidth=1.5;g.beginPath();g.moveTo(cx,cy);g.lineTo(px,py);g.stroke();g.globalAlpha=1;
+    if(pr>=1){const u=(a*.55+i*.37)%1;g.fillStyle='#fff';g.globalAlpha=.9;g.beginPath();g.arc(cx+(px-cx)*u,cy+(py-cy)*u,2.4,0,TAU);g.fill();g.globalAlpha=1}   // xung chạy dọc đường nối
+    g.save();g.shadowColor=col;g.shadowBlur=12;g.fillStyle=col;g.beginPath();g.arc(px,py,(6.5+Math.sin(a*2.2+i*1.3)*1.2)*pr,0,TAU);g.fill();g.restore();
+  });
+  const rg=((a*.5)%1);g.strokeStyle='rgba(190,250,255,'+(.5*(1-rg))+')';g.lineWidth=2;g.beginPath();g.arc(cx,cy,18+rg*26,0,TAU);g.stroke();   // sóng lan từ tâm
+  g.save();g.shadowColor='#5ff';g.shadowBlur=16;g.fillStyle='#e8ffff';g.beginPath();g.arc(cx,cy,16,0,TAU);g.fill();g.restore();
+  const ini=String(e.n1).replace(/^(PROF|DR)\.?\s+/i,'').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2);
+  g.fillStyle='#06324a';g.font='bold 14px monospace';g.textAlign='center';g.fillText(ini,cx,cy+5);
+  g.restore();
+  // nhãn chức năng (luôn gọi tx cho đủ số ký tự, kể cả node chưa hiện)
+  g.font='11px monospace';g.fillStyle='#bff8ff';
+  role.forEach((lab,i)=>{
+    const p=pos[i],c=Math.cos(p.ang);let lx,ly,al;
+    if(c>.35){al='left';lx=p.px+11;ly=p.py+4}else if(c<-.35){al='right';lx=p.px-11;ly=p.py+4}else{al='center';lx=p.px;ly=Math.sin(p.ang)>0?p.py+21:p.py-12}
+    g.textAlign=al;tx(g,P,lab,lx,ly);
+  });
+  g.textAlign='left';
+  const cap=groupOf(e.n2)+'  ·  '+String(e.n2).toUpperCase();g.fillStyle='#8aff9a';g.font='bold '+fit1(g,cap,bw-24,15,true)+'px monospace';tx(g,P,cap,x,h-18);
 }
 
 // ---------- vẽ canvas theo phong cách bảng điện tử ----------
@@ -116,15 +224,12 @@ const bioPaint=(e)=>(g,w,h,P)=>{
   for(let i=0;i<Math.min(LN.length,max);i++){let s=LN[i];if(i===max-1&&LN.length>max)s=s.replace(/.{0,2}$/,'..');tx(g,P,s,24,86+i*23)}
 };
 
-// ----- ô 3: ảnh thật ngoài đời / họp báo (tự chuyển ảnh) -----
-const photoPaint=(e,m,list)=>(g,w,h,P)=>{
+// ----- ô 3: ảnh (khai báo / Wikipedia, tự chuyển ảnh) hoặc sơ đồ node nếu không có ảnh -----
+const photoPaint=(e,m)=>(g,w,h,P)=>{
   frame(g,w,h);
-  const n=list.length;head(g,P,'PRESS  ·  EVENTS',n?((P.idx||0)+1)+' / '+n:'REAL-LIFE GALLERY');
-  const x=16,y=70,bw=w-32,bh=h-70-46;
-  if(!n){
-    g.save();g.shadowBlur=0;g.strokeStyle='rgba(130,238,255,.5)';g.lineWidth=2;g.setLineDash([8,6]);g.strokeRect(x,y,bw,bh);g.setLineDash([]);
-    g.fillStyle='rgba(150,235,255,.8)';g.font='15px monospace';g.textAlign='center';tx(g,P,'NO PHOTOS ADDED YET',w/2,y+bh/2+5);g.restore();return;
-  }
+  const list=P.list||[],n=list.length,x=16,y=70,bw=w-32,bh=h-70-46;
+  if(!n){netPaint(g,w,h,P,e,x,y,bw,bh);return}
+  head(g,P,'PRESS  ·  EVENTS',((P.idx||0)+1)+' / '+n);
   const it=list[(P.idx||0)%n];imgBox(g,getImg(it.src,P),x,y,bw,bh,.35,P);
   if(it.cap){g.fillStyle='#bff8ff';g.font='bold '+fit1(g,it.cap,bw-70,16,true)+'px monospace';tx(g,P,it.cap,x,h-18)}
   for(let i=0;i<n&&n>1;i++){g.fillStyle=i===(P.idx||0)?'#6ff0ff':'rgba(150,235,255,.3)';g.fillRect(w-24-(n-i)*16,h-26,10,10)}   // chấm chỉ ảnh đang xem
@@ -150,7 +255,7 @@ const linksPaint=(e,m,rows)=>(g,w,h,P)=>{
 };
 
 // ---------- tạo panel (canvas + texture + hàm vẽ lại) ----------
-function makePanel(w,h,paint){
+function makePanel(w,h,paint,init){
   const cv=document.createElement('canvas');cv.width=w;cv.height=h;const g=cv.getContext('2d');
   const tex=new THREE.CanvasTexture(cv);tex.minFilter=THREE.LinearFilter;tex.generateMipmaps=false;
   const P={cv,g,w,h,tex,alive:true,idx:0,hover:-1,rows:[],tick:null,
@@ -169,6 +274,7 @@ function makePanel(w,h,paint){
     if(want!==P.n||P.cur){const d=want-P.shown;P.shown=want;P.n=want;P.draw();return d>0?d:0}   // vẽ lại khi có chữ mới / để con trỏ nhấp nháy
     return 0;
   };
+  if(init)init(P);
   P.draw();                                                  // lượt 1: đo tổng số ký tự
   P.td=clamp(P.Tp/TYPE_CPS,TYPE_MIN,TYPE_MAX);P.n=0;P.draw();   // lượt 2: bắt đầu trống rồi gõ dần
   return P;
@@ -194,11 +300,11 @@ function dispose(){
   S.remove(act.grp);for(const p of act.panels){p.P.alive=false;p.m.geometry.dispose();p.m.material.dispose();p.P.tex.dispose()}
   act=null;
 }
-function warm(e){const m=mediaOf(e);if(m.photo)getImg(m.photo,null);for(const it of galOf(m))getImg(it.src,null)}   // nạp trước ảnh khi bắt đầu nhìn tranh -> bấm E là có ngay
+function warm(e){const m=mediaOf(e);wikiStart(e,m,null);if(m.photo)getImg(m.photo,null);for(const it of galOf(m))getImg(it.src,null)}   // nạp trước ảnh khi bắt đầu nhìn tranh -> bấm E là có ngay
 function open(e){
   dispose();
   const K=e.s,s=clamp(K,.9,1.3),yc=e.y,a=Math.atan2(e.fx,e.fz),grp=new THREE.Group();
-  const m=mediaOf(e),gal=galOf(m),list=gal.length?gal:(m.photo?[{src:m.photo,cap:e.n1}]:[]);
+  const m=mediaOf(e),wr=wikiStart(e,m,null),list0=listFor(e,m),wl=!!(wr&&wr.st==='load'&&!list0.length),vk=keyOf(e.n1),off=(VIS[vk]=(VIS[vk]||0)+1)-1;   // off: mỗi lần bấm E ảnh bắt đầu từ tấm kế tiếp
   const rows=[];
   if(okUrl(m.x))rows.push({k:'X',lab:'X',url:m.x});
   if(okUrl(m.linkedin))rows.push({k:'in',lab:'LINKEDIN',url:m.linkedin});
@@ -209,13 +315,21 @@ function open(e){
   const defs=[   // [paint, px rộng, px cao, rộng m, cao m, bên (-1 trái / +1 phải), độ cao so với tâm tranh, loại]
     [idPaint(e,m),512,320,1.3*s,.81*s,-1,+.50*s,'id'],
     [bioPaint(e),384,448,.98*s,1.14*s,-1,-.50*s,'bio'],
-    [photoPaint(e,m,list),512,320,1.5*s,.94*s,+1,+.55*s,'photo'],
+    [photoPaint(e,m),512,320,1.5*s,.94*s,+1,+.55*s,'photo'],
     [linksPaint(e,m,rows),512,320,1.3*s,.81*s,+1,-.48*s,'links']
   ];
   const panels=[];let links=null,linkMesh=null;
   defs.forEach((d,i)=>{
-    const P=makePanel(d[1],d[2],d[0]);
-    if(d[7]==='photo'&&list.length>1){let last=-1;P.tick=t=>{const k=Math.floor(t/GAL_T)%list.length;if(k!==last){last=k;P.idx=k;P.draw()}}}
+    const P=makePanel(d[1],d[2],d[0],d[7]==='photo'?(Q=>{Q.off=off;Q.list=list0;Q.idx=list0.length?off%list0.length:0;Q.wikiLoading=wl}):null);
+    if(d[7]==='photo'){
+      P.setList=l=>{P.list=l;P.wikiLoading=false;P.idx=l.length?P.off%l.length:0;P.draw()};   // gọi khi Wikipedia trả kết quả
+      P.tick=t=>{
+        const n=(P.list||[]).length;
+        if(!n){P.at=t;P.draw();return}                                  // sơ đồ node: vẽ lại mỗi khung hình để chuyển động
+        if(n>1){const k=(P.off+Math.floor(t/GAL_T))%n;if(k!==P.idx){P.idx=k;P.draw()}}   // lâu lâu đổi ảnh
+      };
+      wikiStart(e,m,P);
+    }
     const mat=new THREE.MeshBasicMaterial({map:P.tex,transparent:true,side:THREE.DoubleSide,depthWrite:false,opacity:0,fog:false});
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(d[3],d[4]),mat);
     const fx=d[5]*(gap+d[3]/2),fy=yc+d[6];
