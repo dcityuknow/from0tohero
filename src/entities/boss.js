@@ -31,6 +31,7 @@ function onKill(){const f=curFl;fk[f]++;
 function sight(b){const n=Math.ceil(Math.hypot(P.x-b.x,P.z-b.z)/.8);
   for(let i=1;i<n;i++){const u=i/n;if(hitAny({x:b.x+(P.x-b.x)*u,y:b.y+1.6+(P.y+1.3-b.y-1.6)*u,z:b.z+(P.z-b.z)*u,r:.05,h:.1}))return false}return true}
 function bossAI(b,dt,dx,dz,d){
+  if(peace){b.vy-=22*dt;b.up=(b.up||0)*Math.max(0,1-dt*6);return botWander(b,dt)}   // người chơi đang ở trong chòi: boss đi lại bình thường, không bắn / không ném (steering.js botWander)
   b.vy-=22*dt;d=d||1;b.flip-=dt;if(b.flip<=0){b.dir=Math.random()<.5?1:-1;b.flip=1.5+Math.random()*2}
   const dyp=P.y-b.y,atk=!dead&&dyp<14&&dyp>-8;   // đánh được cả khi người chơi đứng cao tới 14m (mặt tường thành) hoặc thấp hơn 8m
   // ngửa đầu + giương người khi mục tiêu ở trên cao (bossPose đọc b.up)

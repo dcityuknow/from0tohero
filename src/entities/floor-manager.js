@@ -44,7 +44,7 @@ function tickBoss(dt){
     const sp=Math.hypot(p.vx,p.vy,p.vz),ns=Math.min(6,Math.max(1,Math.ceil(sp*dt/.35)));
     for(let k=0;k<ns&&!gone;k++){const s=dt/ns;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;
       if(p.y<FY(curFl)||hitAny({x:p.x,y:p.y-.05,z:p.z,r:.05,h:.1})){gone=true;if(window.Nature)Nature.bulletSplash(p.x,p.y,p.z)}
-      else if(!dead&&Math.hypot(P.x-p.x,P.z-p.z)<P.r+.15&&p.y>P.y&&p.y<P.y+P.h){hurt(p.dmg);gone=true}}
+      else if(!dead&&!peace&&Math.hypot(P.x-p.x,P.z-p.z)<P.r+.15&&p.y>P.y&&p.y<P.y+P.h){hurt(p.dmg);gone=true}}
     if(gone||p.life<=0){if(!p.o)S.remove(p.m);bul.splice(i,1)}
     else if(!bulDraw(p))p.m.position.set(p.x,p.y,p.z)}
   for(const o of bulGrp.values()){o.im.count=o.n;o.im.instanceMatrix.needsUpdate=true}

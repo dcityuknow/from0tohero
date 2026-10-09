@@ -103,3 +103,22 @@ function botAI(b,dt,dx,dz,d){
   steer(b,b.x+ux*8,b.z+uz*8,sp,dt);
   return Math.min(1.25,sp/2.6);
 }
+
+// ---------------- ĐI LẠI BÌNH THƯỜNG (người chơi đang ở trong chòi: peace=true) ----------------
+// Bot không đuổi / không đánh: đi thong thả tới 1 điểm ngẫu nhiên quanh mình, dừng nghỉ 1-4 giây (tùy lần), rồi chọn điểm khác. Né nước như bot thường, kẹt thì đổi điểm.
+// Trả về mv (như botAI) để main.js làm hoạt ảnh chân. Boss cũng dùng hàm này (boss.js) và không bắn.
+function botWander(b,dt){
+  let W=b.wd;if(!W)W=b.wd={tx:b.x,tz:b.z,t:0,wait:Math.random()*2,sx:b.x,sz:b.z,sT:0};
+  b.dry=!!(window.Nature&&Nature.wetAt);                       // không lội xuống sông
+  if(W.wait>0){W.wait-=dt;move(b,0,b.vy*dt,0);return 0}        // đứng nghỉ (vẫn áp trọng lực: main.js / bossAI đã trừ b.vy)
+  let dx=W.tx-b.x,dz=W.tz-b.z,d=Math.hypot(dx,dz);
+  W.t-=dt;
+  if(d<.7||W.t<=0){                                            // tới nơi / quá lâu -> chọn điểm mới (trong 3-10m)
+    const a=Math.random()*6.283,r=3+Math.random()*7,nx=b.x+Math.sin(a)*r,nz=b.z+Math.cos(a)*r;
+    if(!(window.Nature&&Nature.wetAt&&Nature.wetAt(curFl,nx,nz,.5))){W.tx=nx;W.tz=nz;W.t=8+Math.random()*4}
+    W.wait=Math.random()<.5?1+Math.random()*3:0;move(b,0,b.vy*dt,0);return 0}
+  W.sT+=dt;if(W.sT>=1){const mvd=Math.hypot(b.x-W.sx,b.z-W.sz);W.sx=b.x;W.sz=b.z;W.sT=0;if(mvd<.3)W.t=0}   // kẹt (nhích < .3m trong 1s) -> chọn điểm khác
+  b.hd=Math.atan2(dx,dz);b.hdUse=1;                            // quay mặt theo hướng đi
+  steer(b,W.tx,W.tz,1.6,dt);
+  return .6;
+}

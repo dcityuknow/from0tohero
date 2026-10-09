@@ -39,7 +39,7 @@ function explode(g){
     if(d<RAD){b.hp-=160*(1-d/RAD);blood(new THREE.Vector3(b.x,b.y+.9,b.z),new THREE.Vector3(0,1,0),o.clone().normalize(),8);if(b.hp<=0)killBot(b,o.normalize())}
   }
   const dp=Math.hypot(P.x-c.x,P.y+1-c.y,P.z-c.z);
-  if(dp<RAD&&!dead)hurt(70*(1-dp/RAD));
+  if(dp<RAD&&!dead&&!(g.foe&&peace))hurt(70*(1-dp/RAD));   // lựu đạn của bot không làm đau người chơi đang ở trong chòi
   const bl=new THREE.Mesh(BLG,new THREE.MeshBasicMaterial({color:0xffb040,transparent:true,opacity:.75}));
   bl.position.copy(c);S.add(bl);blasts.push({m:bl,t:.3,R:RAD});
   for(let i=0;i<72;i++){
