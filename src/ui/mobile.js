@@ -15,11 +15,11 @@ const joy={x:0,y:0};
 #jk{width:50px;height:50px;background:rgba(255,255,255,.5)}
 #mob .b{border-radius:50%;background:rgba(255,255,255,.28);border:2px solid rgba(255,255,255,.75);color:#fff;font:700 12px sans-serif;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
 #mob .b.on{background:rgba(255,110,150,.65)}
-/* HUD gọn cho màn ngang thấp: minimap nhỏ, đạn/lựu đạn xếp dưới minimap để không bị cụm nút đè */
+/* HUD gọn cho màn ngang thấp: minimap nhỏ ở góc, đạn nằm ngay bên phải minimap, lựu đạn dưới minimap để không bị cụm nút đè */
 body.touch .pill{font-size:14px;padding:5px 10px;border-radius:12px}
 body.touch #mm{width:100px;height:100px;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px))}
-body.touch #ammo{right:auto;bottom:auto;left:calc(12px + env(safe-area-inset-left,0px));top:calc(120px + env(safe-area-inset-top,0px))}
-body.touch #gren{right:auto;bottom:auto;left:calc(12px + env(safe-area-inset-left,0px));top:calc(156px + env(safe-area-inset-top,0px))}
+body.touch #ammo{right:auto;bottom:auto;left:calc(122px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px))}
+body.touch #gren{right:auto;bottom:auto;left:calc(12px + env(safe-area-inset-left,0px));top:calc(120px + env(safe-area-inset-top,0px))}
 body.touch #score{right:calc(12px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px))}
 body.touch #stats{left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 body.touch #hpwrap{width:110px;height:12px}
@@ -40,17 +40,20 @@ body.touch #msg{bottom:calc(64px + env(safe-area-inset-bottom,0px));font-size:14
 #rot .ri{font-size:72px;animation:rotp 1.8s ease-in-out infinite}
 @keyframes rotp{0%,25%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}`;
   document.head.appendChild(css);
+  {const gk=$('gk');if(gk){const pv=gk.previousSibling;if(pv&&pv.nodeType===3)pv.textContent='';gk.style.display='none'}}   // cảm ứng không có phím 4 -> bỏ chữ "· phím 4"
 
   const mob=document.createElement('div');mob.id='mob';document.body.appendChild(mob);
   const mk=id=>{const d=document.createElement('div');d.id=id;mob.appendChild(d);return d};
   const jz=mk('jz'),lz=mk('lz'),jb=mk('jb'),jk=mk('jk'),NP={passive:false};
   const look=(dx,dy)=>{const s=(scoped&&cur==='sniper'?.3:1)*.005;yaw-=dx*s;pitch=Math.max(-1.5,Math.min(1.5,pitch-dy*s))};
   let jid=null,ox=0,oy=0,lid=null,lx=0,ly=0;
+  let tapT=0,tapX=0,tapY=0,tapMv=0,jmax=0;   // nhấp đúp vào tâm joystick (2 lần chạm nhanh, cùng chỗ, không kéo) = bật/tắt ống ngắm
   jz.addEventListener('touchstart',e=>{e.preventDefault();if(jid!==null)return;const t0=e.changedTouches[0];jid=t0.identifier;ox=t0.clientX;oy=t0.clientY;
+    const nw=performance.now();if(nw-tapT<320&&jmax<12&&Math.hypot(ox-tapX,oy-tapY)<40){tapT=0;if(cur==='sniper')scoped=!scoped}else{tapT=nw;tapX=ox;tapY=oy}jmax=0;
     jb.style.display=jk.style.display='block';jb.style.left=ox-55+'px';jb.style.top=oy-55+'px';jk.style.left=ox-25+'px';jk.style.top=oy-25+'px'},NP);
   jz.addEventListener('touchmove',e=>{for(const t0 of e.changedTouches)if(t0.identifier===jid){e.preventDefault();
     let dx=t0.clientX-ox,dy=t0.clientY-oy;const l=Math.hypot(dx,dy),m=50;if(l>m){dx*=m/l;dy*=m/l}
-    const k=Math.min(l,m)/m<.2?0:1;joy.x=dx/m*k;joy.y=dy/m*k;jk.style.left=ox+dx-25+'px';jk.style.top=oy+dy-25+'px'}},NP);
+    jmax=Math.max(jmax,l);const k=Math.min(l,m)/m<.2?0:1;joy.x=dx/m*k;joy.y=dy/m*k;jk.style.left=ox+dx-25+'px';jk.style.top=oy+dy-25+'px'}},NP);
   const je=e=>{for(const t0 of e.changedTouches)if(t0.identifier===jid){jid=null;joy.x=joy.y=0;jb.style.display=jk.style.display='none'}};
   jz.addEventListener('touchend',je);jz.addEventListener('touchcancel',je);
   lz.addEventListener('touchstart',e=>{e.preventDefault();if(lid!==null)return;const t0=e.changedTouches[0];lid=t0.identifier;lx=t0.clientX;ly=t0.clientY},NP);
@@ -74,11 +77,10 @@ body.touch #msg{bottom:calc(64px + env(safe-area-inset-bottom,0px));font-size:14
   btn('FIRE',  28,  34,  92,()=>{if(cur==='grenade')startHold();else{md=true;if(!W[cur].auto)shoot()}},()=>{md=false;releaseG()},true);
   btn('JUMP', 140,  36,  64,()=>keys.Space=1,()=>keys.Space=0);
   btn('R',    130, 112,  52,()=>reload());
-  btn('ADS',   96, 172,  52,()=>{if(cur==='sniper')scoped=!scoped});
   btn('SLIDE', 22, 136,  58,()=>keys.ShiftLeft=1,()=>setTimeout(()=>keys.ShiftLeft=0,120));
   // Nút E (tương tác): giả lập phím E -> fruit-eat.js (nhặt/cất trái), portrait-info.js (mở tranh), engrave.js (khắc tên) đều nhận như phím thật
   const keyE=t=>window.dispatchEvent(new KeyboardEvent(t,{code:'KeyE',key:'e',bubbles:true,cancelable:true}));
-  btn('E',    200, 108,  52,()=>keyE('keydown'),()=>keyE('keyup'));
+  btn('E',     96, 172,  52,()=>keyE('keydown'),()=>keyE('keyup'));
   const order=['pistol','rifle','sniper','grenade'];
   btn('⇄',     22, 204,  52,()=>{const i=order.indexOf(cur);for(let n=1;n<=4;n++){const w=order[(i+n)%4];if(w==='grenade'){if(gren>0){pick4();return}}else{pick(w);return}}});
   setInterval(()=>mob.style.display=playing?'block':'none',150);
