@@ -40,6 +40,7 @@ const CFG={
   underwater:true,         // lớp màu nước + sương mù + bọt khí khi đầu ngập dưới mặt nước
   // ---- Sông & bơi (MỚI) ----
   riverW:5,                // NỬA bề rộng sông (m): 5 = sông rộng ~10m (tầng cao hơn rộng hơn chút)
+  extraBridges:[{f:0,x:-9,z:1}],   // CẦU THÊM (ngoài các cầu tự chọn chỗ hẹp nhất): f = tầng (0 = tầng 1), (x,z) = điểm mong muốn trên sông. Game tự chọn chỗ gần điểm đó nhất mà 2 đầu cầu có đất trống (tối đa lệch 12m, cách cầu khác >= 8m). Thêm nhiều cầu = thêm nhiều {f,x,z}; bỏ cầu = xóa dòng. Lấy tọa độ: đứng chỗ muốn đặt, F12 -> Console gõ [P.x,P.z]
   riverBend:1,             // độ uốn lượn của dòng sông (0 = thẳng tắp, 1.5 = uốn nhiều)
   swimOn:1.25,             // nước sâu từ mức này (m) -> TỰ ĐỘNG chuyển sang chế độ bơi
   swimOff:.85,             // nước nông hơn mức này -> thôi bơi, lội bộ

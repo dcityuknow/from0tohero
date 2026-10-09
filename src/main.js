@@ -124,6 +124,7 @@ function frame(now){
     if(md&&W[cur].auto)shoot();
     // bots
     const dt0=dt;lodN++;
+    peace=curFl===0&&!dead&&!!window.PavilionPeace&&PavilionPeace(P.x,P.y,P.z);   // đang ở trong chòi -> bot đi lại bình thường, không tấn công; bước ra là thù địch lại ngay
     for(const b of bots){
       if(b.ally||b.arch)continue;      // đồng minh do ally.js điều khiển · lính cung trên tường thành do archer.js điều khiển
       if(!b.on){b.g.visible=false;continue}
@@ -134,7 +135,7 @@ function frame(now){
       if(!b.boss){const st=d>100?6:d>55?3:1;if(st>1){b.lod=(b.lod||0)+dt0;if((lodN+(b.id||(b.id=++botSeq)))%st)continue;dt=Math.min(b.lod,.12);b.lod=0}}
       // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
       if(!dead&&d<P.r+b.r&&Math.abs(P.y-b.y)<1.6){const o=P.r+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}
-      b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
+      b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(peace){b.vy-=22*dt;mv=botWander(b,dt)}else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
       else if(!dead&&Math.abs(P.y-b.y)<1.5)hurt(28*dt);
       if(fallBot(b))continue;   // bot / boss rơi từ trên cao cũng mất máu
       b.mv+=(mv-b.mv)*Math.min(1,dt*8);{const s0=Math.sin(b.t);b.t+=dt*11*b.mv;if(b.mv>.5&&s0*Math.sin(b.t)<0&&d<14){if(b.sw)snd(280+Math.random()*140,.14,'sine',.05,b.g.position);else botStepSnd(b.g.position,b.boss)}}

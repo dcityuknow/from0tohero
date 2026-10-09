@@ -211,6 +211,14 @@ function buildFloor(f){
       if(!best)break;
       bq.push(best.q);build(best);
     }
+    for(const h of CFG.extraBridges||[]){   // CẦU THÊM theo tọa độ (kit.js: extraBridges): chọn q gần điểm (x,z) nhất mà 2 đầu cầu có đất trống, cách cầu khác >= 8m; không dùng rand() nên không làm đổi bố cục cây / đá
+      if(h.f!==f||typeof h.x!=='number'||typeof h.z!=='number')continue;
+      const q0=along?h.x:h.z;let best=null;
+      for(let dq=0;dq<=12&&!best;dq+=.5)for(const s of dq?[-1,1]:[1]){
+        const q=q0+s*dq;if(Math.abs(q)>lim-5||bq.some(p=>Math.abs(p-q)<8))continue;
+        const c=plan(q);if(c){best=c;break}}
+      if(best){bq.push(best.q);build(best)}else console.warn('extraBridges: không đặt được cầu gần',h);
+    }
    }}
 
   // 1d) ĐỊA HÌNH: bản đồ độ cao lưới .5m (tra bằng nội suy). Phẳng hẳn quanh sông, đầu cầu, thang, vật cản, sát tường.

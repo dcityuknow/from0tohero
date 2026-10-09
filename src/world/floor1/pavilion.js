@@ -585,4 +585,8 @@ window.PavilionKeep={x0:PX-HX-2,x1:PX+HX+3.5,z0:PZ-4.5-DZ,z1:PZ+6.5+DZ};
 const _hz=window.HouseZone||(()=>false);
 window.HouseZone=(x,z)=>_hz(x,z)||(x>PX-HX-2&&x<PX+HX+3.2&&z>PZ-4.8-DZ&&z<PZ+6.0+DZ);
 window.Pavilion={build,rebuild:()=>build(PX,PZ)};
+// VÙNG HÒA BÌNH: người chơi phải đi VÀO TRONG sàn chòi, qua khỏi hàng lan can / cột (thụt vào PEACE_IN mét tính từ mép sàn) và dưới mái thì bot mới thôi coi là kẻ thù (main.js đọc mỗi khung).
+// Đứng ở lan can, bậc thang hay lối vào chưa tính. Muốn phải đi sâu hơn / nông hơn: sửa PEACE_IN (lan can dày .125 + bán kính người chơi .35 -> tối thiểu ~.6).
+const PEACE_IN=1;
+window.PavilionPeace=(x,y,z)=>x>PX-HX+PEACE_IN&&x<PX+HX-PEACE_IN&&z>PZ-HZ+PEACE_IN&&z<PZ+HZ-PEACE_IN&&y>FL-1.5&&y<FL+RY;
 })();
