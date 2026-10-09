@@ -11,7 +11,7 @@ if(typeof THREE==='undefined'||typeof VB==='undefined'||typeof S==='undefined'){
 const CFG={
   walk:1.1, run:4.2,          // m/s: tuần tra / chạy theo người chơi
   followDist:1.15,            // khoảng cách đứng cạnh người chơi
-  zMin:-1.9, zMax:1.9,       // dải đi lại trong sảnh (z cục bộ): lối đi giữa 2 hàng tranh đối diện (bảng tên hàng sau z≈-1.2, hàng trước z≈+1.1)
+  zMin:-3.6, zMax:3.6,       // dải đi lại trong sảnh (z cục bộ): lối đi giữa 2 hàng tranh đối diện (bảng tên hàng sau z≈-1.2, hàng trước z≈+1.1)
   xPad:1.2,                   // cách mép sảnh
   lookMargin:.4, lookRange:9, // dung sai khi ngắm tranh (m) / tầm xa nhất (m)
   dwell:.5,                   // nhìn liên tục bao lâu thì bắt đầu đọc (s)
@@ -556,6 +556,34 @@ function lookedEasel(P,g){
 }
 
 // ---------- NHÂN VIÊN PHỤ ----------
+// ---------- NÉ BÀN TRÁI CÂY (giữa sảnh, window.PavilionFruit do pavilion.js xuất) ----------
+// Bot không đi xuyên bàn: (1) điểm đến nằm trong vùng bàn thì bốc lại / đẩy ra mép, (2) đường đi cắt qua bàn thì vòng qua góc bàn (steer), (3) lưới an toàn: lỡ lọt vào vùng bàn thì đẩy ra mép gần nhất (pushTbl).
+const TPAD=.5;   // chừa quanh bàn (m)
+function tblRect(){const F=window.PavilionFruit;return F?{x0:F.x-F.hw-TPAD,x1:F.x+F.hw+TPAD,z0:F.z-F.hd-TPAD,z1:F.z+F.hd+TPAD}:null}
+function inTbl(x,z){const r=tblRect();return !!r&&x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1}
+function pushTbl(o){const r=tblRect();if(!r||!(o.x>r.x0&&o.x<r.x1&&o.z>r.z0&&o.z<r.z1))return;
+  const dl=o.x-r.x0,dr=r.x1-o.x,dn=o.z-r.z0,df=r.z1-o.z,m=Math.min(dl,dr,dn,df);
+  if(m===dl)o.x=r.x0;else if(m===dr)o.x=r.x1;else if(m===dn)o.z=r.z0;else o.z=r.z1}
+function segHits(r,ax,az,bx,bz){   // đoạn thẳng a->b có cắt xuyên qua hình chữ nhật (thu nhỏ 3cm để chạm mép không tính) không
+  const e=.03,x0=r.x0+e,x1=r.x1-e,z0=r.z0+e,z1=r.z1-e,dx=bx-ax,dz=bz-az;let t0=0,t1=1;
+  for(const[p,q]of[[-dx,ax-x0],[dx,x1-ax],[-dz,az-z0],[dz,z1-az]]){
+    if(p===0){if(q<0)return false}
+    else{const t=q/p;if(p<0){if(t>t1)return false;if(t>t0)t0=t}else{if(t<t0)return false;if(t<t1)t1=t}}}
+  return t0<t1}
+function steer(o,tx,tz){   // o = bot {x,z,via}. Trả về điểm cần đi tới ngay bây giờ: thẳng tới đích, hoặc góc bàn đã chọn (giữ nguyên tới khi tới nơi để không lắc qua lắc lại)
+  const r=tblRect();if(!r){o.via=null;return[tx,tz]}
+  if(o.via){
+    if(Math.hypot(o.via[0]-o.x,o.via[1]-o.z)<.06||segHits(r,o.x,o.z,o.via[0],o.via[1]))o.via=null;   // tới góc rồi (hoặc đường tới góc bị chắn) -> chọn lại
+    else return o.via;
+  }
+  if(!segHits(r,o.x,o.z,tx,tz))return[tx,tz];
+  let best=null,bc=1e18;const E=.15;   // góc đi vòng nằm lệch ra ngoài vùng bàn 15cm: đứng ở góc rồi đi dọc mép không bị coi là cắt qua bàn
+  for(const[cx,cz]of[[r.x0-E,r.z0-E],[r.x1+E,r.z0-E],[r.x0-E,r.z1+E],[r.x1+E,r.z1+E]]){
+    if(Math.hypot(cx-o.x,cz-o.z)<.06||segHits(r,o.x,o.z,cx,cz))continue;
+    const c=Math.hypot(cx-o.x,cz-o.z)+Math.hypot(tx-cx,tz-cz);if(c<bc){bc=c;best=[cx,cz]}}
+  o.via=best;return best||[tx,tz]}
+function freePoint(f){for(let i=0;i<10;i++){const p=f();if(!inTbl(p.x,p.z))return p}const p=f();pushTbl(p);return p}   // bốc điểm đến ngẫu nhiên nằm ngoài vùng bàn
+
 function updateStaff(dt,g,P,on,clampZ){
   for(let n=0;n<STAFF.length;n++){
     const s=STAFF[n],m=s.m,x0=g.cx+s.band[0],x1=g.cx+s.band[1],z0=clampZ(-1e9)+.2,z1=clampZ(1e9)-.2;
@@ -565,7 +593,7 @@ function updateStaff(dt,g,P,on,clampZ){
     if(s.wait>0){
       s.wait-=dt;
       if(s.wait<=0){   // chọn điểm đến mới trong dải của mình
-        s.wp={x:x0+Math.random()*(x1-x0),z:z0+Math.random()*(z1-z0)};s.focus=null;s.gesture=0;
+        s.wp=freePoint(()=>({x:x0+Math.random()*(x1-x0),z:z0+Math.random()*(z1-z0)}));s.focus=null;s.gesture=0;
       }
     }else if(s.wp){
       tx=s.wp.x;tz=s.wp.z;const d=Math.hypot(tx-s.x,tz-s.z);
@@ -583,9 +611,10 @@ function updateStaff(dt,g,P,on,clampZ){
     }
     // tránh chồng lên hướng dẫn viên chính và người chơi
     const sx=s.x,sz=s.z;
-    if(spd>0){const d=Math.hypot(tx-s.x,tz-s.z)||1,st2=Math.min(d,spd*dt);s.x+=(tx-s.x)/d*st2;s.z+=(tz-s.z)/d*st2}
+    if(spd>0){const[wx,wz]=steer(s,tx,tz),d=Math.hypot(wx-s.x,wz-s.z)||1,st2=Math.min(d,spd*dt);s.x+=(wx-s.x)/d*st2;s.z+=(wz-s.z)/d*st2}
     for(const [ox,oz,r] of[[st.x,st.z,.9],P&&on?[P.x,P.z,.7]:[1e9,1e9,0]]){const dx=s.x-ox,dz=s.z-oz,dd=Math.hypot(dx,dz);if(dd<r&&dd>.001){s.x=ox+dx/dd*r;s.z=oz+dz/dd*r}}
     for(let q=0;q<STAFF.length;q++)if(q!==n){const o2=STAFF[q],dx=s.x-o2.x,dz=s.z-o2.z,dd=Math.hypot(dx,dz);if(dd<.8&&dd>.001){s.x+=dx/dd*(.8-dd)*.5;s.z+=dz/dd*(.8-dd)*.5}}
+    pushTbl(s);
     s.z=Math.max(z0,Math.min(z1,s.z));
     if(face!==null)s.yaw+=wrap(face-s.yaw)*Math.min(1,dt*6);
     const mv=spd>.05;
@@ -637,12 +666,13 @@ function update(dt){
       gx=clampX(P.x+rx*side*CFG.followDist+fx*.5);gz=clampZ(P.z+rz*side*CFG.followDist+fz*.5);   // đứng chếch phía trước-bên cạnh để luôn trong tầm nhìn
       if(Math.hypot(gx-P.x,gz-P.z)>.85)break;side=-side;
     }
+    {const o={x:gx,z:gz};pushTbl(o);gx=o.x;gz=o.z}   // điểm đứng cạnh người chơi không nằm trong bàn
     tx=gx;tz=gz;
     const d=Math.hypot(tx-st.x,tz-st.z);spd=d<.15?0:Math.min(CFG.run,d*3.2);
   }else{
     if(!st.wp||st.wait>0){
       if(st.wait>0){st.wait-=dt;if(st.wait<=0)st.wp=null}
-      if(!st.wp&&st.wait<=0){st.wp={x:zx0+Math.random()*(zx1-zx0),z:zz0+.2+Math.random()*(zz1-zz0-.4)}}
+      if(!st.wp&&st.wait<=0){st.wp=freePoint(()=>({x:zx0+Math.random()*(zx1-zx0),z:zz0+.2+Math.random()*(zz1-zz0-.4)}))}
     }
     if(st.wp&&st.wait<=0){
       tx=st.wp.x;tz=st.wp.z;const d=Math.hypot(tx-st.x,tz-st.z);
@@ -651,14 +681,15 @@ function update(dt){
   }
   const mv=spd>.05;
   if(mv){
-    const d=Math.hypot(tx-st.x,tz-st.z)||1,step=Math.min(d,spd*dt);
-    st.x=clampX(st.x+(tx-st.x)/d*step);st.z=clampZ(st.z+(tz-st.z)/d*step);
-    face=Math.atan2(tx-st.x,tz-st.z);
+    const[wx,wz]=steer(st,tx,tz),d=Math.hypot(wx-st.x,wz-st.z)||1,step=Math.min(d,spd*dt);   // đường thẳng cắt bàn thì vòng qua góc bàn
+    st.x=clampX(st.x+(wx-st.x)/d*step);st.z=clampZ(st.z+(wz-st.z)/d*step);
+    face=Math.atan2(wx-st.x,wz-st.z);
   }
   if(on){   // không đứng chồng lên người chơi
     const ox=st.x-P.x,oz=st.z-P.z,od=Math.hypot(ox,oz);
     if(od<.7&&od>.001){st.x=clampX(P.x+ox/od*.7);st.z=clampZ(P.z+oz/od*.7)}
   }
+  pushTbl(st);   // lưới an toàn: không bao giờ nằm trong bàn
 
   // --- hướng người / đầu / tay ---
   const present=on&&st.speaking>=0&&st.talking&&g.easels[st.speaking];
