@@ -49,10 +49,10 @@ function hurt(n){
 // Cách thêm vị trí: đứng đúng chỗ + hướng nhìn muốn, mở Console (F12) gõ  spawnPos()  -> nó in sẵn 1 dòng {x,y,z,yaw,pitch}, dán thêm vào mảng này.
 // y = độ cao CHÂN (P.y). Vị trí dưới nước: cứ để y như spawnPos() in ra, vật lý bơi (nature/swim.js) tự xử lý.
 const SPAWNS=[
-  {name:'spot1',x:1.85,y:4.75,z:16.59,yaw:1.667,pitch:.018},     // yaw 7.95 rad = 1.667 sau khi trừ 2π (cùng hướng nhìn)
-  {name:'spot2',x:20.91,y:1.99,z:-.88,yaw:1.567,pitch:.04},
-  {name:'underwater',x:16.85,y:-3.2,z:-1.7,yaw:1.44,pitch:-.048},   // dưới hồ
-  {name:'spot4',x:-9.77,y:.88,z:-18.12,yaw:-1.465,pitch:-.035},
+  {name:'new',x:1.88,y:4.75,z:16.65,yaw:1.794,pitch:0.08},
+  {name:'new',x:11.68,y:0.88,z:-20.38,yaw:-4.47,pitch:-0.015},
+  {name:'new',x:19.93,y:1.93,z:2.02,yaw:-4.71,pitch:0.065},
+  {name:'new',x:14.64,y:-3.2,z:0.47,yaw:1.423,pitch:-0.035},
 ];
 let lastSpawn=-1;
 function spawnRandom(){
