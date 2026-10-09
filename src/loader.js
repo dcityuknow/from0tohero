@@ -21,7 +21,8 @@
     'player/player.js','player/weapons.js','player/viewmodel.js',
     // Thiên nhiên (phải nạp SAU viewmodel, TRƯỚC bot)
     'world/common/floors.js',   // nạp / dỡ tầng theo yêu cầu - phải nạp TRƯỚC house.js
-    'world/floor1/house.js','world/floor1/pavilion.js','world/floor1/statues.js',
+    'world/floor1/house.js','world/floor1/fruit-kit.js','world/floor1/pavilion.js',   // fruit-kit.js (mô hình trái cây) phải nạp TRƯỚC pavilion.js
+    'world/floor1/statues.js',
     'world/floor1/teaset.js',
     'world/floor1/bath.js',
     'world/floor1/stairgrove.js',   // rừng cây cao + hàng bụi che tường thang lên tầng 2
@@ -45,6 +46,7 @@
     'entities/ally.js','entities/archer.js',
     // Gameplay: bắn, hiệu ứng, vật phẩm, lựu đạn
     'gameplay/combat.js','gameplay/effects.js','ui/minimap.js','gameplay/items.js','gameplay/grenade.js','gameplay/fall.js',
+    'gameplay/fruit-eat.js',   // cầm (E) + ăn (chuột trái) trái cây ở bàn giữa chòi, hồi máu (cần fruit-kit.js, pavilion.js, items.js, viewmodel.js nạp trước)
     'gameplay/engrave.js',
     // Occlusion culling
     'engine/occlusion.js',

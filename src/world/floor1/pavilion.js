@@ -5,12 +5,12 @@
 const PX=7,PZ=-19.5;               // tâm chòi (x,z) trên sàn tầng 1 (chỗ tường hồng cũ: bk(0,0,-13,...) * MAPK)
 const FL=.875, RY=5.3;             // mặt sàn · chân mái = mức trần CAO NHẤT của trần lượn sóng (nâng cao để tranh to không chạm trần)
 const RAILY=RY-.65;                // mức dưới đáy trần thấp nhất: đèn ray (nếu bật SHOW_FIXTURES) treo từ đây
-const DZ=1.75;                      // phần sâu thêm mỗi bên cho hành lang rộng (bản cũ DZ=0)
+const DZ=3.5, DDZ=DZ-1.75;          // phần sâu thêm mỗi bên cho hành lang rộng (bản cũ DZ=1.75; muốn rộng/hẹp hơn chỉ cần sửa số này). DDZ = phần nới thêm so với bản 1.75: tranh / tủ kính / ray đèn dời ra sát tường theo DDZ
 const HX=17.25, HZ=3.25+DZ;            // nửa rộng (rộng ra để bày tranh 2 bên) / nửa sâu của sàn
 const PXO=HX-.75, POSX=[-7,-5,-3,-1,1,3,5,7].map(k=>k*PXO/7);   // x của 8 cột / trụ đá trên mỗi hàng (đều nhau, 8 thay vì 6)
 
 // ĐÈN RỌI RAY (track light): 2 thanh ray đen chạy dọc trần phía trên 2 mép hành lang, trên ray gắn các đèn ống đen xoay chĩa vào từng tranh (tranh to có 2 đèn).
-const TRACK_Z=1.4, TRACK_X=16;   // ray cách tâm sảnh ±TRACK_Z (m), dài ±TRACK_X (m)
+const TRACK_Z=1.4+DDZ, TRACK_X=16;   // ray cách tâm sảnh ±TRACK_Z (m), dài ±TRACK_X (m)
 const SHOW_FIXTURES=false;       // false = đèn rọi chìm trong trần (như ảnh minh họa, chỉ thấy dải đèn ấm); true = dựng lại thanh ray + đèn ống đen + chùm sáng dưới trần
 const TRACK_SPOT=true;           // true = mỗi đèn có SpotLight thật chiếu vào tranh (đẹp hơn nhưng tốn GPU); false = chỉ có thân đèn + mắt đèn phát sáng
 const TRACK_DAY=0, TRACK_NIGHT=1.5;   // cường độ SpotLight ban ngày (0 = tắt hẳn) / ban đêm (đã hạ từ 2.8 cho đỡ chói)
@@ -361,6 +361,67 @@ function build(hx,hz){
     const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);S.add(gm);prevGlow=gm;}   // không vào meshes -> không ảnh hưởng va chạm / bắn
   cb(SX0,SX1,0,2.75,5.1+DZ,5.3+DZ);
 
+  // ---- BÀN TRÁI CÂY GIỮA SẢNH ----  (trải khăn trắng xếp ly, 12 đĩa trái cây + sandwich, rượu vang; bấm E nhìn vào bàn để cầm, chuột trái để ăn: xem gameplay/fruit-eat.js)
+  const TBL={x:0,z:0,hw:3.4,hd:.65,top:FL+.82}, PIECES=[]; let TBOT=null;   // TBOT = mesh chai rượu to trên bàn (fruit-eat.js ẩn khi đang rót rượu)   // bàn dài gấp đôi (hw 1.7 -> 3.4)
+  const PLATES=[   // 16 đĩa: trái cây + bánh mì sandwich; khu rượu vang ở x≈1.9..2.9
+    ['watermelon',-3.0,.28],['orange',-2.2,.28],['grape',-1.4,.28],['apple',-.6,.28],['sandwich',.2,.28],['sandwich',1.0,.28],
+    ['pineapple',-3.0,-.28],['dragon',-2.2,-.28],['apple',-1.4,-.28],['orange',-.6,-.28],['sandwich',.2,-.28],['dragon',1.0,-.28],
+    ['sandwich',1.6,.28],['grape',1.6,-.28],['watermelon',3.15,.28],['dragon',3.15,-.28]]   // 4 đĩa cuối bao quanh khu rượu vang
+    .map(([type,x,z])=>({type,x:TBL.x+x,z:TBL.z+z}));
+  {const {x:tx,z:tz,hw,hd,top}=TBL,K=window.FruitKit,y0=FL+.05,y1=top-.04;
+   v.box(tx,(y0+y1)/2,tz,2*hw+.14,y1-y0,2*hd+.14,(i,j,k)=>(((i>>1)+(k>>1))&1)?0xf8f8f8:0xe1e5ee,.07,true);   // váy bàn xếp ly (chỉ lớp vỏ ngoài)
+   v.box(tx,top-.02,tz,2*hw+.24,.04,2*hd+.24,0xfdfdfd,.04);                 // mặt khăn
+   v.box(tx,top+.006,tz,2*hw+.1,.012,.2,0xc9a24a,.012);                      // dải vàng chạy dọc bàn
+   for(const p of PLATES){
+     v.cyl(p.x,top+.016,p.z,.25,.02,0xffffff,.02,'y');                       // đĩa
+     v.cyl(p.x,top+.028,p.z,.25,.012,0xdde4ee,.02,'y',.21);                  // viền đĩa
+     if(K)for(const[dx,dz,k]of K.layout(p.type)){   // mỗi quả 1 mesh riêng (không gộp vào bàn) để fruit-eat.js ẩn khi bị lấy, 60 giây sau hiện lại
+       const fv=new VB();K.draw(fv,p.type,dx,0,dz,k);const fm=fv.mesh();fm.position.set(hx+p.x,top+.034,hz+p.z);S.add(fm);prevTrack.push(fm);
+       PIECES.push({type:p.type,x:hx+p.x+dx,y:top+.034+.09,z:hz+p.z+dz,mesh:fm,t:0})}
+   }
+   // ---- RƯỢU VANG: chai to nằm nghiêng trên kệ đỡ inox (vòng số 8 + 2 vòng ôm chai), 5 ly thủy tinh xếp thành 1 chụm, xen kẽ bánh / trái cây ----
+   {const bx=tx+2.45,z0=tz-.37,ccy=top+.135,yc=top+.41,zb=z0+.1,BLK=0x0d0d10,CH=[0xf2f4f7,0xdfe3e8,0xc9ced6,0xa3a9b2];
+    // KỆ ĐỠ INOX (theo ảnh mẫu): vòng SỐ 8 / hạt đậu LIỀN KHỐI đứng thẳng, thân ống tròn dày như torus, bạc kim loại bóng, 2 lỗ rộng, eo giữa thắt. KHÔNG còn viền đen.
+    // Dựng bằng voxel 0.8cm: mặt phẳng (x,y) = mặt nạ hình số 8; chiều dày z = mặt cắt tròn bán kính TR (giống ống torus); màu = shading kim loại theo pháp tuyến (đèn trên-trái-trước + vệt bóng).
+    const VS=.008,N=39,M=2*N,TR=.032,NL=8;   // VS cỡ voxel · M = số ô mỗi cạnh lưới (bán kính lưới N*VS=.312) · TR bán kính ống · NL số lớp theo z
+    const outer=(x,y)=>{const ox=Math.max(Math.abs(x)-.12,0),Y=.125-.043*Math.exp(-((x/.07)**2));return (ox/.13)**2+(y/Y)**2<1};   // đường bao ngoài: 2 thùy tròn, eo thắt ở giữa (cao .082 so với .125 ở thùy)
+    const hole=(x,y)=>{const ox=Math.max(Math.abs(x)-.10,0),Y=.065-.032*Math.exp(-((x/.07)**2));return (ox/.09)**2+(y/Y)**2<1};   // MỘT lỗ duy nhất hình hạt đậu (eo thắt ở giữa), KHÔNG có thanh chắn giữa
+    const inRing=(x,y)=>outer(x,y)&&!hole(x,y);
+    const DD=new Float32Array(M*M),UX=new Float32Array(M*M),UY=new Float32Array(M*M);   // khoảng cách tới mép gần nhất + hướng ra mép (để tính độ cong ống)
+    for(let b=0;b<M;b++)for(let a=0;a<M;a++){
+      const x=(a+.5-N)*VS,y=(b+.5-N)*VS;if(!inRing(x,y))continue;
+      let best=9,bi=0,bj=0;
+      for(let j=-5;j<=5;j++)for(let i=-5;i<=5;i++){if(inRing(x+i*VS,y+j*VS))continue;const dd=Math.hypot(i,j)*VS;if(dd<best){best=dd;bi=i;bj=j}}
+      const ln=Math.hypot(bi,bj)||1;DD[b*M+a]=best>8?8:best-.5*VS;UX[b*M+a]=bi/ln;UY[b*M+a]=bj/ln}
+    const LX=-.45,LY=.65,LZ=.62,LL=Math.hypot(LX,LY,LZ),lx=LX/LL,ly=LY/LL,lz=LZ/LL,HXv=lx,HYv=ly,HZv=lz+1,HL=Math.hypot(HXv,HYv,HZv);   // hướng đèn + vector nửa góc (nhìn từ +z)
+    v.cyl(bx,ccy,z0,N*VS,NL*VS,(a,b,l)=>{
+      const k=b*M+a;if(a<0||b<0||a>=M||b>=M)return -1;const d=DD[k];if(d===0&&UX[k]===0&&UY[k]===0)return -1;   // ô nằm ngoài mặt nạ
+      const zz=(l+.5-NL/2)*VS,o=Math.max(TR-d,0);if(zz*zz+o*o>TR*TR)return -1;                                  // ngoài mặt cắt tròn của ống
+      let nx=o*UX[k],ny=o*UY[k],nz=zz;const nl=Math.hypot(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
+      const diff=Math.max(nx*lx+ny*ly+nz*lz,0),sp=Math.pow(Math.max((nx*HXv+ny*HYv+nz*HZv)/HL,0),22);
+      const br=.30+.50*diff+.55*sp+.10*ny,g=Math.max(40,Math.min(255,Math.round(40+br*215)));
+      return (Math.round(g*.96)<<16)|(g<<8)|Math.min(255,Math.round(g*1.05))},VS,'z');
+    const bez=(p,t)=>{const u=1-t;return[u*u*u*p[0][0]+3*u*u*t*p[1][0]+3*u*t*t*p[2][0]+t*t*t*p[3][0],u*u*u*p[0][1]+3*u*u*t*p[1][1]+3*u*t*t*p[2][1]+t*t*t*p[3][1]]};
+    const ay0=top+.235;
+    for(const P of[[[-.015,0],[-.1,.05],[-.1,.2],[-.09,.31]],[[.015,0],[.12,.05],[.2,.12],[.22,.277]]]){   // 2 càng đỡ chai (chỉ để chai không lơ lửng): ống inox bạc cùng chất liệu, bỏ hết viền đen + hạt đen
+      for(let q=0;q<=44;q++){const[px,py]=bez(P,q/44);v.ell(bx+px,ay0+py,z0,.02,.02,.02,CH[2],.01);v.ell(bx+px-.006,ay0+py+.008,z0+.008,.011,.011,.011,CH[q%2],.008)}}   // thân ống + vệt sáng
+    // CHAI RƯỢU to (đen bóng, nắp thiếc đỏ): dựng thẳng rồi xoay nằm, miệng chai chếch lên bên trái 11°
+    const bv=new VB(),BK=0x15191c;
+    bv.cyl(0,-.1875,0,.08,.375,BK,.01,'y');bv.cyl(0,.03,0,.055,.06,BK,.01,'y');bv.cyl(0,.16,0,.03,.2,BK,.008,'y');
+    bv.cyl(0,.31,0,.034,.1,0xc01c2c,.008,'y');bv.cyl(0,.355,0,.036,.012,0x8c1220,.006,'y');
+    bv.box(.04,-.19,.069,.012,.34,.012,0x56626d,.012);bv.box(.06,-.19,.053,.01,.34,.01,0x3b454e,.01);   // vệt bóng thủy tinh
+    const bm=bv.mesh();bm.position.set(hx+bx,yc,hz+zb);bm.rotation.z=79*Math.PI/180;S.add(bm);prevTrack.push(bm);TBOT=bm;
+    if(K){
+      for(const[gx,gz]of[[-.15,.02],[0,-.07],[.15,.02],[-.075,.13],[.075,.13]]){   // 5 ly thủy tinh trong suốt xếp thành 1 chụm (mỗi ly 1 mesh riêng, cầm được; bấm E để cầm và rót rượu)
+        const gm=K.make('wine',1,0,0),wx=tx+2.45+gx,wz=tz+.27+gz;gm.position.set(hx+wx,top,hz+wz);S.add(gm);prevTrack.push(gm);
+        PIECES.push({type:'wine',x:hx+wx,y:top+.14,z:hz+wz,mesh:gm,t:0})}
+      for(const[type,lx,lz,k]of[['grape',2.1,.42,.9],['orange',2.8,.46,.9],['sandwich',2.45,.54,.9],['apple',2.4,-.56,.9],['grape',2.85,-.54,.9],['sandwich',2.0,-.55,.85]]){   // trái cây / bánh đặt rải quanh khu rượu
+        const fm=K.make(type,k,0,0);fm.position.set(hx+tx+lx,top,hz+tz+lz);S.add(fm);prevTrack.push(fm);
+        PIECES.push({type,x:hx+tx+lx,y:top+.07,z:hz+tz+lz,mesh:fm,t:0})}
+    }
+   }
+   cb(tx-hw-.12,tx+hw+.12,FL,top,tz-hd-.12,tz+hd+.12);
+  }
   // ---- KỆ TRANH x10 (chia đều 5 trái + 5 phải): 9 kệ treo ảnh chân dung + bảng tên, 5 kệ còn lại để trống ----
   const WHITE=[0xf4f4f4,0xe8e8e8,0xfafafa];
   const seg=(ax,ay,az,bx,by,bz,c)=>{                       // thanh chéo bằng chuỗi voxel .08
@@ -396,24 +457,24 @@ function build(hx,hz){
   const LAYOUT=[
     // Nhóm theo chức vụ, mỗi hàng 8 tranh: 4 trái + 4 phải (x<0 / x>0), hai hàng đối xứng nhau.
     // ---- hàng SAU: cố vấn (Advisor) · đồng sáng lập (Co-Founder) · C-level / tăng trưởng ----
-    {pi:13,x:-14.4,z:-2.9,s:1.0, deg:20},   // Prof. Nancy Lynch (Advisor)
-    {pi:14,x:-10.4,z:-2.9,s:1.1, deg:12},   // Prof. Sriram Viswanath (Advisor)
-    {pi:12,x: -6.0,z:-2.8,s:1.3, deg:10},   // Dr. Kishori Konwar (Co-Founder & CTO)
-    {pi:0, x: -2.6,z:-2.6,s:1.7, deg:12},   // Muriel Médard (Co-Founder & CEO)
-    {pi:1, x:  2.6,z:-2.6,s:1.55,deg:-14},  // Kent Lin (Co-Founder)
-    {pi:7, x:  6.0,z:-2.9,s:1.2, deg:-10},  // Eli Laipson (CMO)
-    {pi:11,x: 10.4,z:-2.9,s:1.1, deg:-14},  // Sajida Zouarhi (CPO)
-    {pi:8, x: 14.4,z:-2.9,s:1.0, deg:-22},  // David Song (APAC Growth Lead)
+    {pi:13,x:-14.4,z:-2.9-DDZ,s:1.0, deg:20},   // Prof. Nancy Lynch (Advisor)
+    {pi:14,x:-10.4,z:-2.9-DDZ,s:1.1, deg:12},   // Prof. Sriram Viswanath (Advisor)
+    {pi:12,x: -6.0,z:-2.8-DDZ,s:1.3, deg:10},   // Dr. Kishori Konwar (Co-Founder & CTO)
+    {pi:0, x: -2.6,z:-2.6-DDZ,s:1.7, deg:12},   // Muriel Médard (Co-Founder & CEO)
+    {pi:1, x:  2.6,z:-2.6-DDZ,s:1.55,deg:-14},  // Kent Lin (Co-Founder)
+    {pi:7, x:  6.0,z:-2.9-DDZ,s:1.2, deg:-10},  // Eli Laipson (CMO)
+    {pi:11,x: 10.4,z:-2.9-DDZ,s:1.1, deg:-14},  // Sajida Zouarhi (CPO)
+    {pi:8, x: 14.4,z:-2.9-DDZ,s:1.0, deg:-22},  // David Song (APAC Growth Lead)
     // ---- hàng TRƯỚC trái: cộng đồng (Community) ----
-    {pi:4, x:-12.0,z: 3.0,s:.9,  deg:168},  // Swarna (Optimum Team)
-    {pi:6, x: -9.4,z: 3.0,s:.9,  deg:172},  // Abbas (Tech Ambassador)
-    {pi:5, x: -5.2,z: 3.0,s:.85, deg:164},  // Flash (Lead Moderator)
-    {pi:3, x: -2.9,z: 3.0,s:.9,  deg:160},  // Jeffrey Elliott (Community Admin)
+    {pi:4, x:-12.0,z: 3.0+DDZ,s:.9,  deg:168},  // Swarna (Optimum Team)
+    {pi:6, x: -9.4,z: 3.0+DDZ,s:.9,  deg:172},  // Abbas (Tech Ambassador)
+    {pi:5, x: -5.2,z: 3.0+DDZ,s:.85, deg:164},  // Flash (Lead Moderator)
+    {pi:3, x: -2.9,z: 3.0+DDZ,s:.9,  deg:160},  // Jeffrey Elliott (Community Admin)
     // ---- hàng TRƯỚC phải: kỹ thuật / sản phẩm / vận hành ----
-    {pi:9, x:  2.9,z: 3.0,s:1.0, deg:200},  // Har Preet Singh (VP Engineering)
-    {pi:15,x:  5.2,z: 3.0,s:.95, deg:195},  // Lewej Whitelow (Senior TPM)
-    {pi:10,x:  9.4,z: 3.0,s:.95, deg:188},  // Alan Sunny (Head of TCSM)
-    {pi:2, x: 12.0,z: 3.0,s:.9,  deg:192}   // Chandler Otterbein (Strategy & Operations)
+    {pi:9, x:  2.9,z: 3.0+DDZ,s:1.0, deg:200},  // Har Preet Singh (VP Engineering)
+    {pi:15,x:  5.2,z: 3.0+DDZ,s:.95, deg:195},  // Lewej Whitelow (Senior TPM)
+    {pi:10,x:  9.4,z: 3.0+DDZ,s:.95, deg:188},  // Alan Sunny (Head of TCSM)
+    {pi:2, x: 12.0,z: 3.0+DDZ,s:.9,  deg:192}   // Chandler Otterbein (Strategy & Operations)
   ];
   const GUIDE_EASELS=[];   // vị trí + hướng mặt + tên các tranh thật, cho guide-bot.js
   const easel=(cx,cz,pi,K,deg)=>{
@@ -451,8 +512,8 @@ function build(hx,hz){
   // f=+1: quay mặt về +z (kệ sát tường sau), f=-1: quay mặt về -z (kệ hàng trước); k = loại hình trên bảng (0..5).
   // Vị trí chọn vào các khoảng trống giữa các kệ tranh; cửa trước (x≈0) để trống làm lối vào.
   const CASES=[
-    {x:-12.6,z:-4.1,f: 1,k:0},{x:-7.8,z:-4.1,f: 1,k:1},{x:-2.1,z:-4.1,f: 1,k:2},{x:2.8,z:-4.1,f: 1,k:3},{x:7.9,z:-4.1,f: 1,k:4},
-    {x:-14.2,z:3.9,f:-1,k:5},{x:-7.0,z:3.9,f:-1,k:0},{x:7.3,z:3.9,f:-1,k:2},{x:14.0,z:3.9,f:-1,k:1}
+    {x:-12.6,z:-4.1-DDZ,f: 1,k:0},{x:-7.8,z:-4.1-DDZ,f: 1,k:1},{x:-2.1,z:-4.1-DDZ,f: 1,k:2},{x:2.8,z:-4.1-DDZ,f: 1,k:3},{x:7.9,z:-4.1-DDZ,f: 1,k:4},
+    {x:-14.2,z:3.9+DDZ,f:-1,k:5},{x:-7.0,z:3.9+DDZ,f:-1,k:0},{x:7.3,z:3.9+DDZ,f:-1,k:2},{x:14.0,z:3.9+DDZ,f:-1,k:1}
   ];
   const CRYS=[0x6ff0ff,0xff7ad9,0xffd95e,0x8aff9a,0xa78bff,0xff9a5e], CASEB=[0x4b5058,0x454a52,0x50555d];
   for(const c of CASES){
@@ -509,6 +570,7 @@ function build(hx,hz){
 
   {const em=EM.mesh();em.material=LIGHTBASIC;em.position.set(hx,0,hz);S.add(em);prevTrack.push(em)}   // lưới đèn trần + LED (không vào meshes: không cản đạn)
   for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
+  window.PavilionFruit={x:hx+TBL.x,z:hz+TBL.z,hw:TBL.hw+.12,hd:TBL.hd+.12,y0:FL,y1:TBL.top+.5,top:TBL.top,pieces:PIECES,bottle:TBOT};   // fruit-eat.js đọc: vùng nhìn trúng bàn + danh sách từng quả trên bàn {type,x,y,z,mesh,t} (rebuild tự cập nhật)
   window.PavilionGuide={cx:hx,cz:hz,FL,HX,HZ,easels:GUIDE_EASELS,cases:CASES.map(c=>({x:hx+c.x,z:hz+c.z}))};   // guide-bot.js đọc mỗi khung hình (rebuild tự cập nhật)
   // ban đêm: 6 đèn lồng dưới hiên + đèn đá cạnh bậc thang sáng lên (daycycle.js); 2 đèn giữa có thêm PointLight
   if(window.DayCycle){
