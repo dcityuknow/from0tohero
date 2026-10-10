@@ -248,7 +248,7 @@ function show(card,l,done,back){
   for(const c of CH){
     const b=document.createElement('button');b.className='cpi';b.type='button';b.dataset.k=c.k;
     const cv=snapshot(c.k,150,208,-.5);b.append(cv,document.createTextNode(cname(c,l)));
-    b.addEventListener('click',()=>pick(c.k));grid.appendChild(b);btns[c.k]=b;
+    b.addEventListener('click',()=>{pick(c.k);if(typeof pipSnd==='function')pipSnd()});grid.appendChild(b);btns[c.k]=b;   // bấm chọn nhân vật: pip pip
   }
   // khung xoay lớn
   size(210,290);
