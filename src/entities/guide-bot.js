@@ -341,7 +341,11 @@ function view(){
   const c=typeof C!=='undefined'?C:null;   // C = camera trong core.js
   if(!c||!c.getWorldPosition)return null;
   c.getWorldPosition(_p);c.getWorldDirection(_d);
-  return{x:_p.x,y:_p.y,z:_p.z,dx:_d.x,dy:_d.y,dz:_d.z};
+  let x=_p.x,y=_p.y,z=_p.z;
+  // Góc thứ 3: camera lùi ra sau lưng nhân vật -> dùng vị trí THẬT của nhân vật (P) để né / theo / va chạm,
+  // nếu không bot chỉ né cái camera và nhân vật đi xuyên qua bot. Hướng nhìn (dx,dy,dz) vẫn lấy từ camera.
+  if(window.TP&&TP.shown&&typeof P!=='undefined'){x=P.x;z=P.z;y=P.y+(typeof eye==='number'?eye:1.6)}
+  return{x,y,z,dx:_d.x,dy:_d.y,dz:_d.z};
 }
 
 // ---------- ĐỌC THOẠI ----------
