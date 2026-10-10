@@ -9,6 +9,15 @@ function snd(f,d,t='square',v=.05,pos){try{AC=AC||new AudioContext();if(AC.state
     if(p.positionX){p.positionX.value=pos.x;p.positionY.value=pos.y;p.positionZ.value=pos.z}else p.setPosition(pos.x,pos.y,pos.z);
     g.connect(p);p.connect(AC.destination)}else g.connect(AC.destination);
   o.start();o.stop(n+d)}catch(e){}}
+// "pip pip": hai tiếng bíp ngắn, cao, êm (dùng khi bấm chọn nhân vật ở màn chọn)
+function pipSnd(){try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();
+  const n=AC.currentTime;
+  for(const dt of[0,.1]){
+    const o=AC.createOscillator(),g=AC.createGain(),t=n+dt;
+    o.type='square';o.frequency.value=1250;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.05,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+.06);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.07)}
+}catch(e){}}
 const _lf=new THREE.Vector3();
 function listen(){if(!AC)return;const L=AC.listener;C.getWorldDirection(_lf);
   if(L.positionX){L.positionX.value=C.position.x;L.positionY.value=C.position.y;L.positionZ.value=C.position.z;

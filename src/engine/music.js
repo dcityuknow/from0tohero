@@ -24,12 +24,22 @@ const MUSIC={
   au.addEventListener('ended',()=>{bad=0;next()});
   au.addEventListener('playing',()=>{bad=0});
   au.addEventListener('error',()=>{if(++bad<MUSIC.files.length)next()});   // file thiếu / hỏng -> bỏ qua bài đó (dừng hẳn nếu hỏng hết)
-  // Trình duyệt chỉ cho phát nhạc sau khi người chơi bấm 1 lần -> bắt đầu khi bấm "Bấm để chơi"
-  $('ov').addEventListener('click',()=>{
+  // Trình duyệt chỉ cho phát nhạc sau khi người chơi tương tác 1 lần -> bắt đầu ngay từ lần bấm / chạm / phím ĐẦU TIÊN
+  // (màn chọn ngôn ngữ của profile.js nằm trên cùng nên bấm chọn ngôn ngữ là nhạc đã vang lên, không chờ tới "Bấm để chơi").
+  // Bắt ở giai đoạn capture nên nút nào có stopPropagation cũng không chặn được.
+  function kick(){
     started=true;
     if(!on)return;
     if(!au.src)next();else au.play().catch(()=>{});
-  });
+  }
+  const GEST=['pointerdown','touchstart','keydown','click'];
+  function onGesture(){
+    kick();
+    if(on&&!au.paused){for(const g of GEST)removeEventListener(g,onGesture,true)}   // đã phát được thì thôi nghe; nếu bị chặn thì lần bấm sau thử lại
+  }
+  for(const g of GEST)addEventListener(g,onGesture,true);
+  // thử phát luôn khi tải trang (một số trình duyệt / thiết lập cho phép); bị chặn thì chờ lần bấm đầu tiên ở trên
+  if(on){started=true;next();au.play().then(()=>{for(const g of GEST)removeEventListener(g,onGesture,true)}).catch(()=>{})}
   // nhạc nhỏ dần / to dần mượt khi vào - ra màn tạm dừng
   setInterval(()=>{
     const tg=on?(playing?MUSIC.vol:MUSIC.pauseVol):0;
