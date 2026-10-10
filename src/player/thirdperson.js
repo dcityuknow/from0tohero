@@ -234,15 +234,27 @@ const TP=(function(){
     const mg=held&&held.mg[cur],p=new THREE.Vector3();(mg&&mg.visible?mg:held).getWorldPosition(p);
     const m=new THREE.Mesh(UG,M(md.drop));m.scale.set(.09,.15,.1);m.position.copy(p);spawnPart(m,Math.random()*.6-.3,-.5,Math.random()*.6-.3,1.6,true)}
   if(typeof dropMag==='function'){const o=dropMag;window.dropMag=function(){if(shown&&model){tpDrop();return}return o.apply(this,arguments)}}
-  if(typeof shoot==='function'){const o=shoot;window.shoot=function(){if(swBlock())return;return o.apply(this,arguments)}}
-  if(typeof reload==='function'){const o=reload;window.reload=function(){if(shown&&swOn)return;return o.apply(this,arguments)}}
+  const SWMSG={vi:'Đang bơi - không thể bắn · dừng lại để bắn',en:'Swimming - cannot shoot · stop moving to shoot'};let swMsgT=0;
+  const swimBlock=()=>{if(!swimming)return false;const n=performance.now();if(n-swMsgT>1500){swMsgT=n;if(typeof showMsg==='function')showMsg(SWMSG[L]||SWMSG.en)}return true};   // bơi (đang di chuyển / chìm đầu) -> không bắn · đứng yên trên nước vẫn bắn bình thường
+  if(typeof shoot==='function'){const o=shoot;window.shoot=function(){if(swBlock()||swimBlock())return;return o.apply(this,arguments)}}
+  if(typeof startHold==='function'){const o=startHold;window.startHold=function(){if(swimming)return;return o.apply(this,arguments)}}   // lựu đạn cũng không giật chốt khi đang bơi
+  if(typeof reload==='function'){const o=reload;window.reload=function(){if(shown&&swOn||swimming)return;return o.apply(this,arguments)}}
 
   // ---------- CHẠY NHẤP NHÔ + BƠI ----------
-  let swimK=0,swimming=false,stk=0,bobK=0,tBob=0,bubT=0;   // swimK: 0..1 mức chuyển sang tư thế bơi · stk: pha nhịp tay bơi · bobK: 0..1 mức nhấp nhô khi chạy trên cạn (tắt khi trượt / trên không / dưới nước)
-  const _sq=new THREE.Quaternion(),_se=new THREE.Euler(),_bp=V3(0,0,0),MOUTHB=V3(0,1.45,.25);
-  function swimLean(){const v=P.swv||0;return 1.3+(v<0?Math.min(.45,-v/2.8*.45):-Math.min(.5,v/3.6*.5))}   // nằm sấp ~75°; lặn (swv<0) chúi đầu xuống, trồi lên (swv>0) ngẩng đầu
-  function swimArms(){   // 2 tay quạt luân phiên: xuôi hông -> giơ ra sau lưng (vung qua mặt nước) -> với về phía trước -> kéo xuống dưới bụng; lệch pha nửa vòng
+  let swimK=0,swimming=false,stk=0,bobK=0,tBob=0,bubT=0,fwdV=0,swimBack=false,backK=0;   // fwdV: vận tốc dọc theo hướng nhìn (âm = đang lùi) · swimBack: đang bơi ngửa (lùi) · backK: 0..1 mức chuyển sang bơi ngửa   // swimK: 0..1 mức chuyển sang tư thế bơi · stk: pha nhịp tay bơi · bobK: 0..1 mức nhấp nhô khi chạy trên cạn (tắt khi trượt / trên không / dưới nước)
+  const _sq=new THREE.Quaternion(),_sq2=new THREE.Quaternion(),BGRIP=V3(.2,1.08,.34),BGQ=new THREE.Quaternion().setFromUnitVectors(V3(0,0,1),V3(0,-1,0)),_se=new THREE.Euler(),_bp=V3(0,0,0),MOUTHB=V3(0,1.45,.25);
+  function swimLean(){const v=P.swv||0,l=1.3+(v<0?Math.min(.45,-v/2.8*.45):-Math.min(.5,v/3.6*.5));return backK>.5?-l:l}   // tới: nằm sấp · lùi: nằm NGỬA (dấu âm = ngả ra sau), lặn thì đầu chúi xuống, trồi thì ngẩng   // nằm sấp ~75°; lặn (swv<0) chúi đầu xuống, trồi lên (swv>0) ngẩng đầu
+  function swimArms(){   // bơi sải (tới): 2 tay quạt luân phiên, súng đeo sau lưng · bơi ngửa (lùi): tay trái quạt ngược ra sau đầu, tay phải giữ súng trên ngực chĩa về phía trước
     const w=Math.min(1,swimK*1.5);
+    if(backK>.5){
+      _sq.setFromEuler(_se.set(-stk,0,-.2));model.armL.quaternion.slerp(_sq,w);model.armL.scale.y+=(1-model.armL.scale.y)*w;   // tay trái: hông -> giơ lên trời -> qua đầu -> thọc xuống nước
+      _sq2.copy(model.armR.quaternion);reach(model.armR,SH.r,BGRIP);model.armR.quaternion.slerp(_sq2,1-w);   // tay phải: nắm báng súng đặt trên ngực
+      for(const t in slung)if(t!=='grenade')slung[t].visible=t!==cur;
+      for(const t in held.mg)held.mg[t].visible=false;
+      for(const t in held.m){const sh=t===cur&&t!=='grenade'&&swimK>.5;held.m[t].visible=sh}
+      if(cur!=='grenade'){held.position.copy(BGRIP);held.quaternion.copy(BGQ);held.scale.setScalar(1)}   // nòng song song thân, hướng về phía chân (= phía trước)
+      if(fp.root)fp.root.visible=false;
+      return}
     for(const[arm,o,z]of[[model.armR,0,.2],[model.armL,Math.PI,-.2]]){
       _sq.setFromEuler(_se.set(stk+o,0,z));arm.quaternion.slerp(_sq,w);arm.scale.y+=(1-arm.scale.y)*w}
     if(swimK>.5){   // tay bận bơi: súng / trái cây cất ra sau lưng (đeo)
@@ -254,20 +266,55 @@ const TP=(function(){
     if(!P.under||!window.NatureKit||!NatureKit.bubble)return;
     bubT-=dt;if(bubT>0)return;bubT=.3+Math.random()*.3;
     model.g.updateMatrixWorld(true);model.g.localToWorld(_bp.copy(MOUTHB));NatureKit.bubble(_bp.x,_bp.y,_bp.z)}
+  // Trạng thái bơi: chạy MỌI khung (cả góc thứ nhất lẫn góc thứ 3) để chặn bắn + diễn hoạt ảnh bơi ở góc nhìn thứ nhất.
+  // swimming = đang xuống nước sâu VÀ đang di chuyển / chìm đầu. Đứng yên nổi trên nước thì swimming=false -> vẫn bắn được.
+  function swimState(dt){
+    const vf=dt>0?((P.x-lx)*-Math.sin(yaw)+(P.z-lz)*-Math.cos(yaw))/dt:0;fwdV+=((Math.abs(vf)>40?0:vf)-fwdV)*Math.min(1,dt*12);   // >0 đi tới, <0 đang lùi (phím S)
+    const spd=dt>0?Math.hypot(P.x-lx,P.z-lz)/dt:0;lx=P.x;lz=P.z;lastSpd+=((spd>40?0:spd)-lastSpd)*Math.min(1,dt*12);
+    tBob+=dt;
+    const spw=!!P.sw&&!dead;
+    if(!spw)swimming=false;else if(!swimming){if(lastSpd>.5||P.under)swimming=true}else if(lastSpd<.2&&!P.under)swimming=false;
+    if(!spw)swimBack=false;else if(fwdV<-.5)swimBack=true;else if(fwdV>.5)swimBack=false;   // có độ trễ để không nhấp nháy khi đi ngang (A/D)
+    backK+=((swimBack?1:0)-backK)*Math.min(1,dt*6);
+    swimK+=((swimming?1:0)-swimK)*Math.min(1,dt*6);
+    if(swimK>.02)stk+=dt*(4.2+Math.min(lastSpd,6)*.6);
+    bobK+=(((P.ground&&!spw&&slideT<=0)?1:0)-bobK)*Math.min(1,dt*10);
+    if(swimming&&scoped)scoped=false;   // đang bơi: bỏ ngắm sniper
+  }
+  // ---- GÓC NHÌN THỨ NHẤT khi bơi: súng hạ xuống, hai tay hiện ra quạt nước (bơi sải) / tay trái quạt ngược + tay phải giữ súng (bơi ngửa) ----
+  const ZAX=V3(0,0,1),_hp=V3(0,0,0),_sp=V3(0,0,0),_dq=new THREE.Quaternion(),_zq=new THREE.Quaternion();
+  function placeArm(a,x,y,z,sx,roll){   // đặt bàn tay ở (x,y,z) (toạ độ camera), ống tay kéo về vai: xoay + kéo dài cho khớp
+    _hp.set(x,y,z);_sp.set(sx*.3,-.5,.35).sub(_hp);const d=_sp.length()||1e-3;_sp.divideScalar(d);
+    _dq.setFromUnitVectors(ZAX,_sp);_zq.setFromAxisAngle(ZAX,roll);a.quaternion.copy(_dq).multiply(_zq);
+    a.position.copy(_hp);a.scale.set(sx<0?-1:1,1,Math.max(.85,Math.min(1.4,d/.62)));a.visible=true}
+  function fpSwim(dt,tpShown){
+    if(!vm||!vm.userData)return;
+    const ud=vm.userData,G=ud.G;
+    if(!ud.swA){const R=arm(0,0,0,0,0),L=arm(0,0,0,0,0,true);R.visible=L.visible=false;vm.add(R,L);R.traverse(o=>o.layers.set(1));L.traverse(o=>o.layers.set(1));ud.swA={R,L}}   // dựng lười (vm dựng lại mỗi lần đổi súng)
+    const A=ud.swA;
+    if(tpShown||swimK<.02||dead){A.R.visible=A.L.visible=false;G.visible=true;return}
+    const w=swimK,low=-.8*(1-w),back=backK>.5;
+    ud.la.visible=false;
+    if(back){   // BƠI NGỬA: súng hạ thấp nằm trên ngực (tay phải giữ), tay trái vung từ hông -> qua đầu -> thọc xuống nước
+      G.visible=true;G.position.y-=.22*w;G.position.z+=.1*w;G.rotation.x-=.45*w;A.R.visible=false;
+      const f=stk;
+      placeArm(A.L,-.5+.1*Math.cos(f),-.2-.55*Math.cos(f)+low,-.45-.25*Math.sin(f),-1,-.3*Math.sin(f));
+    }else{      // BƠI SẢI: súng đeo sau lưng (trượt khuất xuống dưới), hai tay quạt luân phiên: vươn ra trước -> kéo xuống nước ra sau -> nhấc lên vòng về trước
+      G.position.y-=1.2*w;G.visible=w<.9;
+      for(const[a,sx,o]of[[A.R,1,0],[A.L,-1,Math.PI]]){
+        const f=stk+o,sn=Math.sin(f);
+        placeArm(a,sx*(.2+.12*sn),-.3-.2*sn+low,-.58-.2*Math.cos(f),sx,sx*.4*sn)}
+    }
+    C.rotation.z+=Math.sin(stk)*.03*w*(back?-1:1);C.position.y+=Math.sin(stk*2)*.025*w;   // thân lắc theo nhịp tay, đầu bồng bềnh
+  }
+  function apply(dt){swimState(dt);const r=applyTP(dt);fpSwim(dt,r);return r}
+
   // Gọi 1 lần mỗi khung SAU khi main.js đặt C.position / C.rotation theo góc thứ nhất. Nếu bật góc 3: lùi camera + đặt thân nhân vật.
-  function apply(dt){
+  function applyTP(dt){
     tickCrumbs(dt);
     const a=active();
     if(!a){if(model&&shown){model.g.visible=false;shown=false}if(window.FruitEat&&FruitEat.bites)lastBn=FruitEat.bites();swPrev=cur;swOn=false;handPrev=cur==='grenade'?null:cur;return false}
     if(!ensure())return false;
-    // vận tốc thực tế (m/s) từ vị trí -> nhịp chân
-    const spd=dt>0?Math.hypot(P.x-lx,P.z-lz)/dt:0;lx=P.x;lz=P.z;lastSpd+=((spd>40?0:spd)-lastSpd)*Math.min(1,dt*12);
-    tBob+=dt;
-    {const spw=!!P.sw;   // đang bơi (nature/swim.js đặt P.sw / P.under / P.swv): di chuyển hoặc chìm đầu -> tư thế bơi; đứng yên nổi trên nước -> đứng thẳng đạp nước
-      if(!spw)swimming=false;else if(!swimming){if(lastSpd>.5||P.under)swimming=true}else if(lastSpd<.2&&!P.under)swimming=false;
-      swimK+=((swimming?1:0)-swimK)*Math.min(1,dt*6);
-      if(swimK>.02)stk+=dt*(4.2+Math.min(lastSpd,6)*.6);
-      bobK+=(((P.ground&&!spw&&slideT<=0)?1:0)-bobK)*Math.min(1,dt*10)}
     // camera: điểm quay = đầu nhân vật; lùi theo hướng nhìn, dò va chạm từng bước
     const cp=Math.cos(pitch),f=_f.set(-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp),r=_r.set(Math.cos(yaw),0,-Math.sin(yaw));
     const head=_h.set(P.x,P.y+CFG.head*(slideT>0?.65:1-.28*swimK),P.z);
@@ -351,7 +398,7 @@ const TP=(function(){
     return true;
   }
   addEventListener('keydown',e=>{if(e.code==='KeyC'&&playing&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey)toggle()});
-  return {toggle,apply,active,cfg:CFG,setDraw(u){drawT=u*DRAW},get near(){return near},get model(){return model},get shown(){return shown},get extra(){return shown?CFG.bodyPad:0},   // extra: bán kính đẩy thêm (m) khi thân nhân vật hiện ra (thân + tay rộng hơn vòng va chạm P.r) -> main.js / guide-bot.js cộng vào để không đi xuyên bot / nhân viên chòi
+  return {toggle,apply,active,cfg:CFG,setDraw(u){drawT=u*DRAW},get near(){return near},get swimming(){return swimming},get model(){return model},get shown(){return shown},get extra(){return shown?CFG.bodyPad:0},   // extra: bán kính đẩy thêm (m) khi thân nhân vật hiện ra (thân + tay rộng hơn vòng va chạm P.r) -> main.js / guide-bot.js cộng vào để không đi xuyên bot / nhân viên chòi
     get on(){return on},set on(v){on=!!v}};
 })();
 window.TP=TP;   // main.js / mobile.js gọi qua window.TP (const ở phạm vi script không tự thành thuộc tính window)
