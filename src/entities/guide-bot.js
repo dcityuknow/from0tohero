@@ -612,7 +612,7 @@ function updateStaff(dt,g,P,on,clampZ){
     // tránh chồng lên hướng dẫn viên chính và người chơi
     const sx=s.x,sz=s.z;
     if(spd>0){const[wx,wz]=steer(s,tx,tz),d=Math.hypot(wx-s.x,wz-s.z)||1,st2=Math.min(d,spd*dt);s.x+=(wx-s.x)/d*st2;s.z+=(wz-s.z)/d*st2}
-    for(const [ox,oz,r] of[[st.x,st.z,.9],P&&on?[P.x,P.z,.7]:[1e9,1e9,0]]){const dx=s.x-ox,dz=s.z-oz,dd=Math.hypot(dx,dz);if(dd<r&&dd>.001){s.x=ox+dx/dd*r;s.z=oz+dz/dd*r}}
+    for(const [ox,oz,r] of[[st.x,st.z,.9],P&&on?[P.x,P.z,.7+(window.TP?TP.extra:0)]:[1e9,1e9,0]]){const dx=s.x-ox,dz=s.z-oz,dd=Math.hypot(dx,dz);if(dd<r&&dd>.001){s.x=ox+dx/dd*r;s.z=oz+dz/dd*r}}
     for(let q=0;q<STAFF.length;q++)if(q!==n){const o2=STAFF[q],dx=s.x-o2.x,dz=s.z-o2.z,dd=Math.hypot(dx,dz);if(dd<.8&&dd>.001){s.x+=dx/dd*(.8-dd)*.5;s.z+=dz/dd*(.8-dd)*.5}}
     pushTbl(s);
     s.z=Math.max(z0,Math.min(z1,s.z));
@@ -687,7 +687,7 @@ function update(dt){
   }
   if(on){   // không đứng chồng lên người chơi
     const ox=st.x-P.x,oz=st.z-P.z,od=Math.hypot(ox,oz);
-    if(od<.7&&od>.001){st.x=clampX(P.x+ox/od*.7);st.z=clampZ(P.z+oz/od*.7)}
+    {const pr=.7+(window.TP?TP.extra:0);if(od<pr&&od>.001){st.x=clampX(P.x+ox/od*pr);st.z=clampZ(P.z+oz/od*pr)}}
   }
   pushTbl(st);   // lưới an toàn: không bao giờ nằm trong bàn
 
