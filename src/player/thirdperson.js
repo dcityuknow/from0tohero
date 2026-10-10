@@ -236,12 +236,14 @@ const TP=(function(){
   if(typeof dropMag==='function'){const o=dropMag;window.dropMag=function(){if(shown&&model){tpDrop();return}return o.apply(this,arguments)}}
   const SWMSG={vi:'Đang bơi - không thể bắn · dừng lại để bắn',en:'Swimming - cannot shoot · stop moving to shoot'};let swMsgT=0;
   const swimBlock=()=>{if(!swimming)return false;const n=performance.now();if(n-swMsgT>1500){swMsgT=n;if(typeof showMsg==='function')showMsg(SWMSG[L]||SWMSG.en)}return true};   // bơi (đang di chuyển / chìm đầu) -> không bắn · đứng yên trên nước vẫn bắn bình thường
-  if(typeof shoot==='function'){const o=shoot;window.shoot=function(){if(swBlock()||swimBlock())return;return o.apply(this,arguments)}}
+  if(typeof shoot==='function'){const o=shoot;window.shoot=function(){if(swBlock()||swimBlock()||slideT>0)return;   // đang lộn nhào: hai tay bận -> không bắn
+    return o.apply(this,arguments)}}
   if(typeof startHold==='function'){const o=startHold;window.startHold=function(){if(swimming)return;return o.apply(this,arguments)}}   // lựu đạn cũng không giật chốt khi đang bơi
   if(typeof reload==='function'){const o=reload;window.reload=function(){if(shown&&swOn||swimming)return;return o.apply(this,arguments)}}
 
   // ---------- CHẠY NHẤP NHÔ + BƠI ----------
-  let swimK=0,swimming=false,stk=0,bobK=0,tBob=0,bubT=0,fwdV=0,swimBack=false,backK=0;   // fwdV: vận tốc dọc theo hướng nhìn (âm = đang lùi) · swimBack: đang bơi ngửa (lùi) · backK: 0..1 mức chuyển sang bơi ngửa   // swimK: 0..1 mức chuyển sang tư thế bơi · stk: pha nhịp tay bơi · bobK: 0..1 mức nhấp nhô khi chạy trên cạn (tắt khi trượt / trên không / dưới nước)
+  let swimK=0,swimming=false,stk=0,bobK=0,tBob=0,bubT=0,fwdV=0,swimBack=false,backK=0,slK=0,dustT=0;   // slK: 0..1 mức chuyển sang tư thế XOẠC (Shift) · dustT: nhịp bụi bắn ra khi trượt
+     // fwdV: vận tốc dọc theo hướng nhìn (âm = đang lùi) · swimBack: đang bơi ngửa (lùi) · backK: 0..1 mức chuyển sang bơi ngửa   // swimK: 0..1 mức chuyển sang tư thế bơi · stk: pha nhịp tay bơi · bobK: 0..1 mức nhấp nhô khi chạy trên cạn (tắt khi trượt / trên không / dưới nước)
   const _sq=new THREE.Quaternion(),_sq2=new THREE.Quaternion(),BGRIP=V3(.2,1.08,.34),BGQ=new THREE.Quaternion().setFromUnitVectors(V3(0,0,1),V3(0,-1,0)),_se=new THREE.Euler(),_bp=V3(0,0,0),MOUTHB=V3(0,1.45,.25);
   function swimLean(){const v=P.swv||0,l=1.3+(v<0?Math.min(.45,-v/2.8*.45):-Math.min(.5,v/3.6*.5));return backK>.5?-l:l}   // tới: nằm sấp · lùi: nằm NGỬA (dấu âm = ngả ra sau), lặn thì đầu chúi xuống, trồi thì ngẩng   // nằm sấp ~75°; lặn (swv<0) chúi đầu xuống, trồi lên (swv>0) ngẩng đầu
   function swimArms(){   // bơi sải (tới): 2 tay quạt luân phiên, súng đeo sau lưng · bơi ngửa (lùi): tay trái quạt ngược ra sau đầu, tay phải giữ súng trên ngực chĩa về phía trước
@@ -261,6 +263,29 @@ const TP=(function(){
       for(const t in held.m)held.m[t].visible=false;for(const t in held.mg)held.mg[t].visible=false;
       for(const t in slung)if(t!=='grenade')slung[t].visible=true;
       if(fp.root)fp.root.visible=false}
+  }
+  // ---- LỘN NHÀO (Shift): chồm người về phía trước (hai tay vươn ra) -> chúi đầu, co người thành một khối tròn, LỘN MỘT VÒNG về phía trước -> bật dậy ----
+  // ru: 0..1 tiến độ cú lộn (slideT 0.7 -> 0) · tuck: 0..1 mức co người (duỗi lúc lao ra / lúc đứng dậy, co lúc đang lăn)
+  const DMAT=new THREE.MeshBasicMaterial({color:0xd8cdb4,transparent:true,opacity:.75});
+  const rollRu=()=>slideT>0?1-slideT/.7:1,rollTuck=ru=>e3(cl(ru,.08,.3))*(1-e3(cl(ru,.85,1)));
+  function rollPose(){
+    const w=Math.min(1,slK*1.6),ru=rollRu(),tk=rollTuck(ru),ax=-1.3-1.5*(1-tk);   // tay: vươn thẳng lên trước lúc lao ra -> ôm gối lúc lăn
+    _sq.setFromEuler(_se.set(ax,0,-.12));model.armL.quaternion.slerp(_sq,w);model.armL.scale.y+=(1-model.armL.scale.y)*w;
+    _sq.setFromEuler(_se.set(ax,0,.12));model.armR.quaternion.slerp(_sq,w);model.armR.scale.y+=(1-model.armR.scale.y)*w;
+    for(const t in held.m)held.m[t].visible=false;for(const t in held.mg)held.mg[t].visible=false;   // hai tay bận: súng đeo ra sau lưng
+    for(const t in slung)if(t!=='grenade')slung[t].visible=true;
+    if(fp.root)fp.root.visible=false;
+  }
+  function rollLift(){   // lăn trên đất: đặt thân sao cho điểm thấp nhất (đầu / lưng / chân) luôn vừa chạm đất
+    model.g.updateMatrixWorld(true);
+    const a=model.legL.rotation.x,fy=.75-.75*Math.cos(a),fz=-.75*Math.sin(a);let mn=1e9;
+    for(const[x,y,z]of[[0,1.7,.1],[0,.75,-.25],[0,1.3,-.25],[.14,fy,fz],[-.14,fy,fz]]){_bp.set(x,y,z).applyMatrix4(model.g.matrixWorld);if(_bp.y<mn)mn=_bp.y}
+    model.g.position.y+=(P.y+.04-mn)*Math.min(1,slK*1.6);   // cả hạ xuống lẫn nâng lên: điểm thấp nhất của thân luôn sát mặt đất -> lăn trên đất chứ không lộn giữa không trung
+  }
+  function slideDust(dt){   // bụi bắn lên dọc đường trượt
+    dustT-=dt;if(dustT>0)return;dustT=.035;
+    for(let i=0;i<2;i++){const m=new THREE.Mesh(CGEO,DMAT);m.position.set(P.x-sd.x*(.1+Math.random()*.5)+(Math.random()-.5)*.4,P.y+.06,P.z-sd.z*(.1+Math.random()*.5)+(Math.random()-.5)*.4);m.scale.setScalar(.9+Math.random()*1.4);S.add(m);
+      crumbs.push({m,vx:-sd.x*1.2+(Math.random()-.5)*1.1,vy:.5+Math.random()*.7,vz:-sd.z*1.2+(Math.random()-.5)*1.1,t:.3+Math.random()*.25})}
   }
   function swimFx(dt){   // chìm đầu: thỉnh thoảng nổi bọt khí ở miệng
     if(!P.under||!window.NatureKit||!NatureKit.bubble)return;
@@ -317,7 +342,7 @@ const TP=(function(){
     if(!ensure())return false;
     // camera: điểm quay = đầu nhân vật; lùi theo hướng nhìn, dò va chạm từng bước
     const cp=Math.cos(pitch),f=_f.set(-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp),r=_r.set(Math.cos(yaw),0,-Math.sin(yaw));
-    const head=_h.set(P.x,P.y+CFG.head*(slideT>0?.65:1-.28*swimK),P.z);
+    const head=_h.set(P.x,P.y+CFG.head*(slideT>0?.55:1-.28*swimK),P.z);
     const want=_t.copy(head).addScaledVector(f,-CFG.dist).addScaledVector(r,CFG.side);want.y+=CFG.up;
     let frac=1;const N=18;
     for(let i=1;i<=N;i++){const u=i/N,x=head.x+(want.x-head.x)*u,y=head.y+(want.y-head.y)*u,z=head.z+(want.z-head.z)*u;
@@ -361,18 +386,25 @@ const TP=(function(){
     }
     if(fr)lean=frLean(fr);else if(!gr)lean=gunLean();
     lean+=.08*Math.min(1,lastSpd/6)*bobK;   // chạy: người hơi chúi tới
+    slK+=(((slideT>0&&!P.sw)?1:0)-slK)*Math.min(1,dt*18);
+    const rolling=slideT>0&&!P.sw;
+    if(rolling){const ru=rollRu();lean=2*Math.PI*e3(cl(ru,.08,.92))+.45*Math.sin(Math.PI*cl(ru,0,.2))}   // lộn nhào: chồm tới một chút rồi quay trọn 360° về phía trước quanh hông
     if(P.sw)lean=swimming?swimLean():0;       // bơi: nằm sấp · đứng nước: thẳng người
-    leanS+=(lean-leanS)*Math.min(1,dt*(gr?16:10));
+    if(slideT<=0&&leanS>4)leanS-=2*Math.PI;   // lộn xong (đã quay tròn 360°) -> về lại góc 0 mà không quay ngược
+    if(rolling)leanS=lean;else leanS+=(lean-leanS)*Math.min(1,dt*(gr?16:10));
     const bk=bobK*Math.min(1,lastSpd/6),roll=swimK*Math.sin(stk)*.2+Math.sin(ph)*.035*bk,twist=-Math.sin(ph)*.06*bk;   // chạy: nghiêng nhẹ sang chân trụ + vai xoay ngược chân · bơi: thân lắc theo nhịp tay
-    model.g.visible=true;model.g.rotation.set(leanS,yaw+Math.PI+twist,roll);
-    _hv.set(0,.75,0);_hw.copy(_hv).applyEuler(_E.set(leanS,0,0));_hv.sub(_hw).applyAxisAngle(_Y,yaw+Math.PI);   // giữ nguyên chỗ hông khi nghiêng (chân không trượt)
+    const hd0=yaw+Math.PI;let dh=Math.atan2(sd.x,sd.z)-hd0;dh-=Math.round(dh/(2*Math.PI))*2*Math.PI;const hdg=hd0+dh*slK;   // lộn nhào: thân quay theo HƯỚNG LĂN (hướng đang chạy, không phải hướng nhìn)
+    model.g.visible=true;model.g.rotation.set(leanS,hdg+twist,roll);
+    _hv.set(0,.75,0);_hw.copy(_hv).applyEuler(_E.set(leanS,0,0));_hv.sub(_hw).applyAxisAngle(_Y,hdg);   // giữ nguyên chỗ hông khi nghiêng (chân không trượt)
     model.g.position.set(P.x+_hv.x,P.y+_hv.y,P.z+_hv.z);
     model.g.position.y+=(Math.abs(Math.cos(ph))-.5)*.07*bk                       // chạy: thân nhấp nhô (cao nhất lúc hai chân khép, thấp nhất lúc dang rộng)
       +(P.sw?(swimming?Math.sin(stk*2)*.02*swimK:Math.sin(tBob*2.1)*.035):0);    // nước: bồng bềnh theo nhịp bơi / theo sóng khi đứng nước
-    sq+=((slideT>0?.68:1)-sq)*Math.min(1,dt*14);model.g.scale.y=sq;
+    sq+=((1-.22*rollTuck(rollRu())*slK)-sq)*Math.min(1,dt*20);   // co người thành khối tròn khi lănmodel.g.scale.y=sq;
     const mv=Math.min(1,lastSpd/6);ph+=dt*lastSpd*1.45;
     const sw=Math.sin(ph)*.95*mv*(P.ground||P.sw?1:.25);
     model.legL.rotation.x=sw;model.legR.rotation.x=-sw;
+    if(slK>.02){   // lộn nhào: hai chân gập lên trước ngực (co) lúc lăn, duỗi lúc lao ra / chạm đất
+      const w=Math.min(1,slK*1.6),tg=-1.55*rollTuck(rollRu());model.legL.rotation.x+=(tg-model.legL.rotation.x)*w;model.legR.rotation.x+=(tg-model.legR.rotation.x)*w}
     if(P.sw){const kk=swimming?Math.sin(stk*3)*.5:Math.sin(tBob*5)*.55;model.legL.rotation.x=kk;model.legR.rotation.x=-kk}   // bơi: đập chân · đứng nước: đạp nước
     // súng đang cầm + hai bàn tay (toạ độ trong hệ thân nhân vật)
     const pt=Math.max(-.6,Math.min(.9,pitch))*.9,g=GUN[cur]||GUN.pistol;
@@ -392,6 +424,8 @@ const TP=(function(){
       gunPose(g,pt,dt,sw);   // cầm súng sẵn sàng / nạp đạn / đổi súng (báng súng cách ngực ~0.55m, xoay theo tâm ngắm quanh đường vai)
     }
     if(swimK>.02)swimArms();
+    if(slK>.02){rollPose();rollLift()}
+    if(slideT>0&&!P.sw){const ru=rollRu();if(ru<.12||ru>.6)slideDust(dt)}   // bụi lúc bật đi và lúc tiếp đất
     swimFx(dt);
     tracer.visible=false;flash.visible=false;   // vệt đạn / chớp nòng vẽ từ nòng súng của góc nhìn thứ nhất (đã ẩn) nên ở góc thứ 3 sẽ lơ lửng lệch khỏi nhân vật -> không vẽ
     if(vm)vm.visible=false;   // ẩn tay + súng góc nhìn thứ nhất
