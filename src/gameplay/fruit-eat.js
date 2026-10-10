@@ -1,6 +1,7 @@
 // Cầm + ĂN trái cây ở bàn giữa chòi triển lãm.
 //   · nhìn vào 1 quả trên bàn (trong tầm CFG.reach) -> hiện gợi ý, bấm E: tay phải ĐƯA RA đĩa, CHỤP lấy quả đó (quả trên bàn biến mất, 60 giây sau hiện lại), rút về cầm trên tay (súng tạm ẩn)
 //   · đang cầm: chuột trái = ĂN (giơ lên miệng, cắn 3 lần, trái nhỏ dần, mỗi lần cắn hồi 1 phần máu) · E = cất lại · bấm 1-4 đổi súng cũng tự cất
+//   · GÓC NHÌN THỨ 3 (phím C): cũng nhặt / ăn / uống được. Ngắm bằng tia từ camera, tầm với tính từ ĐẦU nhân vật (CFG.reachTP); thân nhân vật tự vươn tay chụp, rót rượu, đưa lên miệng cắn (player/thirdperson.js đọc FruitEat.tp() để diễn hoạt ảnh).
 //   · máu đã đầy thì không ăn (báo "Máu đã đầy"), vẫn giữ trái trên tay
 // Nạp SAU world/floor1/pavilion.js + fruit-kit.js, SAU player/viewmodel.js (arm, pick, animVM), gameplay/items.js (showMsg), engine/sound.js (snd), và TRƯỚC main.js.
 // Phím E đang được engrave.js dùng để khắc bảng lên tường: ở đây E chỉ "ăn" sự kiện khi đang nhìn trúng bàn hoặc đang cầm trái; còn lại để engrave.js xử lý như cũ.
@@ -11,6 +12,7 @@ const FK=window.FruitKit;
 
 const CFG={
   reach:3.2,           // m: xa nhất vẫn lấy được trái (tính từ mắt tới mặt bàn)
+  reachTP:2.3,         // m: như reach nhưng cho góc nhìn thứ 3 (tính từ đầu nhân vật, không phải từ camera đang lùi ra sau)
   pickCd:.25,          // s: chống bấm E 2 lần liền
   eatT:2.4,            // s: thời gian ăn hết 1 quả
   respawn:60,          // s: quả bị lấy đi sau bao lâu thì hiện lại trên bàn
@@ -49,6 +51,7 @@ const lang=()=>typeof L!=='undefined'?L:'vi';
 
 // ---------- TRẠNG THÁI ----------
 const st={fa:null,kk:1,fp:[0,0,0],lv:1,btArm:null,mouth:[0,0,0],bt:null,stream:null,pourSnd:0,held:null,phase:'',grp:null,fg:null,piece:null,taken:false,eaten:false,tgt:new THREE.Vector3(),eating:false,t:0,done:0,healed:0,fs:1,cdT:0};   // phase: 'reach' (đưa tay ra chụp) | 'hold' (cầm) ; eating = đang ăn trong phase hold
+st.bn=0;st.v={u:0,pu:0,pa:0,pw:0,pon:false,lift:0,chew:0,sip:0};   // bn: đếm số miếng cắn · v: thông số hoạt ảnh mỗi khung cho góc nhìn thứ 3 (thirdperson.js đọc qua FruitEat.tp())
 const tb=vis=>{const F=window.PavilionFruit;if(F&&F.bottle)F.bottle.visible=vis};   // chai to trên bàn: ẩn lúc rót rượu, rót xong hiện lại
 const e3=x=>x*x*(3-2*x),cl=(a,b,x)=>Math.min(1,Math.max(0,(x-a)/(b-a)));
 
@@ -60,17 +63,20 @@ let hintTxt='';
 function setHint(t){if(t===hintTxt)return;hintTxt=t;hint.textContent=t;hint.style.display=t?'block':'none'}
 
 // ---------- NGẮM VÀO 1 QUẢ TRÊN BÀN ----------
-const _o=new THREE.Vector3(),_d=new THREE.Vector3(),_ray=new THREE.Ray(),_pt=new THREE.Vector3();
+const _o=new THREE.Vector3(),_d=new THREE.Vector3(),_ray=new THREE.Ray(),_pt=new THREE.Vector3(),_h=new THREE.Vector3();
 function aimPiece(){
   const F=window.PavilionFruit;
   if(!F||!F.pieces||(typeof curFl!=='undefined'&&curFl!==0))return null;      // bàn chỉ có ở tầng 1
-  C.getWorldPosition(_o);C.getWorldDirection(_d);_ray.set(_o,_d);
+  C.getWorldPosition(_o);C.getWorldDirection(_d);_ray.set(_o,_d);   // tia ngắm luôn đi từ camera qua tâm ngắm (đúng chỗ tâm ngắm chỉ)
+  const tp=!!(window.TP&&TP.shown&&typeof P!=='undefined');           // góc thứ 3: camera lùi ~3.4m sau lưng -> tầm với phải tính từ ĐẦU nhân vật
+  if(tp)_h.set(P.x,P.y+(typeof eye==='number'?eye:1.6),P.z);
+  const reach=tp?CFG.reachTP:CFG.reach,pickR=tp?CFG.pickR*1.35:CFG.pickR;
   let best=null,bd=1e9;
   for(const p of F.pieces){
     if(!p.mesh.visible)continue;                                              // quả đã bị lấy (đang chờ hiện lại)
-    _pt.set(p.x,p.y,p.z);const along=_o.distanceTo(_pt);
-    if(along>CFG.reach)continue;
-    const off=_ray.distanceToPoint(_pt);if(off<CFG.pickR&&off<bd){bd=off;best=p}   // quả nằm gần tia ngắm nhất
+    _pt.set(p.x,p.y,p.z);const along=(tp?_h:_o).distanceTo(_pt);
+    if(along>reach)continue;
+    const off=_ray.distanceToPoint(_pt);if(off<pickR&&off<bd){bd=off;best=p}   // quả nằm gần tia ngắm nhất
   }
   return best;
 }
@@ -127,7 +133,7 @@ function eat(){
 }
 function bite(){
   const total=FK.TYPES[st.held].heal,n=CFG.bites;
-  st.done++;
+  st.done++;st.bn++;
   const part=Math.round(total*st.done/n)-Math.round(total*(st.done-1)/n),before=P.hp;
   P.hp=Math.min(CFG.maxHp,P.hp+part);st.healed+=P.hp-before;     // HUD thanh máu tự cập nhật theo P.hp (main.js)
   if(typeof snd==='function'){
@@ -151,9 +157,11 @@ function update(dt){
   if(typeof vm!=='undefined'&&vm)vm.scale.setScalar(1e-4);       // ẩn súng khi đang cầm trái (vm vẫn được main.js cập nhật bình thường)
   const g=st.grp,bobY=(typeof vm!=='undefined'&&vm)?vm.position.y:0;
   let dx=0,dy=0,dz=0,rx=0,rz=0,target=1;
+  const V=st.v;V.u=V.pu=V.pa=V.pw=V.lift=V.chew=V.sip=0;V.pon=false;
+  g.visible=!(window.TP&&TP.shown);   // góc thứ 3: ẩn bàn tay góc nhìn thứ nhất (thân nhân vật tự diễn bằng tay của nó)
   if(st.phase==='reach'){
     // đưa tay ra đĩa -> chụp -> rút về. Vị trí quả đổi sang tọa độ camera; tay vươn theo đúng hướng quả (trên màn hình tay trùng quả), tối đa CFG.reachMax mét
-    st.t+=dt;const u=Math.min(1,st.t/CFG.reachT);
+    st.t+=dt;const u=Math.min(1,st.t/CFG.reachT);V.u=u;
     _tc.copy(st.tgt);C.worldToLocal(_tc);
     const len=_tc.length()||1;_tc.multiplyScalar(Math.min(1,CFG.reachMax/len));
     _hb.set(...CFG.hand);_tc.sub(_hb);_tc.y-=.05;                 // độ dời từ tư thế cầm tới điểm chụp (lòng bàn tay hơi thấp hơn quả)
@@ -167,11 +175,12 @@ function update(dt){
   }else if(st.phase==='pour'){   // rót rượu: chai nghiêng trên miệng ly, tia rượu chảy xuống, mực rượu dâng lên
     st.t+=dt;const u=Math.min(1,st.t/CFG.pourT),K=st.kk,W=FK.WG;
     const a=e3(cl(0,.25,u))*(1-e3(cl(.85,1,u))),w=e3(cl(.28,.85,u)),gl=st.fg.children[0].userData;
+    V.pu=u;V.pa=a;V.pw=w;
     st.bt.visible=a>.02;const m=st.mouth,r=1-a;   // chai từ dưới trái đưa lên, nghiêng miệng chai xuống ly; tay trái giữ nguyên hướng
     st.bt.position.set(m[0]-r*.4,m[1]-r*.45,m[2]+r*.1);st.bt.rotation.z=-a*1.83;
     {const th=st.bt.rotation.z;st.fa.visible=st.bt.visible;st.fa.position.set(st.bt.position.x+.4*Math.sin(th),st.bt.position.y-.4*Math.cos(th),st.bt.position.z)}   // cẳng tay bám theo nắm tay ở đáy chai
     st.lv=w;gl.setLevel(w);
-    const on=u>.3&&u<.85,mouthY=st.fp[1]+W.top*K+.05,topY=st.fp[1]+(W.base+W.h*w)*K,len=Math.max(.01,mouthY-topY);
+    const on=u>.3&&u<.85,mouthY=st.fp[1]+W.top*K+.05,topY=st.fp[1]+(W.base+W.h*w)*K,len=Math.max(.01,mouthY-topY);V.pon=on;
     st.stream.visible=on;st.stream.scale.y=len;st.stream.position.set(st.fp[0]+.02,mouthY-len/2,st.fp[2]);
     if(on&&typeof snd==='function'&&performance.now()-st.pourSnd>110){st.pourSnd=performance.now();snd(210+Math.random()*90,.06,'sine',.035)}
     if(u>=1){st.phase='hold';st.t=0;st.lv=1;st.bt.visible=false;st.fa.visible=false;st.stream.visible=false;tb(true)}
@@ -180,11 +189,11 @@ function update(dt){
     while(st.done<CFG.bites&&u>=CFG.biteAt[st.done])bite();
     const lift=e3(cl(0,.22,u))*(1-e3(cl(.9,1,u)));              // đưa trái lên miệng rồi hạ tay xuống
     let chew=0;for(const b of CFG.biteAt){const p=(u-b)/.1;if(p>0&&p<1)chew=Math.max(chew,Math.sin(Math.PI*p))}   // mỗi miếng cắn: tay chúi tới + trái rung
-    dx=CFG.mouth[0]*lift;dy=CFG.mouth[1]*lift-.035*chew;dz=CFG.mouth[2]*lift+.05*chew;rx=-.55*lift+.12*chew;rz=.25*lift;
+    dx=CFG.mouth[0]*lift;dy=CFG.mouth[1]*lift-.035*chew;dz=CFG.mouth[2]*lift+.05*chew;rx=-.55*lift+.12*chew;rz=.25*lift;V.lift=lift;V.chew=chew;
     if(st.held==='wine'){   // UỐNG RƯỢU: đưa ly thẳng lên trước miệng (giữa-dưới màn hình), ly đứng; mỗi ngụm ngả miệng ly về phía mình rồi dựng lại
       const T=CFG.wineSip,fp=st.fp;dx=(T[0]-fp[0])*lift;dy=(T[1]-fp[1])*lift;dz=(T[2]-fp[2])*lift;rx=0;rz=0;
       let sip=0;for(const b of CFG.biteAt){const p=(u-(b-.07))/.14;if(p>0&&p<1)sip=Math.max(sip,Math.sin(Math.PI*p))}
-      st.fg.rotation.x=(.3+.85*sip)*lift;
+      V.sip=sip;st.fg.rotation.x=(.3+.85*sip)*lift;
       target=1;st.lv+=((1-st.done/CFG.bites)-st.lv)*Math.min(1,dt*6);st.fg.children[0].userData.setLevel(st.lv)}   // uống: nghiêng ly, mực rượu hạ dần
     else target=[1,.68,.42,.2][st.done];
     if(u>=1){finishEat();return}
@@ -230,5 +239,11 @@ if(typeof shoot==='function'){const o=shoot;window.shoot=function(){if(st.held){
   {const p=aimPiece();setHint(p?(p.type==='wine'?str().takeW||str().take:str().take):'')};
 })();
 
-window.FruitEat={interact,eat,stow,held:()=>st.held,cfg:CFG};   // interact() cho nút E trên điện thoại nếu cần
+const _tpS={type:null,phase:'',taken:false,eating:false,fs:1,lv:1,v:null,tgt:null,bn:0};
+function tp(){   // trạng thái cầm / ăn cho góc nhìn thứ 3 (player/thirdperson.js gọi mỗi khung); null = không đang cầm gì
+  if(!st.held)return null;
+  _tpS.type=st.held;_tpS.phase=st.phase;_tpS.taken=st.taken;_tpS.eating=st.eating;_tpS.fs=st.fs;_tpS.lv=st.lv;_tpS.v=st.v;_tpS.tgt=st.tgt;_tpS.bn=st.bn;
+  return _tpS;
+}
+window.FruitEat={interact,eat,stow,held:()=>st.held,cfg:CFG,tp,bites:()=>st.bn};   // interact() cho nút E trên điện thoại nếu cần
 })();
