@@ -82,7 +82,8 @@ Block Arena/
    │  ├─ minimap.js
    │  ├─ mobile.js
    │  ├─ ui.js
-   │  └─ profile.js
+   │  ├─ character.js               11 country soldiers + character-select screen
+   │  └─ profile.js                 start flow: language -> name -> character
    └─ world/
       ├─ common/
       │  ├─ world.js                 map keys, FHT
@@ -135,6 +136,7 @@ Block Arena/
 | Bath pools with waterfall (position, which corners) | `BATHS` in `src/world/floor1/bath.js` |
 | Statue position | `STA` in `src/world/floor1/statues.js` |
 | Text and languages | `src/i18n/lang-data.js` |
+| Country characters (camo colours, hat, vest, sleeve flag) | `CH` array in `src/ui/character.js` (the choice is saved as `PROFILE.char` / `localStorage.ba_char`; it also sets the sleeve camo + skin of your first-person arms in `arm()`, `src/player/player.js`) |
 | Boss dialogue | `assets/data/talking.txt` |
 
 ## Adding things per floor
