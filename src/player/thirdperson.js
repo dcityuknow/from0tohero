@@ -5,6 +5,7 @@
 //   · Súng KHÔNG cầm được đeo trên người: súng trường vắt chéo sau lưng, súng ngắm chéo ngược lại (thành chữ X), súng ngắn trong bao ở hông phải, lựu đạn ở hông trái.
 //   · Lựu đạn: bấm 4 -> tay phải móc vào túi hông trái lấy lựu đạn rồi đưa lên ngực · giữ chuột -> tay trái giật chốt, rồi NGƯỜI NGẢ RA SAU, tay phải vươn ra sau (thả chuột mới ném)
 //     · thả chuột -> tay vung từ sau ra trước, người chồm theo, lựu đạn rời tay đúng lúc game phóng nó đi (grenade.js: throwT / holding / holdT).
+// Lấy / ăn / uống trái cây ở bàn chòi (gameplay/fruit-eat.js): thân nhân vật tự diễn — tay phải VƯƠN ra chụp quả (người chồm tới), rút về cầm; rượu: bàn tay trái đưa chai lên rót vào ly, mực rượu dâng; ĂN: đưa lên miệng, mỗi miếng cắn đầu chúi tới + vụn bắn ra, trái nhỏ dần; UỐNG: ngả người ra sau, nghiêng ly. Súng tạm cất lên dây đeo.
 // Tự quay về góc thứ nhất khi: ngắm sniper (cần nhìn qua kính) · bị hạ (đã có hoạt ảnh ngã riêng) · sau lưng sát tường nên camera không còn chỗ lùi (tránh camera nằm trong đầu nhân vật).
 // Đạn vẫn bắn theo tia từ camera qua tâm ngắm (đúng chỗ tâm ngắm chỉ), như game góc thứ 3 thông thường.
 // Chỉnh nhanh: CFG (camera) và GUN / SLING (hình súng, chỗ đeo) bên dưới. Nạp SAU viewmodel.js và effects.js (groundY), TRƯỚC main.js (main.js gọi TP.apply mỗi khung).
@@ -82,10 +83,77 @@ const TP=(function(){
     arm.quaternion.setFromUnitVectors(DOWN,_a);arm.scale.y=Math.max(.8,Math.min(1.35,len/REACH));
   }
   const relax=(arm,x,z)=>{arm.quaternion.setFromEuler(_e.set(x,0,z));arm.scale.y=1};
+
+  // ---------- LẤY / ĂN / UỐNG trái cây (FruitEat.tp() từ gameplay/fruit-eat.js; toạ độ thân nhân vật: +x = phía tay phải của mô hình, +z = phía trước) ----------
+  const FKIT=window.FruitKit;
+  const HF=V3(.2,1.05,.42),HW=V3(.2,1.08,.44),FMU=V3(.02,1.38,.29),WMU=V3(.02,1.28,.36),MOUTH=V3(0,1.4,.27);   // tay cầm trái · tay cầm ly · tay khi ăn · tay khi uống · miệng
+  const FRC={apple:0xd32f2f,orange:0xff9a1a,watermelon:0xe53b4a,grape:0x6a2c91,pineapple:0xe9b824,dragon:0xe0237c,sandwich:0xd9a35a};   // màu vụn bắn ra khi cắn
+  const fp={type:null,root:null,grp:null,mesh:null,bt:null,sm:null,kk:1},FR=V3(0,0,0),FL=V3(0,0,0),FT=V3(0,0,0),FD=V3(0,0,0);
+  let lastBn=0;const crumbs=[],CGEO=new THREE.BoxGeometry(.03,.03,.03),CMAT={};
+  const reachK=u=>u<.5?e3(u/.5):u<.62?1:1-e3((u-.62)/.38);   // 0 -> 1 vươn ra · giữ lúc chụp · 1 -> 0 rút về (giống tay góc thứ nhất)
+  function fruitProps(type){   // dựng trái / ly + chai + tia rượu gắn vào thân nhân vật (dựng lại khi đổi loại hoặc đổi nhân vật)
+    if(fp.type===type&&fp.root&&fp.root.parent===model.g)return;
+    if(fp.root){if(fp.root.parent)fp.root.parent.remove(fp.root);fp.root.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
+    const wn=type==='wine',kk=wn?1:1.15,root=new THREE.Group(),grp=new THREE.Group(),mesh=FKIT.make(type,kk,0,0,wn);
+    mesh.position.y=wn?-.1:-.075*kk;grp.add(mesh);root.add(grp);   // bàn tay giữ chân ly / ôm quả ở giữa
+    let bt=null,sm=null;
+    if(wn){mesh.userData.setLevel(0);bt=FKIT.bottle(.55);bt.visible=false;root.add(bt);
+      sm=new THREE.Mesh(new THREE.BoxGeometry(.012,1,.012),new THREE.MeshBasicMaterial({color:0x8a1236}));sm.visible=false;root.add(sm)}
+    root.traverse(o=>o.frustumCulled=false);model.g.add(root);
+    Object.assign(fp,{type,root,grp,mesh,bt,sm,kk});
+  }
+  // độ nghiêng thân (lean>0 chồm tới, <0 ngả ra sau): chồm khi vươn tay · chúi theo mỗi miếng cắn · ngả ra sau khi nốc rượu
+  function frLean(f){const v=f.v;
+    if(f.phase==='reach')return .3*reachK(v.u);
+    if(f.phase==='pour')return .1*v.pa;
+    if(f.eating)return f.type==='wine'?.04*v.lift-.2*v.sip*v.lift:.05*v.lift+.1*v.chew;
+    return 0}
+  function spawnCrumbs(type){   // vụn bắn ra từ miệng mỗi miếng cắn (rượu thì không)
+    if(type==='wine')return;
+    model.g.updateMatrixWorld(true);const o=model.g.localToWorld(MOUTH.clone()),col=FRC[type]||0xd32f2f,mat=CMAT[col]||(CMAT[col]=new THREE.MeshBasicMaterial({color:col}));
+    for(let i=0;i<7;i++){const m=new THREE.Mesh(CGEO,mat);m.position.copy(o);m.scale.setScalar(.5+Math.random()*.8);S.add(m);
+      crumbs.push({m,vx:(Math.random()-.5)*1.4,vy:.8+Math.random()*1.2,vz:(Math.random()-.5)*1.4,t:.55+Math.random()*.3})}
+  }
+  function tickCrumbs(dt){for(let i=crumbs.length-1;i>=0;i--){const c=crumbs[i];c.t-=dt;if(c.t<=0){S.remove(c.m);crumbs.splice(i,1);continue}
+    c.vy-=9*dt;c.m.position.x+=c.vx*dt;c.m.position.y+=c.vy*dt;c.m.position.z+=c.vz*dt;c.m.rotation.x+=dt*8}}
+  // đặt tay + trái / ly + chai theo từng giai đoạn (gọi SAU khi thân nhân vật đã đặt vị trí / xoay)
+  function frPose(f,dt,sw){
+    const v=f.v,wn=f.type==='wine',hold=wn?HW:HF;
+    fruitProps(f.type);model.g.updateMatrixWorld(true);
+    if(f.bn!==lastBn){if(f.bn>lastBn)spawnCrumbs(f.type);lastBn=f.bn}
+    let tilt=0,wob=0,useL=false;
+    FR.copy(hold);
+    if(f.phase==='reach'){   // tay phải vươn tới đúng quả trên bàn (tối đa ~0.78m, người chồm thêm), siết lại lúc chụp rồi rút về cầm
+      const u=v.u;FT.copy(f.tgt);model.g.worldToLocal(FT);FT.y-=.03;
+      FD.copy(FT).sub(SH.r);const len=FD.length();if(len>.78)FT.copy(SH.r).addScaledVector(FD,.78/len);
+      if(u<.5)mix(FR,GP.rest,FT,e3(u/.5));else if(u<.62)FR.copy(FT);else mix(FR,FT,hold,e3((u-.62)/.38));
+      FR.y-=.03*Math.max(0,1-Math.abs((u-.56)/.06));   // chụp: bàn tay nhún xuống một chút
+      relax(model.armL,-.3*reachK(u)+sw*.8,.08);        // tay kia vung ra sau giữ thăng bằng
+    }else if(f.phase==='pour'){   // tay trái nhấc chai từ hông lên, nghiêng miệng chai trên miệng ly, rượu chảy thành tia, mực rượu dâng
+      const a=v.pa,r=1-a,th=-a*1.83,K=fp.kk,W=FKIT.WG,mouthY=FR.y-.1+(W.top*K)+.05;
+      FT.set(FR.x,mouthY,FR.z);
+      fp.bt.visible=a>.02;fp.bt.position.set(FT.x-.5*r,FT.y-.55*r,FT.z-.1*r);fp.bt.rotation.z=th;
+      mix(FL,GP.lrest,_a.set(fp.bt.position.x+Math.sin(th)*.3,fp.bt.position.y-Math.cos(th)*.3,fp.bt.position.z),Math.min(1,a*5));useL=true;   // bàn tay trái nắm thân chai
+      const topY=FR.y-.1+(W.base+W.h*v.pw)*K,len=Math.max(.01,mouthY-topY);
+      fp.sm.visible=v.pon;fp.sm.scale.y=len;fp.sm.position.set(FR.x,mouthY-len/2,FR.z);
+      relax(model.armL,0,0);if(!useL)relax(model.armL,sw*.8,.05);
+    }else{
+      relax(model.armL,sw*.8,.05);
+      if(f.eating){   // đưa lên miệng; mỗi miếng cắn: tay chúi tới + trái rung (+ đầu chúi qua lean, vụn bắn ra); rượu: nghiêng ly, ngả người
+        FR.lerpVectors(hold,wn?WMU:FMU,v.lift);FR.z+=.035*v.chew;FR.y-=.02*v.chew;
+        if(wn)tilt=-(.3+.85*v.sip)*v.lift;else wob=.12*v.chew;
+      }
+    }
+    if(wn){fp.bt&&(fp.bt.visible=f.phase==='pour'&&fp.bt.visible);fp.sm&&(fp.sm.visible=f.phase==='pour'&&fp.sm.visible);fp.mesh.userData.setLevel(f.lv)}
+    fp.root.visible=true;fp.grp.visible=f.taken;fp.grp.position.copy(FR);fp.grp.rotation.set(tilt,0,wob);fp.grp.scale.setScalar(f.fs);
+    reach(model.armR,SH.r,FR);
+    if(useL)reach(model.armL,SH.l,FL);
+  }
   // Gọi 1 lần mỗi khung SAU khi main.js đặt C.position / C.rotation theo góc thứ nhất. Nếu bật góc 3: lùi camera + đặt thân nhân vật.
   function apply(dt){
+    tickCrumbs(dt);
     const a=active();
-    if(!a){if(model&&shown){model.g.visible=false;shown=false}return false}
+    if(!a){if(model&&shown){model.g.visible=false;shown=false}if(window.FruitEat&&FruitEat.bites)lastBn=FruitEat.bites();return false}
     if(!ensure())return false;
     // vận tốc thực tế (m/s) từ vị trí -> nhịp chân
     const spd=dt>0?Math.hypot(P.x-lx,P.z-lz)/dt:0;lx=P.x;lz=P.z;lastSpd+=((spd>40?0:spd)-lastSpd)*Math.min(1,dt*12);
@@ -109,7 +177,7 @@ const TP=(function(){
     // trạng thái lựu đạn: vừa chuyển sang lựu đạn / vừa ném xong mà còn quả -> làm lại thao tác móc túi
     if(cur!=='grenade')drawT=9;else if(prevCur!=='grenade'||(prevThrow>0&&throwT<=0))drawT=0;else drawT+=dt;
     prevCur=cur;prevThrow=throwT;
-    const gr=cur==='grenade',inHand=gr&&!(throwT>0&&thrown)&&(drawT>=DRAW*.45||holding||autoP||throwT>0);
+    const fr=(window.FruitEat&&FruitEat.tp&&FruitEat.tp())||null,gr=cur==='grenade'&&!fr,inHand=gr&&!(throwT>0&&thrown)&&(drawT>=DRAW*.45||holding||autoP||throwT>0);
     // thân nhân vật: nghiêng người (lean>0 chồm tới, <0 ngả ra sau) quanh hông
     let lean=0,useL=false;
     const R=_rt,Lf=_lt;
@@ -132,6 +200,7 @@ const TP=(function(){
         lean=.2*Math.sin(Math.min(1,u/.55)*Math.PI);
       }else R.copy(GP.chest);
     }
+    if(fr)lean=frLean(fr);
     leanS+=(lean-leanS)*Math.min(1,dt*(gr?16:10));
     model.g.visible=true;model.g.rotation.set(leanS,yaw+Math.PI,0);
     _hv.set(0,.75,0);_hw.copy(_hv).applyEuler(_E.set(leanS,0,0));_hv.sub(_hw).applyAxisAngle(_Y,yaw+Math.PI);   // giữ nguyên chỗ hông khi nghiêng (chân không trượt)
@@ -142,9 +211,11 @@ const TP=(function(){
     model.legL.rotation.x=sw;model.legR.rotation.x=-sw;
     // súng đang cầm + hai bàn tay (toạ độ trong hệ thân nhân vật)
     const pt=Math.max(-.6,Math.min(.9,pitch))*.9,g=GUN[cur]||GUN.pistol;
-    for(const t in held.m)held.m[t].visible=t===cur&&(t!=='grenade'||inHand);
-    for(const t in slung)slung[t].visible=t==='grenade'?gren-(inHand?1:0)>0:t!==cur;   // lựu đạn: còn quả nào chưa cầm thì móc vẫn còn
-    if(gr){
+    for(const t in held.m)held.m[t].visible=!fr&&t===cur&&(t!=='grenade'||inHand);
+    for(const t in slung)slung[t].visible=t==='grenade'?gren-(inHand?1:0)>0:(fr?true:t!==cur);   // lựu đạn: còn quả nào chưa cầm thì móc vẫn còn
+    if(!fr&&fp.root)fp.root.visible=false;
+    if(fr){frPose(fr,dt,sw);rp.copy(GP.rest)}
+    else if(gr){
       const k=Math.min(1,dt*22);rp.lerp(R,k);if(useL)lp.lerp(Lf,k);
       held.position.copy(rp);held.rotation.set(0,0,0);
       reach(model.armR,SH.r,rp);
