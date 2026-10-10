@@ -54,8 +54,11 @@
     'engine/occlusion.js',
     // Cảm ứng điện thoại
     'ui/mobile.js',
+    // Góc nhìn thứ 3 (phím C): cần voxel.js, viewmodel.js, effects.js (groundY), physics.js (hitAny) nạp trước; main.js gọi TP.apply
+    'player/thirdperson.js',
     // Vòng lặp chính + màn hình bắt đầu (luôn cuối cùng)
     'main.js','ui/ui.js',
+    'ui/character.js',   // 11 nhân vật quân phục theo quốc gia + màn chọn nhân vật (cần voxel.js; phải nạp TRƯỚC profile.js)
     'ui/profile.js'
   ];
   const B=window.BOOT||{set(){},done(f){f&&f()}};

@@ -1,7 +1,7 @@
-// Màn hình đầu game: (1) chọn ngôn ngữ -> (2) nhập tên (tối đa 20 ký tự, chỉ nhận chữ của ngôn ngữ đã chọn + số). Xong mới thấy màn "Bấm để chơi".
+// Màn hình đầu game: (1) chọn ngôn ngữ -> (2) nhập tên (tối đa 20 ký tự, chỉ nhận chữ của ngôn ngữ đã chọn + số) -> (3) chọn nhân vật theo quốc gia (ui/character.js). Xong mới thấy màn "Bấm để chơi".
 // Tên được dùng để khắc lên tường khi thắng boss (gameplay/engrave.js). Đọc tên ở mọi nơi qua PROFILE.name.
 // Nạp CUỐI CÙNG (sau ui.js) vì dùng applyLang / LN / L của i18n.js.
-window.PROFILE={name:'',lang:''};
+window.PROFILE={name:'',lang:'',char:''};
 (function(){
 const NAME_MAX=20;
 const PT={
@@ -52,7 +52,12 @@ const who=document.createElement('div');who.id='who';who.style.display='none';
 const wn=document.createElement('span'),wb=document.createElement('button');wb.className='lb';wb.textContent='✏️';
 who.append('👤 ',wn,' ',wb);$('go').before(who);
 wb.addEventListener('click',e=>{e.stopPropagation();open()});
-function showWho(){wn.textContent=PROFILE.name;who.style.display=PROFILE.name?'':'none'}
+function showWho(){
+  wn.textContent=PROFILE.name;who.style.display=PROFILE.name?'':'none';
+  who.querySelectorAll('img').forEach(i=>i.remove());
+  const u=window.CharPick&&PROFILE.char?CharPick.thumbURL(PROFILE.char):'';   // ảnh nhân vật đã chọn cạnh tên
+  if(u){const im=new Image();im.src=u;im.alt='';who.prepend(im)}
+}
 
 function stepLang(){
   card.innerHTML='<h1>🌐 Block Arena</h1><p class="pfs">Language · Ngôn ngữ · Язык · भाषा · 语言 · 언어</p><div id="pfl"></div>';
@@ -80,12 +85,19 @@ function stepName(){
   const submit=()=>{
     const v=fix(inp.value,l).trim();if(!v)return;
     PROFILE.name=v;PROFILE.lang=l;saved=v;try{localStorage.setItem('ba_name',v)}catch(e){}
-    showWho();pf.style.display='none';
+    stepChar();
   };
   ok.addEventListener('click',submit);
   $q('#pfback').addEventListener('click',stepLang);
   upd();setTimeout(()=>inp.focus(),50);
 }
-function open(){pf.style.display='flex';stepLang()}
+// (3) chọn nhân vật: ui/character.js dựng màn chọn trong cùng khung. Thiếu file đó thì bỏ qua bước này.
+function finish(){card.classList.remove('wide');showWho();pf.style.display='none'}
+function stepChar(){
+  if(!window.CharPick||!window.THREE){finish();return}
+  card.classList.add('wide');
+  try{CharPick.show(card,L,finish,()=>{card.classList.remove('wide');stepName()})}catch(e){console.warn('CharPick',e);finish()}
+}
+function open(){pf.style.display='flex';card.classList.remove('wide');stepLang()}
 open();
 })();

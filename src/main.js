@@ -134,7 +134,8 @@ function frame(now){
       // AI LOD: bot ở xa (sương đã che gần hết) chỉ chạy AI + va chạm 1/3 (xa > 100m: 1/6) số khung, bù lại bằng bước thời gian dài hơn -> cùng tốc độ di chuyển, nhẹ CPU, hình ảnh không đổi
       if(!b.boss){const st=d>100?6:d>55?3:1;if(st>1){b.lod=(b.lod||0)+dt0;if((lodN+(b.id||(b.id=++botSeq)))%st)continue;dt=Math.min(b.lod,.12);b.lod=0}}
       // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
-      if(!dead&&d<P.r+b.r&&Math.abs(P.y-b.y)<1.6){const o=P.r+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}
+      {const pr=P.r+(window.TP?TP.extra:0);   // góc thứ 3: thân nhân vật rộng hơn P.r nên đẩy xa thêm (TP.extra), khỏi đi xuyên bot
+      if(!dead&&d<pr+b.r&&Math.abs(P.y-b.y)<1.6){const o=pr+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}}
       b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(peace){b.vy-=22*dt;mv=botWander(b,dt)}else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
       else if(!dead&&Math.abs(P.y-b.y)<1.5)hurt(28*dt);
       if(fallBot(b))continue;   // bot / boss rơi từ trên cao cũng mất máu
@@ -159,7 +160,7 @@ function frame(now){
   if(reviveT>0)reviveT-=dt;
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
-  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);VLOD.tick();
+  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));if(window.TP)TP.apply(dt);applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);VLOD.tick();
   {const gr=cur==='grenade';   // chỉ ghi vào DOM khi giá trị thật sự đổi (tránh dựng lại chữ / layout mỗi khung)
     if(P.hp!==H.hp){H.hp=P.hp;H.eHp.style.width=P.hp+'%'}
     const am=gr?gren:rel>0?'…':ammos[cur],mg=gr?GMAX:reserve[cur];
