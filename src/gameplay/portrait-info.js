@@ -477,6 +477,7 @@ function aimLinks(){
   setHover(Lk,idx);
 }
 addEventListener('mousedown',ev=>{   // capture: chạy trước handler bắn súng -> click vào dòng link thì mở link, không bắn
+  if(leaveEl)return;   // hộp xác nhận đang mở: để các nút trong hộp tự nhận click (nếu không, bấm nút nào cũng bị dựng lại hộp mới)
   if(!act||ev.button!==0||!playing||!act.links)return;
   const Lk=act.links;if(Lk.hover<0)return;
   const r=Lk.rows[Lk.hover];if(!r||!okUrl(r.url))return;
@@ -522,20 +523,60 @@ const LEAVE_TXT={   // %k = loại trang · %n = tên người. Ngôn ngữ nào
       body:'게임 속 모든 링크는 게임 배포자가 확인한 것입니다. 신뢰하신다면 <b>계속</b>을 누르세요. 확신이 서지 않으면 아래 주소를 직접 확인한 뒤 게임으로 돌아오세요.',
       url:'열릴 주소 (새 탭에서 열림):',go:'계속',back:'돌아가기',opt:'Optimum 프로젝트 공식 페이지',pg:'개인 페이지',web:'웹사이트'}
 };
+// Danh sách TÊN MIỀN TIN CẬY: link có tên miền ngoài danh sách (hoặc không phải https) sẽ bị CHẶN, không cho bấm Tiếp tục.
+// -> nếu ai đó lỡ sửa nhầm / chèn link lạ vào team-media.js thì game cũng không dẫn người chơi đi. Thêm miền mới ở đây (khớp cả tên miền phụ, vd 'mit.edu' gồm 'rle.mit.edu').
+const TRUSTED_HOSTS=['x.com','linkedin.com','github.com','wikipedia.org','mit.edu','gatech.edu','lewej.work'];
+const LEAVE_X={
+  vi:{cp:'Sao chép địa chỉ',cpd:'Đã sao chép!',hint:'Mẹo: rê chuột lên nút Tiếp tục, thanh trạng thái của trình duyệt sẽ hiện đúng địa chỉ sẽ mở. Bạn cũng có thể sao chép địa chỉ rồi tự dán vào tab mới.',bad:'Tên miền này không nằm trong danh sách tin cậy của game. Liên kết đã bị chặn.'},
+  en:{cp:'Copy address',cpd:'Copied!',hint:"Tip: hover over Continue and your browser's status bar shows the exact address it will open. You can also copy the address and paste it into a new tab yourself.",bad:"This domain is not on the game's trusted list. The link has been blocked."},
+  ru:{cp:'Копировать адрес',cpd:'Скопировано!',hint:'Совет: наведите курсор на «Продолжить» — в строке состояния браузера отобразится точный адрес, который откроется. Адрес можно также скопировать и вставить в новую вкладку самостоятельно.',bad:'Этот домен не входит в список доверенных в игре. Ссылка заблокирована.'},
+  ng:{cp:'Copy address',cpd:'Don copy!',hint:'Tip: put your mouse on Continue, your browser status bar go show the exact address wey e go open. You fit also copy the address paste for new tab yourself.',bad:'This domain no dey the game trusted list. We don block the link.'},
+  bn:{cp:'ঠিকানা কপি করুন',cpd:'কপি হয়েছে!',hint:'টিপস: "চালিয়ে যান"-এর ওপর মাউস রাখলে ব্রাউজারের স্ট্যাটাস বারে যে ঠিকানাটি খুলবে তা হুবহু দেখা যাবে। আপনি ঠিকানাটি কপি করে নতুন ট্যাবে নিজেও পেস্ট করতে পারেন।',bad:'এই ডোমেইনটি গেমের বিশ্বস্ত তালিকায় নেই। লিংকটি ব্লক করা হয়েছে।'},
+  id:{cp:'Salin alamat',cpd:'Tersalin!',hint:'Tips: arahkan kursor ke Lanjutkan, bilah status browser akan menampilkan alamat persis yang akan dibuka. Anda juga bisa menyalin alamat lalu menempelkannya sendiri di tab baru.',bad:'Domain ini tidak ada dalam daftar tepercaya game. Tautan diblokir.'},
+  hi:{cp:'पता कॉपी करें',cpd:'कॉपी हो गया!',hint:'सुझाव: "जारी रखें" पर माउस ले जाएँ, ब्राउज़र की स्टेटस बार में वही पता दिखेगा जो खुलेगा। आप पता कॉपी करके नए टैब में खुद भी पेस्ट कर सकते हैं।',bad:'यह डोमेन गेम की भरोसेमंद सूची में नहीं है। लिंक ब्लॉक कर दिया गया है।'},
+  zh:{cp:'复制地址',cpd:'已复制!',hint:'提示:将鼠标移到“继续”上,浏览器状态栏会显示将要打开的确切地址。你也可以复制地址,自己粘贴到新标签页中。',bad:'该域名不在游戏的可信名单中,链接已被拦截。'},
+  fil:{cp:'Kopyahin ang address',cpd:'Nakopya!',hint:'Tip: ilagay ang mouse sa Magpatuloy at ipapakita ng status bar ng browser ang eksaktong address na bubuksan. Maaari mo ring kopyahin ang address at i-paste mismo sa bagong tab.',bad:'Wala sa listahan ng pinagkakatiwalaan ng game ang domain na ito. Na-block ang link.'},
+  uk:{cp:'Копіювати адресу',cpd:'Скопійовано!',hint:'Порада: наведіть курсор на «Продовжити» — у рядку стану браузера з’явиться точна адреса, яка відкриється. Адресу також можна скопіювати й самостійно вставити в нову вкладку.',bad:'Цього домену немає у списку довірених у грі. Посилання заблоковано.'},
+  ko:{cp:'주소 복사',cpd:'복사됨!',hint:'팁: 계속 버튼에 마우스를 올리면 브라우저 상태 표시줄에 실제로 열릴 주소가 그대로 표시됩니다. 주소를 복사해 새 탭에 직접 붙여넣을 수도 있습니다.',bad:'이 도메인은 게임의 신뢰 목록에 없어 링크가 차단되었습니다.'}
+};
+for(const k in LEAVE_X)Object.assign(LEAVE_TXT[k],LEAVE_X[k]);
 let leaveEl=null;
 const leaveCss=document.createElement('style');   // khi hộp đang mở: ẩn bảng "Tạm dừng" phía sau (ui.js tự bật nó khi thoát pointer lock, nên phải ép ẩn bằng CSS)
 leaveCss.textContent='body.leave-open #ov{display:none!important}';document.head.appendChild(leaveCss);
-function closeLeave(resume){
+// Hộp xác nhận KHÔNG tạm dừng game: thế giới vẫn chạy bình thường. Chỉ nhả khóa chuột để người chơi bấm được nút (ui.js tự coi việc nhả chuột là "Tạm dừng" -> bên dưới có đoạn hoàn tác).
+const MOVE_KEYS=new Set(['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight']);   // các phím di chuyển vẫn đi xuyên qua hộp
+function pauseGameUI(){   // vào màn hình Tạm dừng đúng như ui.js
+  try{playing=false;md=false;ovState='pause';renderOv();const ov=document.getElementById('ov');if(ov)ov.style.display='flex'}catch(_){}
+}
+function relockGame(){   // khóa chuột lại để chơi tiếp; không khóa được thì chuyển sang Tạm dừng để người chơi bấm Tiếp tục
+  try{const p=cv.requestPointerLock();if(p&&p.catch)p.catch(pauseGameUI)}catch(_){pauseGameUI();return}
+  setTimeout(()=>{if(!dead&&playing&&document.pointerLockElement!==cv&&!leaveEl)pauseGameUI()},500);
+}
+// mode: 'resume' = chơi tiếp (khóa chuột lại) · 'pause' = vào màn hình Tạm dừng · khác = chỉ đóng hộp
+function closeLeave(mode){
   if(!leaveEl)return;
   leaveEl.remove();leaveEl=null;document.body.classList.remove('leave-open');
-  if(resume&&typeof dead!=='undefined'&&!dead){const ov=document.getElementById('ov');if(ov)ov.click()}   // bấm Quay lại -> vào game luôn (click là thao tác người dùng nên khóa chuột lại được)
+  if(typeof dead!=='undefined'&&dead)return;   // đã chết thì để màn hình thua của game tự hiện
+  if(mode==='resume')relockGame();else if(mode==='pause')pauseGameUI();
 }
+document.addEventListener('pointerlockchange',()=>{   // ui.js vừa đặt playing=false khi mình nhả chuột -> hoàn tác, game chạy tiếp trong lúc hộp đang mở
+  if(!leaveEl)return;
+  const keep=()=>{if(!leaveEl||(typeof dead!=='undefined'&&dead))return;playing=true;const ov=document.getElementById('ov');if(ov)ov.style.display='none'};
+  keep();setTimeout(keep,0);   // setTimeout: phòng khi thứ tự nạp file khiến handler của ui.js chạy SAU handler này
+});
 function askLeave(r,e){
   closeLeave();document.body.classList.add('leave-open');
   const tx=LEAVE_TXT[typeof L==='string'&&LEAVE_TXT[L]?L:'en'];
   const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const isOpt=r.k==='O',kind=isOpt?tx.opt:(r.lab==='X'?'X (Twitter)':r.lab==='LINKEDIN'?'LinkedIn':r.lab==='WEBSITE'?tx.web:tx.pg);
   const head=(isOpt?tx.whoO:tx.who).replace('%k',()=>kind).replace('%n',()=>esc(e&&e.n1||''));
+  let U=null;try{U=new URL(r.url)}catch(_){}
+  const host=U?U.hostname.toLowerCase():'';
+  const trusted=!!U&&U.protocol==='https:'&&TRUSTED_HOSTS.some(d=>host===d||host.endsWith('.'+d));
+  const href=U?U.href:String(r.url);   // CÙNG một chuỗi này vừa để hiển thị, vừa gắn vào nút Tiếp tục -> hiển thị sao thì mở vậy
+  let urlHtml=esc(href);
+  if(U){const hi=href.indexOf(host,U.protocol.length+2);if(hi>0)urlHtml=esc(href.slice(0,hi))+'<b style="color:#ffd070;font-size:15px">'+esc(host)+'</b>'+esc(href.slice(hi+host.length))}   // tô nổi TÊN MIỀN để dễ nhìn ra link giả mạo
+  const btn='cursor:pointer;padding:9px 18px;border-radius:6px;font:bold 14px monospace;text-decoration:none;display:inline-block;';
   const o=document.createElement('div');leaveEl=o;
   o.style.cssText='position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(2,10,20,.72);font-family:monospace';
   o.innerHTML='<div style="max-width:min(520px,92vw);padding:22px 26px;border:1px solid rgba(130,238,255,.9);border-radius:10px;background:rgba(8,38,66,.94);color:#bff8ff;box-shadow:0 0 28px rgba(80,230,255,.35)">'+
@@ -543,23 +584,32 @@ function askLeave(r,e){
     '<div style="font-size:15px;line-height:1.5;margin-bottom:10px">'+head+'</div>'+
     '<div style="font-size:14px;line-height:1.5;color:rgba(190,248,255,.85);margin-bottom:12px">'+tx.body+'</div>'+
     '<div style="font-size:12px;color:rgba(150,235,255,.7);margin-bottom:4px">'+tx.url+'</div>'+
-    '<div style="font-size:13px;word-break:break-all;padding:8px 10px;border:1px dashed rgba(130,238,255,.5);border-radius:6px;margin-bottom:16px;color:#fff">'+esc(r.url)+'</div>'+
-    '<div style="display:flex;gap:12px;justify-content:flex-end">'+
-    '<button data-a="back" style="cursor:pointer;padding:9px 18px;border-radius:6px;border:1px solid rgba(130,238,255,.7);background:transparent;color:#bff8ff;font:bold 14px monospace">'+tx.back+'</button>'+
-    '<button data-a="go" style="cursor:pointer;padding:9px 18px;border-radius:6px;border:1px solid #6ff0ff;background:rgba(80,230,255,.28);color:#fff;font:bold 14px monospace">'+tx.go+'</button></div></div>';
+    '<div style="font-size:13px;word-break:break-all;padding:8px 10px;border:1px dashed '+(trusted?'rgba(130,238,255,.5)':'#ff6b6b')+';border-radius:6px;margin-bottom:10px;color:#fff">'+urlHtml+'</div>'+
+    (trusted?'<div style="font-size:12px;line-height:1.5;color:rgba(150,235,255,.7);margin-bottom:16px">'+tx.hint+'</div>'
+            :'<div style="font-size:14px;line-height:1.5;color:#ff9a9a;font-weight:bold;margin-bottom:16px">\u26D4 '+tx.bad+'</div>')+
+    '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">'+
+    '<button data-a="back" style="'+btn+'border:1px solid rgba(130,238,255,.7);background:transparent;color:#bff8ff">'+tx.back+'</button>'+
+    '<button data-a="cp" style="'+btn+'border:1px solid rgba(130,238,255,.7);background:transparent;color:#bff8ff">'+tx.cp+'</button>'+
+    (trusted?'<a data-a="go" href="'+esc(href)+'" target="_blank" rel="noopener noreferrer" style="'+btn+'border:1px solid #6ff0ff;background:rgba(80,230,255,.28);color:#fff">'+tx.go+'</a>':'')+
+    '</div></div>';
   const stop=ev=>ev.stopPropagation();
   for(const n of ['mousedown','mouseup','click','pointerdown','pointerup','wheel','contextmenu'])o.addEventListener(n,stop);   // không để click lọt xuống game (bắn súng / bấm Resume)
   o.addEventListener('click',ev=>{
     const a=ev.target&&ev.target.dataset&&ev.target.dataset.a;
-    if(a==='go'){try{window.open(r.url,'_blank','noopener,noreferrer')}catch(_){}closeLeave(false)}
-    else if(a==='back'||ev.target===o)closeLeave(true);
+    if(a==='go'){setTimeout(()=>closeLeave('pause'),80)}   // nút Tiếp tục là thẻ <a> thật: trình duyệt tự mở đúng href (rê chuột sẽ thấy ở thanh trạng thái, chuột phải sao chép được)
+    else if(a==='cp'){
+      const b=ev.target,old=b.textContent,done=()=>{b.textContent=tx.cpd;setTimeout(()=>{if(b.isConnected)b.textContent=old},1500)};
+      try{navigator.clipboard.writeText(href).then(done,done)}catch(_){done()}
+    }
+    else if(a==='back'||ev.target===o)closeLeave('resume');
   });
   document.body.appendChild(o);
   const g=o.querySelector('[data-a=back]');if(g)g.focus();
 }
 addEventListener('keydown',ev=>{   // capture: khi hộp đang mở thì Esc = quay lại, các phím khác (E...) không lọt vào game
   if(!leaveEl)return;
-  if(ev.code==='Escape'){closeLeave(false)}
+  if(MOVE_KEYS.has(ev.code))return;   // cho phép di chuyển / né trong lúc hộp mở
+  if(ev.code==='Escape'){closeLeave('resume')}
   ev.stopImmediatePropagation();
   if(ev.code!=='Tab'&&ev.code!=='Enter'&&ev.code!=='Space')ev.preventDefault();
 },true);
@@ -586,6 +636,7 @@ function beep(fin){   // pip pip pip: mỗi tiếng rất ngắn, xen kẽ 2 cao
 }
 (function loop(){
   requestAnimationFrame(loop);
+  if(leaveEl&&dead)closeLeave();   // chết khi hộp đang mở -> đóng hộp, màn hình thua của game hiện ra
   const t1=performance.now()/1000;
   if(act){
     const t=t1-act.t0;
