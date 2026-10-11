@@ -482,7 +482,86 @@ addEventListener('mousedown',ev=>{   // capture: chạy trước handler bắn s
   const r=Lk.rows[Lk.hover];if(!r||!okUrl(r.url))return;
   ev.preventDefault();ev.stopImmediatePropagation();
   try{if(document.exitPointerLock)document.exitPointerLock()}catch(_){}
-  try{window.open(r.url,'_blank','noopener,noreferrer')}catch(_){}
+  askLeave(r,act.e);   // hỏi xác nhận trước khi mở link ngoài (không mở thẳng nữa)
+},true);
+
+// ---------- HỘP XÁC NHẬN TRƯỚC KHI RỜI GAME ----------
+// Click vào link -> hiện bảng cảnh báo: link do người phát hành game kiểm chứng, bấm TIẾP TỤC mới mở, hoặc QUAY LẠI để tự kiểm chứng.
+const LEAVE_TXT={   // %k = loại trang · %n = tên người. Ngôn ngữ nào thiếu thì dùng tiếng Anh (cùng danh sách ngôn ngữ với phần cài đặt)
+  vi:{ttl:'CHUYỂN TIẾP RA TRANG NGOÀI',who:'Bạn sắp được chuyển tiếp đến %k của <b>%n</b>.',whoO:'Bạn sắp được chuyển tiếp đến <b>%k</b>.',
+      body:'Mọi liên kết trong game đã được người phát hành game kiểm chứng. Nếu bạn tin tưởng, hãy bấm <b>Tiếp tục</b>. Nếu chưa yên tâm, bạn có thể tự kiểm chứng địa chỉ bên dưới rồi quay lại chơi tiếp.',
+      url:'Địa chỉ sẽ mở (mở ở tab mới):',go:'Tiếp tục',back:'Quay lại',opt:'trang chính thức của dự án Optimum',pg:'trang cá nhân',web:'website'},
+  en:{ttl:'LEAVING THE GAME',who:'You are about to be redirected to the %k of <b>%n</b>.',whoO:'You are about to be redirected to the <b>%k</b>.',
+      body:'Every link in this game has been verified by the game publisher. If you trust it, press <b>Continue</b>. If you are unsure, check the address below yourself, then come back to the game.',
+      url:'Address to open (opens in a new tab):',go:'Continue',back:'Go back',opt:'official Optimum project page',pg:'personal page',web:'website'},
+  ru:{ttl:'ПЕРЕХОД НА ВНЕШНИЙ САЙТ',who:'Вы будете перенаправлены на внешнюю страницу (%k): <b>%n</b>.',whoO:'Вы будете перенаправлены на <b>%k</b>.',
+      body:'Все ссылки в игре проверены издателем игры. Если вы доверяете ссылке, нажмите <b>Продолжить</b>. Если сомневаетесь, сначала проверьте адрес ниже самостоятельно, затем возвращайтесь в игру.',
+      url:'Адрес для открытия (в новой вкладке):',go:'Продолжить',back:'Назад',opt:'официальная страница проекта Optimum',pg:'личная страница',web:'сайт'},
+  ng:{ttl:'YOU DEY LEAVE THE GAME',who:'You wan go the %k of <b>%n</b>.',whoO:'You wan go the <b>%k</b>.',
+      body:'The people wey release this game don check every link inside am. If you trust am, press <b>Continue</b>. If you no sure, check the address below sef, then come back to the game.',
+      url:'Address wey go open (new tab):',go:'Continue',back:'Go back',opt:'official Optimum project page',pg:'personal page',web:'website'},
+  bn:{ttl:'গেমের বাইরে যাচ্ছেন',who:'আপনাকে <b>%n</b>-এর %k-এ নিয়ে যাওয়া হবে।',whoO:'আপনাকে <b>%k</b>-এ নিয়ে যাওয়া হবে।',
+      body:'এই গেমের সব লিংক গেম প্রকাশক যাচাই করেছেন। আপনি বিশ্বাস করলে <b>চালিয়ে যান</b> চাপুন। নিশ্চিত না হলে নিচের ঠিকানাটি নিজে যাচাই করুন, তারপর গেমে ফিরে আসুন।',
+      url:'যে ঠিকানা খুলবে (নতুন ট্যাবে):',go:'চালিয়ে যান',back:'ফিরে যান',opt:'Optimum প্রকল্পের অফিসিয়াল পেজ',pg:'ব্যক্তিগত পেজ',web:'ওয়েবসাইট'},
+  id:{ttl:'KELUAR KE SITUS LUAR',who:'Anda akan dialihkan ke %k milik <b>%n</b>.',whoO:'Anda akan dialihkan ke <b>%k</b>.',
+      body:'Semua tautan di game ini telah diverifikasi oleh penerbit game. Jika Anda percaya, tekan <b>Lanjutkan</b>. Jika ragu, periksa sendiri alamat di bawah, lalu kembali ke game.',
+      url:'Alamat yang akan dibuka (di tab baru):',go:'Lanjutkan',back:'Kembali',opt:'halaman resmi proyek Optimum',pg:'halaman pribadi',web:'situs web'},
+  hi:{ttl:'गेम से बाहर जा रहे हैं',who:'आपको <b>%n</b> के %k पर भेजा जाएगा।',whoO:'आपको <b>%k</b> पर भेजा जाएगा।',
+      body:'इस गेम के सभी लिंक गेम प्रकाशक द्वारा सत्यापित किए गए हैं। यदि आप भरोसा करते हैं तो <b>जारी रखें</b> दबाएँ। यदि आप निश्चित नहीं हैं, तो नीचे दिया पता खुद जाँचें और फिर गेम में लौट आएँ।',
+      url:'खुलने वाला पता (नए टैब में):',go:'जारी रखें',back:'वापस जाएँ',opt:'Optimum प्रोजेक्ट का आधिकारिक पेज',pg:'निजी पेज',web:'वेबसाइट'},
+  zh:{ttl:'即将离开游戏',who:'你即将跳转到 <b>%n</b> 的%k。',whoO:'你即将跳转到 <b>%k</b>。',
+      body:'游戏中的所有链接均已由游戏发行方核实。如果你信任,请点击<b>继续</b>。如果不放心,可以先自行核实下方地址,再回来继续游戏。',
+      url:'将打开的地址(在新标签页中):',go:'继续',back:'返回',opt:'Optimum 项目官方页面',pg:'个人主页',web:'网站'},
+  fil:{ttl:'LALABAS SA GAME',who:'Ire-redirect ka sa %k ni <b>%n</b>.',whoO:'Ire-redirect ka sa <b>%k</b>.',
+      body:'Na-verify ng publisher ng game ang lahat ng link sa larong ito. Kung pinagkakatiwalaan mo, pindutin ang <b>Magpatuloy</b>. Kung hindi ka sigurado, i-verify muna mismo ang address sa ibaba, saka bumalik sa laro.',
+      url:'Address na bubuksan (sa bagong tab):',go:'Magpatuloy',back:'Bumalik',opt:'opisyal na pahina ng proyektong Optimum',pg:'personal na pahina',web:'website'},
+  uk:{ttl:'ПЕРЕХІД НА ЗОВНІШНІЙ САЙТ',who:'Вас буде перенаправлено на зовнішню сторінку (%k): <b>%n</b>.',whoO:'Вас буде перенаправлено на <b>%k</b>.',
+      body:'Усі посилання в грі перевірено видавцем гри. Якщо ви довіряєте посиланню, натисніть <b>Продовжити</b>. Якщо сумніваєтесь, спершу перевірте адресу нижче самостійно, а потім повертайтеся до гри.',
+      url:'Адреса для відкриття (у новій вкладці):',go:'Продовжити',back:'Назад',opt:'офіційна сторінка проєкту Optimum',pg:'особиста сторінка',web:'сайт'},
+  ko:{ttl:'외부 사이트로 이동',who:'<b>%n</b>의 %k(으)로 이동하려고 합니다.',whoO:'<b>%k</b>(으)로 이동하려고 합니다.',
+      body:'게임 속 모든 링크는 게임 배포자가 확인한 것입니다. 신뢰하신다면 <b>계속</b>을 누르세요. 확신이 서지 않으면 아래 주소를 직접 확인한 뒤 게임으로 돌아오세요.',
+      url:'열릴 주소 (새 탭에서 열림):',go:'계속',back:'돌아가기',opt:'Optimum 프로젝트 공식 페이지',pg:'개인 페이지',web:'웹사이트'}
+};
+let leaveEl=null;
+const leaveCss=document.createElement('style');   // khi hộp đang mở: ẩn bảng "Tạm dừng" phía sau (ui.js tự bật nó khi thoát pointer lock, nên phải ép ẩn bằng CSS)
+leaveCss.textContent='body.leave-open #ov{display:none!important}';document.head.appendChild(leaveCss);
+function closeLeave(resume){
+  if(!leaveEl)return;
+  leaveEl.remove();leaveEl=null;document.body.classList.remove('leave-open');
+  if(resume&&typeof dead!=='undefined'&&!dead){const ov=document.getElementById('ov');if(ov)ov.click()}   // bấm Quay lại -> vào game luôn (click là thao tác người dùng nên khóa chuột lại được)
+}
+function askLeave(r,e){
+  closeLeave();document.body.classList.add('leave-open');
+  const tx=LEAVE_TXT[typeof L==='string'&&LEAVE_TXT[L]?L:'en'];
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isOpt=r.k==='O',kind=isOpt?tx.opt:(r.lab==='X'?'X (Twitter)':r.lab==='LINKEDIN'?'LinkedIn':r.lab==='WEBSITE'?tx.web:tx.pg);
+  const head=(isOpt?tx.whoO:tx.who).replace('%k',()=>kind).replace('%n',()=>esc(e&&e.n1||''));
+  const o=document.createElement('div');leaveEl=o;
+  o.style.cssText='position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;background:rgba(2,10,20,.72);font-family:monospace';
+  o.innerHTML='<div style="max-width:min(520px,92vw);padding:22px 26px;border:1px solid rgba(130,238,255,.9);border-radius:10px;background:rgba(8,38,66,.94);color:#bff8ff;box-shadow:0 0 28px rgba(80,230,255,.35)">'+
+    '<div style="font:bold 18px monospace;letter-spacing:1px;text-shadow:0 0 8px #5ff;margin-bottom:12px">\u26A0 '+tx.ttl+'</div>'+
+    '<div style="font-size:15px;line-height:1.5;margin-bottom:10px">'+head+'</div>'+
+    '<div style="font-size:14px;line-height:1.5;color:rgba(190,248,255,.85);margin-bottom:12px">'+tx.body+'</div>'+
+    '<div style="font-size:12px;color:rgba(150,235,255,.7);margin-bottom:4px">'+tx.url+'</div>'+
+    '<div style="font-size:13px;word-break:break-all;padding:8px 10px;border:1px dashed rgba(130,238,255,.5);border-radius:6px;margin-bottom:16px;color:#fff">'+esc(r.url)+'</div>'+
+    '<div style="display:flex;gap:12px;justify-content:flex-end">'+
+    '<button data-a="back" style="cursor:pointer;padding:9px 18px;border-radius:6px;border:1px solid rgba(130,238,255,.7);background:transparent;color:#bff8ff;font:bold 14px monospace">'+tx.back+'</button>'+
+    '<button data-a="go" style="cursor:pointer;padding:9px 18px;border-radius:6px;border:1px solid #6ff0ff;background:rgba(80,230,255,.28);color:#fff;font:bold 14px monospace">'+tx.go+'</button></div></div>';
+  const stop=ev=>ev.stopPropagation();
+  for(const n of ['mousedown','mouseup','click','pointerdown','pointerup','wheel','contextmenu'])o.addEventListener(n,stop);   // không để click lọt xuống game (bắn súng / bấm Resume)
+  o.addEventListener('click',ev=>{
+    const a=ev.target&&ev.target.dataset&&ev.target.dataset.a;
+    if(a==='go'){try{window.open(r.url,'_blank','noopener,noreferrer')}catch(_){}closeLeave(false)}
+    else if(a==='back'||ev.target===o)closeLeave(true);
+  });
+  document.body.appendChild(o);
+  const g=o.querySelector('[data-a=back]');if(g)g.focus();
+}
+addEventListener('keydown',ev=>{   // capture: khi hộp đang mở thì Esc = quay lại, các phím khác (E...) không lọt vào game
+  if(!leaveEl)return;
+  if(ev.code==='Escape'){closeLeave(false)}
+  ev.stopImmediatePropagation();
+  if(ev.code!=='Tab'&&ev.code!=='Enter'&&ev.code!=='Space')ev.preventDefault();
 },true);
 
 // ---------- gợi ý ----------
