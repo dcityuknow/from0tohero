@@ -248,8 +248,7 @@ function warm(g){   // gọi khi người chơi lại gần chòi (<45m) hoặc 
   const lang=GuideBot.getLang();if(warmLang===lang)return;warmLang=lang;
   g.easels.forEach((e,i)=>setTimeout(()=>{tplLines(e,lang);ensure(e,lang)},i*500));
   if(CFG.mp3)g.easels.forEach((e,i)=>setTimeout(()=>loadMp3(mp3Url(e,lang)),300+i*150));   // tải sẵn mp3 để nhìn vào tranh là phát ngay
-  if(!GREETP[lang])GREETP[lang]=greetLines(lang);
-  trAll(lang,TT(lang).greet).then(l=>preloadTTS(l[0],lang));tr1(lang,TT(lang).name);
+  tr1(lang,TT(lang).name);if(!NATIVE[lang]){tr1(lang,'Today is');tr1(lang,'and the time is now')}   // dịch sẵn mấy cụm cố định của lời chào (lời chào tự ghép theo giờ nên không viết sẵn cả câu)
 }
 
 // ---------- KHUNG CHỮ ----------
@@ -500,6 +499,7 @@ async function speakLines(lines,head,lang,idx){
   st.talking=false;st.speaking=-1;setTimeout(()=>{if(tk===token)showing=false},1200);
 }
 async function speakPicture(idx,g){
+  picSeq++;                                      // tranh luôn được ưu tiên hơn lời chào: lời chào đang chờ / đang đọc sẽ bị bỏ
   const info=g.easels[idx],lang=GuideBot.getLang(),mine=++token;   // ngắt câu đang đọc ngay, rồi mới chờ AI
   cancelTTS();
   st.last[idx]=st.t;st.speaking=idx;st.talking=false;
@@ -519,26 +519,110 @@ async function speakPicture(idx,g){
   speakLines(lines,nm+' · '+(SPOKEN[keyOf(info)]||title(info.n1))+' — '+title(info.n2),lang,idx);
 }
 
-// Lời chào khi người chơi bước vào chòi: do AI viết mỗi lần một kiểu (hết key / mất mạng -> kịch bản chào có sẵn)
-const GREETP={};
-async function greetLines(l){
+// Lời chào khi người chơi bước lên chòi — theo GIỜ MÁY NGƯỜI CHƠI (new Date()):
+//   câu 1: chào + tự giới thiệu  ->  câu 2: hôm nay thứ mấy, ngày tháng, mấy giờ  ->  câu 3: lời chúc theo buổi (sáng/trưa/chiều/tối/khuya) + thêm lời chúc nếu cuối tuần / thứ Hai / thứ Sáu  ->  câu 4: mời nhìn tranh.
+// Mỗi lần ghép ngẫu nhiên từ nhiều mẫu câu và KHÔNG lặp lại mẫu vừa dùng. Quay lại sảnh trong 15 phút: chỉ chào ngắn (không tự giới thiệu lại, không đọc lại ngày giờ).
+// vi / en / ko viết tay. Ngôn ngữ khác: dùng mẫu tiếng Anh rồi dịch bằng trLine (có cache); thứ/ngày/giờ lấy từ Intl theo đúng ngôn ngữ đó. Muốn thêm câu: thêm vào mảng tương ứng trong GR.
+const grPeriod=h=>(h>=22||h<4)?'night':h<11?'morning':h<13?'noon':h<18?'afternoon':'evening';
+const grKind=d=>(d===0||d===6)?'weekend':d===1?'monday':d===5?'friday':'mid';
+const grH12=h=>h%12||12, grP2=n=>String(n).padStart(2,'0');
+const LASTG={};
+const pickNR=(key,a)=>{if(a.length<2)return a[0];let i;do{i=Math.floor(Math.random()*a.length)}while(i===LASTG[key]);LASTG[key]=i;return a[i]};
+const withTO=(p,ms,fb)=>Promise.race([p,new Promise(r=>setTimeout(()=>r(fb),ms))]);
+const GR={
+  vi:{
+    wd:['Chủ nhật','thứ Hai','thứ Ba','thứ Tư','thứ Năm','thứ Sáu','thứ Bảy'],
+    time:(h,m,p)=>{const w={morning:'sáng',noon:'trưa',afternoon:'chiều',evening:'tối',night:'đêm'}[p];return m?grH12(h)+' giờ '+m+' phút '+w:'đúng '+grH12(h)+' giờ '+w},
+    hello:['Chào bạn! Tôi là hướng dẫn viên của khu triển lãm Optimum.','Xin chào! Tôi là hướng dẫn viên ở khu triển lãm Optimum này.','Chào mừng bạn đến khu triển lãm Optimum! Tôi là người hướng dẫn của bạn.','Chào bạn, rất vui được gặp! Tôi là hướng dẫn viên của khu triển lãm Optimum.'],
+    back:['Chào mừng bạn quay lại!','Ồ, bạn quay lại rồi, xin chào!','Lại gặp bạn rồi, chào bạn nhé!','Chào mừng bạn quay lại khu triển lãm, cứ tự nhiên xem tiếp nhé!','Bạn quay lại rồi! Cứ nhìn vào bức tranh nào bạn thích nhé.'],
+    when:[c=>`Hôm nay là ${c.wd}, ngày ${c.d} tháng ${c.mo}, bây giờ là ${c.t}.`,c=>`Hôm nay ${c.wd}, ngày ${c.d} tháng ${c.mo}, lúc này đã ${c.t}.`,c=>`Bây giờ là ${c.t}, ${c.wd} ngày ${c.d} tháng ${c.mo}.`,c=>`Hôm nay là ngày ${c.d} tháng ${c.mo}, ${c.wd}, và đồng hồ đang chỉ ${c.t}.`],
+    wish:{
+      morning:['Chúc bạn một buổi sáng thật vui vẻ và tràn đầy năng lượng!','Chúc bạn buổi sáng tốt lành!','Chúc bạn khởi đầu ngày mới thật thuận lợi nhé!','Chúc bạn một buổi sáng nhẹ nhàng và một ngày mới vui vẻ!'],
+      noon:['Chúc bạn một buổi trưa vui vẻ, nhớ nghỉ ngơi và ăn trưa ngon miệng nhé!','Giờ trưa rồi, chúc bạn bữa trưa thật ngon miệng!','Chúc bạn một buổi trưa thật thoải mái!'],
+      afternoon:['Chúc bạn một buổi chiều vui vẻ!','Chúc bạn một buổi chiều thật hiệu quả và nhiều niềm vui!','Chúc bạn một buổi chiều thư thả, vui vẻ nhé!','Buổi chiều rồi, chúc bạn thật nhiều niềm vui!'],
+      evening:['Chúc bạn một buổi tối vui vẻ và thư giãn!','Chúc bạn một buổi tối ấm áp, thật nhiều niềm vui!','Buổi tối rồi, chúc bạn thư giãn thật thoải mái nhé!'],
+      night:['Khuya rồi mà bạn vẫn ghé thăm, chúc bạn một đêm vui vẻ nhé!','Chúc bạn một đêm thật vui, nhớ giữ gìn sức khỏe nhé!','Đã khuya rồi, chúc bạn chơi vui nhưng đừng thức quá muộn nhé!']
+    },
+    day:{
+      weekend:['Cuối tuần rồi, chúc bạn có thời gian nghỉ ngơi thật thoải mái!','Hôm nay cuối tuần, chúc bạn một ngày nghỉ thật trọn vẹn!','Chúc bạn cuối tuần thật vui và nạp lại thật nhiều năng lượng nhé!'],
+      monday:['Hôm nay đầu tuần, chúc bạn một tuần mới thuận lợi!','Chúc bạn khởi đầu tuần mới thật suôn sẻ nhé!'],
+      friday:['Thứ Sáu rồi, cuối tuần đã gần kề, cố lên nhé!','Sắp đến cuối tuần rồi, thêm chút cố gắng nữa thôi nhé!']
+    },
+    invite:['Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu về người trong bức tranh đó.','Hãy thử nhìn vào một bức chân dung bất kỳ, tôi sẽ kể bạn nghe về người trong tranh.','Bức tranh nào làm bạn tò mò thì cứ nhìn vào đó, tôi sẽ giới thiệu ngay.','Mời bạn dạo quanh và nhìn vào từng bức tranh, mỗi bức tôi đều có một câu chuyện để kể.']
+  },
+  en:{
+    wd:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    mo:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    time:(h,m,p)=>{const w={morning:'in the morning',noon:'at midday',afternoon:'in the afternoon',evening:'in the evening',night:'at night'}[p];return m?grH12(h)+':'+grP2(m)+' '+w:grH12(h)+" o'clock "+w},
+    hello:["Hello there! I'm the guide of the Optimum exhibition.","Hi, welcome! I'm your guide here at the Optimum exhibition.","Welcome to the Optimum exhibition! I'm the guide here.","Hey, nice to meet you! I'm the guide of the Optimum exhibition."],
+    back:['Welcome back!',"Oh, you're back. Hello again!",'Good to see you again!','Welcome back to the exhibition, feel free to keep exploring!',"You're back! Just look at any painting you like."],
+    when:[c=>`Today is ${c.wd}, ${c.mo} ${c.d}, and it's ${c.t}.`,c=>`It's ${c.wd}, ${c.mo} ${c.d} today, and the time is ${c.t}.`,c=>`Right now it's ${c.t} on ${c.wd}, ${c.mo} ${c.d}.`],
+    wish:{
+      morning:['I hope you have a wonderful morning!','Wishing you a bright and cheerful morning!','Have a lovely morning and a great start to your day!'],
+      noon:['Wishing you a pleasant midday, and a tasty lunch!','I hope your lunchtime is nice and relaxing!'],
+      afternoon:['Wishing you a pleasant afternoon!','Have a lovely afternoon full of good moments!','I hope your afternoon is going wonderfully!'],
+      evening:['Wishing you a relaxing evening!','Have a lovely, cozy evening!','I hope you enjoy a calm and happy evening!'],
+      night:["It's late, but I hope you have a wonderful night!","Wishing you a peaceful, happy night. Don't stay up too late!"]
+    },
+    day:{
+      weekend:['And enjoy the weekend, you deserve some rest!','Happy weekend, make the most of it!',"It's the weekend, so I hope you can really unwind!"],
+      monday:['And have a great start to the new week!','Wishing you a smooth start to the week!'],
+      friday:['And the weekend is almost here, hang in there!',"It's Friday, the weekend is just around the corner!"]
+    },
+    invite:["Just look at any painting and I'll tell you about the person in it.","Look at any portrait that catches your eye, and I'll introduce them to you.","Take a stroll and look at any painting. I have a story for each one.","Whichever painting interests you, just look at it and I'll tell you about them."]
+  },
+  ko:{
+    wd:['일요일','월요일','화요일','수요일','목요일','금요일','토요일'],
+    time:(h,m,p)=>(h<12?'오전 ':'오후 ')+grH12(h)+'시'+(m?' '+m+'분':''),
+    hello:['안녕하세요! 옵티멈 전시관의 안내원입니다.','어서 오세요! 저는 옵티멈 전시관의 안내원이에요.','반갑습니다! 옵티멈 전시관을 안내해 드릴게요.'],
+    back:['다시 오셨군요, 어서 오세요!','또 뵙네요, 반갑습니다!','전시관에 다시 오신 걸 환영합니다. 편하게 둘러보세요!','돌아오셨네요! 마음에 드는 그림을 바라보세요.'],
+    when:[c=>`오늘은 ${c.mo}월 ${c.d}일 ${c.wd}이고, 지금은 ${c.t}입니다.`,c=>`${c.mo}월 ${c.d}일 ${c.wd}, 현재 시각은 ${c.t}입니다.`],
+    wish:{
+      morning:['좋은 아침이에요! 상쾌한 하루 보내세요.','활기찬 아침 되시길 바랍니다!'],
+      noon:['즐거운 점심시간 보내세요! 맛있는 점심 드세요.','편안한 한낮 보내시길 바랍니다!'],
+      afternoon:['즐거운 오후 보내세요!','기분 좋은 오후 되시길 바랍니다!'],
+      evening:['편안하고 즐거운 저녁 보내세요!','행복한 저녁 되시길 바랍니다!'],
+      night:['늦은 시간이지만 즐거운 밤 보내세요!','편안한 밤 되세요. 너무 늦게까지 깨어 있지는 마세요!']
+    },
+    day:{
+      weekend:['주말이니 푹 쉬시고 즐거운 시간 보내세요!','즐거운 주말 보내세요!'],
+      monday:['한 주를 힘차게 시작하세요!','이번 주도 순조롭게 시작하시길 바랍니다!'],
+      friday:['금요일이네요, 주말이 곧 다가옵니다. 조금만 힘내세요!','주말이 코앞이에요, 힘내세요!']
+    },
+    invite:['보고 싶은 그림을 바라보시면 그 인물을 소개해 드릴게요.','마음에 드는 초상화를 바라보시면 이야기를 들려 드릴게요.','천천히 둘러보시다가 궁금한 그림을 바라보세요. 제가 소개해 드릴게요.']
+  }
+};
+let introduced=false,picSeq=0;   // introduced: trong 1 trận chỉ giới thiệu đầy đủ 1 lần (chết -> restart thì được giới thiệu lại); picSeq: tăng mỗi khi bot bắt đầu đọc 1 bức tranh
+async function greetLines(l,again){
   try{
-    if(typeof AITalk!=='undefined'&&typeof AIP!=='undefined'){
-      AIP.guide={head:`Bạn là hướng dẫn viên của khu triển lãm Optimum vừa chạy lại đón một khách vừa bước vào sảnh. Hãy viết lời chào ấm áp, tự nhiên 2-3 câu (tổng 25-40 từ): chào khách, nói bạn là hướng dẫn viên của khu triển lãm Optimum, và mời khách nhìn vào bất kỳ bức chân dung nào để nghe giới thiệu về người trong tranh. Mỗi lần chào một kiểu khác nhau (lần này: "${pick(['vui vẻ, thân thiện','lịch sự, trang trọng','hào hứng, như đang đón người quen','nhẹ nhàng, thong thả'])}"). Dự án: ${COMMON} Chỉ dùng thông tin đã có; không bịa. Chỉ trả về đúng lời nói, không giải thích, không dùng ký hiệu đặc biệt.`,combat:'',info:''};
-      const t=await Promise.race([AITalk.line('guide',{hp:1,maxhp:1,x:0,z:0,fl:0}),new Promise(r=>setTimeout(()=>r(null),3500))]);
-      const s=t&&typeof t==='string'?splitS(t).slice(0,4):[];
-      if(s.length)return s;
+    const now=new Date(),h=now.getHours(),mi=now.getMinutes(),per=grPeriod(h),kind=grKind(now.getDay());
+    const nat=!!(NATIVE[l]&&GR[l]),P=nat?GR[l]:GR.en;
+    if(again){                                                          // lần sau bước vào sảnh: chỉ 1 câu chào mừng quay lại
+      const back=pickNR(l+'hb',P.back);
+      if(nat)return [back];
+      const t=await withTO(tr1(l,back),3000,null);return [t||back];
     }
-  }catch(e){}
-  return trAll(l,TT(l).greet);
+    const hello=pickNR(l+'h',P.hello);
+    const wish=pickNR(l+'w'+per,P.wish[per])+((kind!=='mid'&&Math.random()<.85)?' '+pickNR(l+'d'+kind,P.day[kind]):'');
+    const invite=pickNR(l+'i',P.invite);
+    const ctx={wd:P.wd[now.getDay()],d:now.getDate(),mo:P.mo?P.mo[now.getMonth()]:now.getMonth()+1,t:P.time(h,mi,per)};
+    const when=pickNR(l+'t',P.when)(ctx);
+    if(nat)return [hello,when,wish,invite];
+    // ngôn ngữ khác: dịch các câu mẫu tiếng Anh; ngày/giờ lấy từ Intl theo đúng ngôn ngữ
+    let dt='',tm='';
+    try{const loc=TTSL[l]||'en-US';dt=new Intl.DateTimeFormat(loc,{weekday:'long',day:'numeric',month:'long'}).format(now);tm=new Intl.DateTimeFormat(loc,{hour:'numeric',minute:'2-digit'}).format(now)}catch(e){}
+    const needT=!!(dt&&tm);
+    const tr=await withTO(trAll(l,[hello,wish,invite].concat(needT?['Today is','and the time is now']:[])),3000,null);
+    if(!tr)return [hello,when,wish,invite];                              // dịch chậm / lỗi -> đọc bản tiếng Anh, vẫn đúng ngày giờ
+    return [tr[0],needT?tr[3]+' '+dt+', '+tr[4]+' '+tm+'.':when,tr[1],tr[2]];
+  }catch(e){return trAll(l,TT(l).greet)}
 }
 async function greet(){
-  const l=GuideBot.getLang(),tk=token+1;
-  const pre=GREETP[l];GREETP[l]=null;
-  const [g,nm]=await Promise.all([pre||greetLines(l),tr1(l,TT(l).name)]);
-  if(token+1!==tk||!st.onDeck)return;   // đã đọc câu khác / người chơi đã rời sảnh
+  const l=GuideBot.getLang(),tk=token+1,seq=picSeq,again=introduced;
+  introduced=true;                                                      // từ giờ (kể cả khi bị ngắt giữa chừng) các lần vào sau chỉ chào mừng quay lại
+  const [g,nm]=await Promise.all([greetLines(l,again),tr1(l,TT(l).name)]);
+  if(token+1!==tk||!st.onDeck||picSeq!==seq||st.speaking>=0)return;     // đã đọc câu khác / người chơi đã rời sảnh / bot đang đọc tranh -> nhường tranh, không chen vào
   speakLines(g,nm,l,-1);
-  setTimeout(()=>{if(!GREETP[l])GREETP[l]=greetLines(l)},4000);   // viết sẵn lời chào kiểu khác cho lần sau
 }
 
 // ---------- NHÌN TRANH ----------
@@ -636,6 +720,7 @@ function updateStaff(dt,g,P,on,clampZ){
 
 // ---------- VÒNG LẶP ----------
 function update(dt){
+  if(typeof dead!=='undefined'&&dead)introduced=false;   // chết -> sang ván mới (restart) thì giới thiệu đầy đủ lại 1 lần
   const g=window.PavilionGuide;
   if(!g||!g.easels){root.visible=false;return}
   if(typeof curFl!=='undefined'&&curFl!==0){for(const s of STAFF)s.m.root.visible=false;root.visible=false;st.onDeck=false;if(showing||st.talking)stopSpeech();placeBubble(g);return}   // chòi chỉ có ở tầng 1 (curFl=0): sang tầng khác thì ẩn bot
@@ -648,7 +733,7 @@ function update(dt){
 
   const P=view();
   const on=!!P&&Math.abs(P.x-g.cx)<g.HX+.2&&Math.abs(P.z-g.cz)<g.HZ+.2&&P.y>g.FL+.8&&P.y<g.FL+3.3;
-  if(on&&!st.onDeck&&st.t-st.lastGreet>60){st.lastGreet=st.t;greet()}
+  if(on&&!st.onDeck&&st.t-st.lastGreet>20){st.lastGreet=st.t;greet()}
   if(P&&(on||Math.hypot(P.x-g.cx,P.z-g.cz)<45))warm(g);
   if(!on&&st.onDeck)stopSpeech();
   st.onDeck=on;
@@ -658,7 +743,7 @@ function update(dt){
   if(on){
     const c=lookedEasel(P,g);
     if(c===st.gaze)st.gazeT+=dt;else{st.gaze=c;st.gazeT=0}
-    if(c>=0&&st.gazeT>=CFG.dwell&&c!==st.speaking&&st.t-(st.last[c]??-1e9)>CFG.cooldown)speakPicture(c,g);
+    if(c>=0&&st.gazeT>=((st.talking&&st.speaking===-1)?Math.min(.25,CFG.dwell):CFG.dwell)&&c!==st.speaking&&st.t-(st.last[c]??-1e9)>CFG.cooldown)speakPicture(c,g);
   }else{st.gaze=-1;st.gazeT=0}
 
   // --- di chuyển ---
