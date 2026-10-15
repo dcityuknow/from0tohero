@@ -15,6 +15,7 @@ function rayTargets(ray,far){
     out.push(m);
   }
   for(const m of botMeshes){const b=m.userData.bot;if(b.on&&b.hp>0&&!b.ally)out.push(m)}
+  if(window.NET)NET.targets(out);   // LAN: hộp va chạm người chơi khác (net/avatar.js)
   return out;
 }
 function shoot(){
@@ -29,17 +30,23 @@ function shoot(){
   const h=hs.find(x=>{const b=x.object.userData.bot;return !b||b.hp>0});
   const wh=window.Nature&&Nature.rayWater?Nature.rayWater(rc.ray,h?h.distance:60):null;   // đạn xuống nước trước khi chạm gì khác
   if(cur==='sniper'){   // súng ngắm: đạn XUYÊN quái (xuyên được nhiều con trên đường đạn), chỉ dừng ở tường / mặt nước. Quái thường trúng là chết ngay 1 viên; boss vẫn trừ máu theo sát thương
-    const wall=hs.find(x=>!x.object.userData.bot),lim=wall?wall.distance:60;
-    const sw=window.Nature&&Nature.rayWater?Nature.rayWater(rc.ray,lim):null,end=sw?sw.distance:lim,seen=new Set();
+    const wall=hs.find(x=>!x.object.userData.bot&&!x.object.userData.rp),lim=wall?wall.distance:60;
+    const sw=window.Nature&&Nature.rayWater?Nature.rayWater(rc.ray,lim):null,end=sw?sw.distance:lim,seen=new Set();let prp=null;
     for(const x of hs){
       if(x.distance>end)break;
+      const rp=x.object.userData.rp;
+      if(rp){   // LAN: trúng người chơi -> đạn dừng ở đó (không xuyên người)
+        const hd=x.object.userData.head,n=x.face.normal.clone().transformDirection(x.object.matrixWorld);
+        NET.hit(rp,hd,cur);col=0xff3355;blood(x.point,n,rc.ray.direction,hd?18:11);prp=x.point;break;
+      }
       const b=x.object.userData.bot;if(!b||b.hp<=0||seen.has(b))continue;seen.add(b);
       const hd=x.object.userData.head,n=x.face.normal.clone().transformDirection(x.object.matrixWorld);
       if(b.boss)b.hp-=hd?w.hd:w.dmg;else b.hp=0;
       col=0xff3355;snd(180,.1,'sawtooth',.07*GV,x.point);blood(x.point,n,rc.ray.direction,hd?18:11);
       if(b.hp<=0)killBot(b,rc.ray.direction);
     }
-    if(sw){to=sw.point;col=0x9fd8ff;Nature.bulletSplash(sw.point.x,sw.point.y,sw.point.z)}
+    if(prp)to=prp;
+    else if(sw){to=sw.point;col=0x9fd8ff;Nature.bulletSplash(sw.point.x,sw.point.y,sw.point.z)}
     else if(wall){
       to=wall.point;const n=wall.face.normal.clone().transformDirection(wall.object.matrixWorld);
       hole(wall.point,n,(Array.isArray(wall.object.material)?wall.object.material[0]:wall.object.material).color);
@@ -47,13 +54,15 @@ function shoot(){
   }
   else if(wh){to=wh.point;col=0x9fd8ff;Nature.bulletSplash(wh.point.x,wh.point.y,wh.point.z)}
   else if(h){
-    to=h.point;const b=h.object.userData.bot,n=h.face.normal.clone().transformDirection(h.object.matrixWorld);
-    if(b){
+    to=h.point;const b=h.object.userData.bot,rp=h.object.userData.rp,n=h.face.normal.clone().transformDirection(h.object.matrixWorld);
+    if(rp){const hd=h.object.userData.head;NET.hit(rp,hd,cur);col=0xff3355;blood(h.point,n,rc.ray.direction,hd?18:11)}   // LAN: bắn trúng người chơi khác
+    else if(b){
       const hd=h.object.userData.head;b.hp-=hd?w.hd:w.dmg;col=0xff3355;snd(180,.1,'sawtooth',.07*GV,h.point);
       blood(h.point,n,rc.ray.direction,hd?18:11);
       if(b.hp<=0)killBot(b,rc.ray.direction);
     }else hole(h.point,n,(Array.isArray(h.object.material)?h.object.material[0]:h.object.material).color);
   }
+  if(window.NET)NET.shot(from,to,cur);   // LAN: người khác thấy tia đạn + nghe tiếng súng
   tracer.geometry.setFromPoints([from,to]);tracer.visible=true;
   spark.material.color.set(col);spark.position.copy(to);spark.visible=true;fx=.06;
   flash.visible=true;vm.position.z=cur==='sniper'?.14:.07;vm.rotation.x=.04;boltMax=cur==='sniper'?.9:.15;bolt=boltMax;

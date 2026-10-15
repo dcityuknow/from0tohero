@@ -1,10 +1,10 @@
 // Bàn phím, chuột, nạp đạn
 // Khi đang chơi: chỉ cho các phím có chức năng trong game hoạt động. Mọi phím tắt của trình duyệt (Ctrl+S, Ctrl+P, Ctrl+F, Ctrl+R, F5, Tab, Alt...) bị chặn.
 // Esc (thoát khóa chuột / tạm dừng), F11 (toàn màn hình), F12 (DevTools) vẫn cho qua.
-const GAME_KEYS=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyR','KeyF','Digit1','Digit2','Digit3','Digit4','KeyY','KeyN','KeyE','KeyC']);   // KeyC: đổi góc nhìn thứ 1 / thứ 3 (player/thirdperson.js)
+const GAME_KEYS=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','KeyR','KeyF','Digit1','Digit2','Digit3','Digit4','KeyY','KeyN','KeyE','KeyC','Tab','Enter','KeyT']);   // Tab: bảng điểm LAN · Enter / T: chat LAN (net/lan-ui.js)   // KeyC: đổi góc nhìn thứ 1 / thứ 3 (player/thirdperson.js)
 const PASS_KEYS=new Set(['Escape','F11','F12']);
 addEventListener('keydown',e=>{
-  if(!playing||PASS_KEYS.has(e.code))return;
+  if(!playing||PASS_KEYS.has(e.code)||(window.NET&&NET.typing))return;   // NET.typing: đang gõ chat -> để phím đi tới ô nhập
   if(e.ctrlKey||e.metaKey||e.altKey||!GAME_KEYS.has(e.code)){e.preventDefault();e.stopImmediatePropagation()}
 },true);
 // Chặn zoom trình duyệt: Ctrl + cuộn chuột (luôn chặn), cuộn chuột khi đang chơi, chụm 2 ngón / gesture zoom trên điện thoại
