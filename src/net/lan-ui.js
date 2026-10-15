@@ -1,32 +1,39 @@
-// Giao diện chơi nhiều người: nút "🌐 Nhiều người" ở bảng bắt đầu -> hộp thoại (Tạo phòng / nhập mã phòng) -> SẢNH CHỜ (mã phòng, danh sách người,
-// chủ phòng bấm Bắt đầu) -> vào trận. Trong trận: thanh trạng thái, bảng điểm (giữ Tab), chat (Enter / T), kill feed.
-// Điều khiển mạng thực sự nằm ở net/net.js. Nạp CUỐI CÙNG (sau ui/profile.js) vì dùng #go, #ov, PROFILE, L, $ và NET.
-// Chữ: vi + en (ngôn ngữ khác tự dùng tiếng Anh) - thêm bản dịch ở NT.
+// Màn hình chọn cách chơi (dựng riêng, nền game mờ + khối voxel trang trí), hiện SAU bước chọn ngôn ngữ / tên / nhân vật:
+//   [Chơi một mình]  -> vào bảng "Bấm để chơi" như cũ
+//   [Chơi team]      -> [Tạo phòng] (chủ phòng, nhận mã) hoặc [Vào phòng] (nhập mã)  ->  SẢNH CHỜ (mã phòng, danh sách người, chủ phòng bấm Bắt đầu)  -> vào trận
+// Trong trận: thanh trạng thái, bảng điểm (giữ Tab), chat (Enter / T), kill feed. Điều khiển mạng thực sự nằm ở net/net.js.
+// Nạp CUỐI CÙNG (sau ui/profile.js, nó gọi LanUI.afterProfile khi hồ sơ xong). Chữ: vi + en (ngôn ngữ khác tự dùng tiếng Anh) - thêm bản dịch ở NT.
 window.LanUI=(function(){
   const NT={
-    vi:{btn:'Nhiều người',lan:'Chơi nhiều người',create:'🏠 Tạo phòng',or:'hoặc vào phòng của bạn bè',code:'Mã phòng',codePh:'vd: K7P3X',join:'Vào phòng',leave:'Rời phòng',close:'Đóng',
+    vi:{btn:'Phòng',hello:'Xin chào, {0}!',ask:'Bạn muốn chơi thế nào?',soloT:'Chơi một mình',soloD:'Leo 4 tầng, hạ từng con boss bằng sức của chính bạn.',soloB:'▶ Chơi solo',
+      teamT:'Chơi cùng bạn bè',teamD:'Tạo phòng, gửi mã cho bạn bè rồi cùng vào trận.',teamB:'👥 Chơi team',back:'← Quay lại',
+      createT:'Tạo phòng',createD:'Bạn là chủ phòng: nhận mã phòng để mời bạn bè, bạn bấm Bắt đầu khi đủ người.',createB:'🏠 Tạo phòng',
+      joinT:'Vào phòng',joinD:'Nhập mã phòng 5 ký tự mà chủ phòng gửi cho bạn.',joinB:'Vào phòng',codePh:'MÃ',leave:'Rời phòng',close:'Đóng',
       connecting:'Đang kết nối…',players:'Người chơi',ping:'Ping',
       e_code:'Hãy nhập mã phòng (5 ký tự).',e_nocode:'Không tìm thấy phòng có mã này. Kiểm tra lại mã, hoặc chủ phòng đã đóng phòng.',
       e_conn:'Không kết nối được. Cần có internet, và mạng không được chặn WebRTC.',e_timeout:'Hết thời gian chờ. Hãy thử lại.',e_full:'Phòng đã đầy.',
       e_closed:'Mất kết nối với chủ phòng.',e_hostleft:'Chủ phòng đã đóng phòng.',
-      lobby:'Sảnh chờ',roomCode:'MÃ PHÒNG',copy:'Sao chép mã',copyLink:'Sao chép link mời',copied:'Đã sao chép',
-      shareH:'Gửi mã này (hoặc link mời) cho bạn bè. Họ mở game, bấm "Nhiều người" và nhập mã.',
+      lobby:'Sảnh chờ',inGame:'Đang trong trận',roomCode:'MÃ PHÒNG',copy:'Sao chép mã',copyLink:'Sao chép link mời',copied:'Đã sao chép',
+      shareH:'Gửi mã hoặc link mời cho bạn bè. Họ mở game, chọn "Chơi team" rồi nhập mã.',
       start:'▶ Bắt đầu',waitHost:'Đang chờ chủ phòng bắt đầu…',waitPlayers:'Bạn là chủ phòng. Bấm Bắt đầu khi mọi người đã vào đủ.',
-      youHost:'Cài đặt phòng (chủ phòng)',pvp:'⚔️ PvP (bắn trúng nhau gây sát thương)',bots:'🤖 Bot / quái (mỗi máy tự chạy riêng)',
-      note:'Lưu ý: bot, boss và vật phẩm chạy riêng trên từng máy; chỉ người chơi được đồng bộ.',inGame:'Đang trong trận',
+      youHost:'Cài đặt phòng',pvp:'⚔️ PvP (bắn trúng nhau gây sát thương)',bots:'🤖 Bot / quái (mỗi máy tự chạy riêng)',
+      note:'Lưu ý: bot, boss và vật phẩm chạy riêng trên từng máy; chỉ người chơi được đồng bộ.',hostTag:'Chủ phòng',you:'Bạn',
       kills:'Hạ',deaths:'Chết',name:'Tên',sbH:'Bảng điểm',chatPh:'Nhắn tin… (Enter để gửi, Esc để huỷ)',
       joined:'{0} vào phòng',left:'{0} rời phòng',died:'{0} ☠',lost:'Mất kết nối',hint:'Enter: chat · Tab: bảng điểm',
       go:'▶ Vào trận',startedSub:'Chủ phòng đã bắt đầu! Bấm để vào trận.',needStart:'Chờ chủ phòng bấm Bắt đầu.'},
-    en:{btn:'Multiplayer',lan:'Multiplayer',create:'🏠 Create room',or:'or join a friend\'s room',code:'Room code',codePh:'e.g. K7P3X',join:'Join room',leave:'Leave room',close:'Close',
+    en:{btn:'Room',hello:'Hello, {0}!',ask:'How do you want to play?',soloT:'Play solo',soloD:'Climb 4 floors and beat every boss on your own.',soloB:'▶ Play solo',
+      teamT:'Play with friends',teamD:'Create a room, send the code to your friends and enter the match together.',teamB:'👥 Play team',back:'← Back',
+      createT:'Create a room',createD:'You are the host: get a room code to invite friends, press Start when everyone is in.',createB:'🏠 Create room',
+      joinT:'Join a room',joinD:'Enter the 5-character room code the host sent you.',joinB:'Join room',codePh:'CODE',leave:'Leave room',close:'Close',
       connecting:'Connecting…',players:'Players',ping:'Ping',
       e_code:'Enter the room code (5 characters).',e_nocode:'No room with this code. Check the code, or the host has closed the room.',
       e_conn:'Could not connect. You need internet access and a network that allows WebRTC.',e_timeout:'Timed out. Please try again.',e_full:'The room is full.',
       e_closed:'Lost connection to the host.',e_hostleft:'The host closed the room.',
-      lobby:'Lobby',roomCode:'ROOM CODE',copy:'Copy code',copyLink:'Copy invite link',copied:'Copied',
-      shareH:'Send this code (or the invite link) to your friends. They open the game, press "Multiplayer" and enter the code.',
+      lobby:'Lobby',inGame:'Match in progress',roomCode:'ROOM CODE',copy:'Copy code',copyLink:'Copy invite link',copied:'Copied',
+      shareH:'Send the code or the invite link to your friends. They open the game, choose "Play team" and enter the code.',
       start:'▶ Start',waitHost:'Waiting for the host to start…',waitPlayers:'You are the host. Press Start when everyone has joined.',
-      youHost:'Room settings (host)',pvp:'⚔️ PvP (players damage each other)',bots:'🤖 Bots / monsters (each PC runs its own)',
-      note:'Note: bots, bosses and items run separately on each PC; only players are synchronised.',inGame:'Match in progress',
+      youHost:'Room settings',pvp:'⚔️ PvP (players damage each other)',bots:'🤖 Bots / monsters (each PC runs its own)',
+      note:'Note: bots, bosses and items run separately on each PC; only players are synchronised.',hostTag:'Host',you:'You',
       kills:'Kills',deaths:'Deaths',name:'Name',sbH:'Scoreboard',chatPh:'Type a message… (Enter to send, Esc to cancel)',
       joined:'{0} joined',left:'{0} left',died:'{0} ☠',lost:'Disconnected',hint:'Enter: chat · Tab: scoreboard',
       go:'▶ Enter match',startedSub:'The host started the match! Click to enter.',needStart:'Waiting for the host to press Start.'}
@@ -39,34 +46,54 @@ window.LanUI=(function(){
   // ---------- CSS ----------
   const css=document.createElement('style');
   css.textContent=`
-#lanm{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(29,27,42,.55);backdrop-filter:blur(3px)}
-#lanm.on{display:flex}
-#lanc{background:var(--card);color:var(--ink);border:3px solid var(--blue);border-radius:22px;padding:18px 22px;width:min(94vw,560px);max-height:94vh;overflow-y:auto;box-sizing:border-box;text-align:left}
-#lanc h2{margin:0 0 8px;font-size:24px;text-align:center}
-#lanc .lrow{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
-#lanc label{font-weight:bold;font-size:14px;flex:0 0 100%}
-#lanc input[type=text]{flex:1;min-width:0;box-sizing:border-box;font:700 18px "Segoe UI","Noto Sans",sans-serif;padding:8px 10px;border:3px solid var(--pink);border-radius:12px;background:#fff;color:#2b2a3a;outline:none}
-#lanc .lbtn{font:inherit;font-weight:bold;font-size:16px;border:3px solid var(--blue);background:transparent;color:var(--ink);border-radius:12px;padding:8px 14px;cursor:pointer}
-#lanc .lbtn.go{background:var(--pink);border-color:var(--pink);color:#2b2a3a}
-#lanc .lbtn:disabled{opacity:.5;cursor:default}
-#lanc .err{color:#e03b5a;font-weight:bold;font-size:14px;line-height:1.45;margin:6px 0}
-#lanc .ok{color:#1f9d55;font-weight:bold;margin:4px 0}
-#lanc .help{font-size:12.5px;line-height:1.6;opacity:.9;margin:8px 0;padding:8px 10px;border-radius:12px;background:rgba(127,191,255,.16);border:2px solid var(--blue)}
-#lanc .help b{display:block;margin-bottom:2px}
-#lanc code{background:rgba(127,127,127,.22);border-radius:5px;padding:0 5px;font-size:12px}
-#lanc .chk{display:flex;gap:8px;align-items:center;font-size:15px;font-weight:bold;margin:6px 0;cursor:pointer}
-#lanc .chk input{width:20px;height:20px;accent-color:var(--pink)}
-#lanc .urls code{display:block;margin:3px 0;font-size:15px;user-select:all}
-#lanc .plist{margin:6px 0;padding:0;list-style:none;font-size:15px}
-#lanc .plist li{display:flex;gap:8px;padding:4px 8px;border-radius:8px}
-#lanc .plist li:nth-child(odd){background:rgba(127,127,127,.12)}
-#lanc .plist .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#lanc .sm{font-size:12px;opacity:.75}
-#lanc .big{display:block;margin:10px auto;text-align:center;font:800 46px/1 'Trebuchet MS',Verdana,monospace;letter-spacing:.18em;padding:12px 8px;border:3px dashed var(--pink);border-radius:16px;user-select:all}
-#lanc .or{text-align:center;opacity:.7;margin:10px 0 2px;font-size:13px}
-#lanc .lbtn.big2{width:100%;font-size:20px;padding:12px}
-#lanc input.cin{text-transform:uppercase;letter-spacing:.3em;text-align:center;font-size:24px}
-.lb.lan{border-color:var(--blue)}.lb.lan.live{background:#3dd17a;border-color:#3dd17a;color:#14301f}
+#modes{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;overflow:hidden;
+  background:radial-gradient(1200px 700px at 20% 10%,rgba(255,127,168,.28),transparent 60%),radial-gradient(1000px 650px at 85% 90%,rgba(127,191,255,.35),transparent 60%),rgba(214,234,255,.58);
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);color:#2b2a3a}
+#modes.on{display:flex}
+body.modes-on #ov,body.modes-on #hud{visibility:hidden}   /* màn chọn nằm riêng: ẩn bảng hướng dẫn + HUD phía sau, chỉ còn cảnh game mờ */
+#modes .cubes{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#modes .cube{position:absolute;border-radius:22%;opacity:.7;box-shadow:inset -8px -8px 0 rgba(0,0,0,.13),inset 6px 6px 0 rgba(255,255,255,.45),0 10px 24px rgba(40,40,80,.18);animation:mcf var(--d) ease-in-out infinite;animation-delay:var(--l)}
+@keyframes mcf{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-26px) rotate(calc(var(--r) + 14deg))}}
+#modes .mwrap{position:relative;z-index:1;width:min(94vw,860px);max-height:96vh;overflow-y:auto;padding:10px 6px;box-sizing:border-box;text-align:center}
+#modes h1{margin:0;font:900 clamp(34px,7vw,60px)/1.05 "Trebuchet MS","Segoe UI",sans-serif;letter-spacing:.04em;color:#fff;text-shadow:0 4px 0 #ff7fa8,0 8px 0 #7fbfff,0 14px 22px rgba(30,30,60,.35)}
+#modes .sub{margin:12px 0 20px;font-weight:800;font-size:clamp(16px,2.6vw,21px);text-shadow:0 1px 0 rgba(255,255,255,.7)}
+#modes .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin:6px 0 14px}
+#modes .mcard{display:flex;flex-direction:column;align-items:center;position:relative;border-radius:26px;padding:22px 20px 20px;border:4px solid;background:#fff;box-shadow:0 8px 0 rgba(43,42,58,.16),0 18px 34px rgba(30,30,60,.22);text-align:center;transition:transform .15s,box-shadow .15s}
+#modes .mcard.pink{border-color:#ff7fa8;background:linear-gradient(#fff,#ffe9f1)}
+#modes .mcard.blue{border-color:#7fbfff;background:linear-gradient(#fff,#e5f3ff)}
+#modes .mcard.green{border-color:#6fd6a0;background:linear-gradient(#fff,#e5f9ee)}
+#modes .mcard.btnlike{cursor:pointer}
+#modes .mcard.btnlike:hover{transform:translateY(-6px) rotate(-.6deg);box-shadow:0 14px 0 rgba(43,42,58,.13),0 26px 40px rgba(30,30,60,.26)}
+#modes .mcard .ic{font-size:64px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 5px 0 rgba(43,42,58,.15))}
+#modes .mcard h2{margin:4px 0 6px;font-size:24px}
+#modes .mcard p{margin:0 0 14px;font-size:14.5px;line-height:1.5;opacity:.82;min-height:44px;flex:1}
+#modes .mbtn{font:inherit;font-weight:800;font-size:18px;border:3px solid #2b2a3a;background:#fff;color:#2b2a3a;border-radius:14px;padding:10px 20px;cursor:pointer;box-shadow:0 4px 0 #2b2a3a;transition:transform .1s,box-shadow .1s}
+#modes .mbtn:hover{transform:translateY(2px);box-shadow:0 2px 0 #2b2a3a}
+#modes .mbtn:active{transform:translateY(4px);box-shadow:none}
+#modes .mbtn.pk{background:#ff7fa8}#modes .mbtn.bl{background:#7fbfff}#modes .mbtn.gr{background:#6fd6a0}
+#modes .mbtn:disabled{opacity:.5;cursor:default}
+#modes .back{font:inherit;font-weight:800;border:0;background:rgba(255,255,255,.75);border-radius:12px;padding:7px 14px;cursor:pointer;margin-bottom:10px}
+#modes input.cin{width:100%;box-sizing:border-box;text-transform:uppercase;letter-spacing:.35em;text-align:center;font:800 28px "Trebuchet MS",monospace;padding:8px 10px;margin-bottom:12px;border:3px solid #7fbfff;border-radius:14px;background:#fff;color:#2b2a3a;outline:none}
+#modes .err{background:#ffe3e8;border:3px solid #ff6b86;color:#b3203d;font-weight:800;font-size:14px;line-height:1.45;border-radius:14px;padding:8px 12px;margin:6px auto 12px;max-width:620px}
+#modes .room{background:#fff;border:4px solid #ff7fa8;border-radius:28px;padding:18px 20px;box-shadow:0 8px 0 rgba(43,42,58,.16),0 18px 34px rgba(30,30,60,.22);text-align:center}
+#modes .room h2{margin:0 0 4px;font-size:22px}
+#modes .code{display:inline-block;margin:6px auto 8px;font:900 clamp(38px,10vw,64px)/1 "Trebuchet MS",monospace;letter-spacing:.22em;padding:10px 6px 10px 22px;border:4px dashed #ff7fa8;border-radius:20px;background:linear-gradient(#fff,#fff0f5);user-select:all}
+#modes .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+#modes .sm{font-size:13px;opacity:.72;line-height:1.5}
+#modes .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin:12px 0;padding:0;list-style:none}
+#modes .plist li{display:flex;align-items:center;gap:10px;background:#f3f8ff;border:3px solid #7fbfff;border-radius:16px;padding:8px 10px;text-align:left;animation:mpin .25s ease-out}
+@keyframes mpin{from{transform:scale(.8);opacity:0}}
+#modes .plist li.me{border-color:#ff7fa8;background:#fff0f5}
+#modes .av{flex:0 0 38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:19px;color:#fff;box-shadow:inset -4px -4px 0 rgba(0,0,0,.14)}
+#modes .pn{min-width:0}#modes .pn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+#modes .pn span{font-size:12px;opacity:.7}
+#modes .opts{background:#f6f2ff;border:3px solid #b9a5ff;border-radius:16px;padding:8px 14px;margin:10px 0;text-align:left}
+#modes .opts b{display:block;margin-bottom:4px}
+#modes .chk{display:flex;gap:8px;align-items:center;font-size:15px;font-weight:700;margin:6px 0;cursor:pointer}
+#modes .chk input{width:20px;height:20px;accent-color:#ff7fa8}
+#modes .wait{font-weight:800;font-size:17px;margin:10px 0;animation:mwait 1.4s ease-in-out infinite}
+@keyframes mwait{50%{opacity:.45}}
+.lb.lan{display:none;border-color:#3dd17a;background:#3dd17a;color:#14301f}.lb.lan.live{display:inline-block}
 #netbar{position:absolute;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:none;gap:8px;align-items:center;font-size:14px;padding:5px 12px;pointer-events:none;white-space:nowrap}
 #netbar .nb{pointer-events:auto;font:inherit;border:2px solid #2b2a3a;background:#fff;border-radius:9px;padding:0 7px;cursor:pointer;display:none}
 body.touch #netbar .nb{display:inline-block}
@@ -93,72 +120,115 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 #lansb tr.me td{background:rgba(255,127,168,.22);font-weight:bold}`;
   document.head.appendChild(css);
 
-  // ---------- nút ở bảng bắt đầu ----------
-  const btn=el('button','lb lan','🌐 '+tr('btn'));btn.type='button';
+  // nút nhỏ trên bảng "Bấm để chơi" - CHỈ hiện khi đang ở trong phòng (xem mã phòng / người chơi / rời phòng)
+  const btn=el('button','lb lan','🌐');btn.type='button';
   $('go').before(btn);
   btn.addEventListener('click',e=>{e.stopPropagation();open()});
 
-  // ---------- hộp thoại ----------
-  const modal=el('div');modal.id='lanm';const card=el('div');card.id='lanc';modal.appendChild(card);document.body.appendChild(modal);
-  modal.addEventListener('click',e=>{if(e.target===modal)close()});
-  addEventListener('keydown',e=>{if(e.code==='Escape'&&modal.classList.contains('on'))close()});
-  let codeVal='';
-  const isOpen=()=>modal.classList.contains('on');
-  const open=()=>{render();modal.classList.add('on')};
-  const close=()=>modal.classList.remove('on');
+  // ---------- màn hình chọn cách chơi ----------
+  const modes=el('div');modes.id='modes';
+  const cubes=el('div','cubes');
+  [[8,12,70,'#ff7fa8',5.2,0,12],[82,8,54,'#7fbfff',6.4,-1,-18],[14,70,60,'#ffd23f',5.8,-2,24],[88,64,76,'#6fd6a0',6.9,-3,-10],[46,4,34,'#b9a5ff',4.6,-1.5,8],
+   [4,42,36,'#ffd23f',5.4,-2.5,-22],[93,35,38,'#ff7fa8',6.1,-.5,16],[40,86,48,'#7fbfff',5.1,-3.2,30],[68,82,32,'#ff7fa8',4.9,-1.8,-8],[27,24,28,'#6fd6a0',6.6,-2.2,20]]
+   .forEach(c=>{const d=el('div','cube');d.style.cssText='left:'+c[0]+'%;top:'+c[1]+'%;width:'+c[2]+'px;height:'+c[2]+'px;background:'+c[3]+';--d:'+c[4]+'s;--l:'+c[5]+'s;--r:'+c[6]+'deg';cubes.appendChild(d)});
+  const wrap=el('div','mwrap');modes.append(cubes,wrap);document.body.appendChild(modes);
+  let view='mode',codeVal='';
+  const isOpen=()=>modes.classList.contains('on');
+  const show=()=>{render();modes.classList.add('on');document.body.classList.add('modes-on')};
+  const hide=()=>{modes.classList.remove('on');document.body.classList.remove('modes-on')};
+  const open=()=>{if(st.on||st.connecting)view='room';show()};
+  const close=hide;
   const copy=(txt,b)=>{try{navigator.clipboard.writeText(txt)}catch(e){}const o=b.textContent;b.textContent='✔ '+tr('copied');setTimeout(()=>b.textContent=o,1200)};
-  const inviteLink=()=>location.origin.replace(/^null$/,'')+location.pathname+'?room='+st.code;
+  const inviteLink=()=>(location.protocol==='file:'?'':location.origin)+location.pathname+'?room='+st.code;
+  const sorted=()=>Array.from(NET.roster.values()).sort((a,b)=>b.k-a.k||a.d-b.d||a.name.localeCompare(b.name));
+  const COL=['#ff7fa8','#7fbfff','#6fd6a0','#ffb347','#b9a5ff','#4dd0e1','#f06292','#9ccc65'];
+  const initial=n=>Array.from(String(n||'?'))[0].toUpperCase();
 
-  function render(){
-    const old=card.querySelector('#lancode');if(old)codeVal=old.value;
-    card.textContent='';
-    if(!st.on&&!st.connecting){   // ---- chưa vào phòng: tạo phòng hoặc nhập mã ----
-      card.appendChild(el('h2',null,'🌐 '+tr('lan')));
-      const cr=el('button','lbtn go big2',tr('create'));cr.type='button';cr.addEventListener('click',()=>NET.createRoom());card.appendChild(cr);
-      card.appendChild(el('div','or','— '+tr('or')+' —'));
-      const r=el('div','lrow');r.appendChild(el('label',null,tr('code')));
-      const inp=el('input','cin');inp.type='text';inp.id='lancode';inp.placeholder=tr('codePh');inp.maxLength=8;inp.value=codeVal;inp.autocomplete='off';inp.spellcheck=false;
-      inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')go()});inp.addEventListener('keyup',e=>e.stopPropagation());
-      inp.addEventListener('input',()=>{inp.value=inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
-      const b=el('button','lbtn go',tr('join'));b.type='button';b.addEventListener('click',()=>go());
-      r.append(inp,b);card.appendChild(r);
-      if(st.err)card.appendChild(el('div','err',tr('e_'+st.err)));
-      const go=()=>{codeVal=inp.value;NET.joinRoom(codeVal)};
-      setTimeout(()=>{if(!touch()&&isOpen())inp.focus()},30);
-    }else if(st.connecting){
-      card.appendChild(el('h2',null,'🌐 '+tr('lan')));card.appendChild(el('div','ok','⏳ '+tr('connecting')+(st.code?' ('+st.code+')':'')));
-    }else{
-      card.appendChild(el('h2',null,'🌐 '+(st.started?tr('inGame'):tr('lobby'))));
-      // mã phòng (chủ phòng + người vào đều thấy, để rủ thêm bạn)
-      card.appendChild(el('code','big',st.code));
-      const row=el('div','lrow');row.style.justifyContent='center';
-      const b1=el('button','lbtn',tr('copy'));b1.type='button';b1.addEventListener('click',()=>copy(st.code,b1));
-      const b2=el('button','lbtn',tr('copyLink'));b2.type='button';b2.addEventListener('click',()=>copy(inviteLink(),b2));
-      row.append(b1,b2);card.appendChild(row);
-      if(st.host&&!st.started)card.appendChild(el('div','sm',tr('shareH')));
-      card.appendChild(el('div','sm',tr('players')+': '+NET.roster.size+' / '+st.cfg.max+(st.started?' · '+tr('ping')+': '+st.ping+' ms':'')));
-      const ul=el('ul','plist');
-      for(const p of sorted()){const li=el('li');li.append(el('span','n',(p.host?'👑 ':'')+p.name+(p.me?' ★':'')),el('span','sm',st.started?'🎯 '+p.k+'  ☠ '+p.d:''));ul.appendChild(li)}
-      card.appendChild(ul);
-      if(st.host){
-        const h=el('div','help');h.appendChild(el('b',null,tr('youHost')));
-        h.appendChild(chk(tr('pvp'),st.cfg.pvp,v=>NET.setCfg({pvp:v})));
-        h.appendChild(chk(tr('bots'),st.cfg.bots,v=>NET.setCfg({bots:v})));
-        card.appendChild(h);
-        if(!st.started){const sb=el('button','lbtn go big2',tr('start'));sb.type='button';sb.addEventListener('click',()=>NET.start());card.appendChild(sb);card.appendChild(el('div','sm',tr('waitPlayers')))}
-      }else if(!st.started)card.appendChild(el('div','ok','⏳ '+tr('waitHost')));
-      card.appendChild(el('div','sm',tr('note')));
-    }
-    const row=el('div','lrow');row.style.justifyContent='center';
-    if(st.on||st.connecting){const lv=el('button','lbtn',tr('leave'));lv.type='button';lv.addEventListener('click',()=>{NET.leave()});row.appendChild(lv)}
-    const cl=el('button','lbtn go',tr('close'));cl.type='button';cl.addEventListener('click',close);row.appendChild(cl);
-    card.appendChild(row);
+  function header(sub){
+    wrap.appendChild(el('h1',null,'BLOCK ARENA'));
+    wrap.appendChild(el('div','sub',sub));
   }
   function chk(label,val,fn){
     const l=el('label','chk'),i=el('input');i.type='checkbox';i.checked=!!val;i.addEventListener('change',()=>fn(i.checked));
-    l.append(i,el('span',null,label));l.style.flex='0 0 100%';return l;
+    l.append(i,el('span',null,label));return l;
   }
-  const sorted=()=>Array.from(NET.roster.values()).sort((a,b)=>b.k-a.k||a.d-b.d||a.name.localeCompare(b.name));
+  function card(cls,icon,title,desc,btnTxt,btnCls,fn){
+    const c=el('div','mcard '+cls);
+    c.append(el('div','ic',icon),el('h2',null,title),el('p',null,desc));
+    const b=el('button','mbtn '+btnCls,btnTxt);b.type='button';b.addEventListener('click',e=>{e.stopPropagation();fn()});c.appendChild(b);
+    return c;
+  }
+
+  function render(){
+    const old=wrap.querySelector('#lancode');if(old)codeVal=old.value;
+    wrap.textContent='';
+    if(st.on||st.connecting)view='room';
+    else if(view==='room')view='team';
+
+    if(view==='mode'){   // ---- Solo hay Team ----
+      header(tr('hello',PROFILE.name||'')+'  '+tr('ask'));
+      const row=el('div','row');
+      row.appendChild(card('pink','🎯',tr('soloT'),tr('soloD'),tr('soloB'),'pk',solo));
+      row.appendChild(card('blue','👥',tr('teamT'),tr('teamD'),tr('teamB'),'bl',()=>{view='team';render()}));
+      wrap.appendChild(row);
+    }else if(view==='team'){   // ---- Tạo phòng hay Vào phòng ----
+      header(tr('teamT'));
+      const bk=el('button','back',tr('back'));bk.type='button';bk.addEventListener('click',()=>{NET.st.err='';view='mode';render()});wrap.appendChild(bk);
+      if(st.err)wrap.appendChild(el('div','err','⚠️ '+tr('e_'+st.err)));
+      const row=el('div','row');
+      row.appendChild(card('pink','🏠',tr('createT'),tr('createD'),tr('createB'),'pk',()=>NET.createRoom()));
+      // thẻ "Vào phòng" có ô nhập mã
+      const jc=el('div','mcard blue');jc.append(el('div','ic','🔑'),el('h2',null,tr('joinT')),el('p',null,tr('joinD')));
+      const inp=el('input','cin');inp.type='text';inp.id='lancode';inp.placeholder=tr('codePh');inp.maxLength=8;inp.value=codeVal;inp.autocomplete='off';inp.spellcheck=false;
+      inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')go()});inp.addEventListener('keyup',e=>e.stopPropagation());
+      inp.addEventListener('input',()=>{inp.value=inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'')});
+      const jb=el('button','mbtn bl',tr('joinB'));jb.type='button';jb.addEventListener('click',()=>go());
+      jc.append(inp,jb);row.appendChild(jc);wrap.appendChild(row);
+      const go=()=>{codeVal=inp.value;NET.joinRoom(codeVal)};
+      setTimeout(()=>{if(!touch()&&isOpen()&&view==='team'&&codeVal)inp.focus()},30);
+    }else{   // ---- phòng: kết nối / sảnh chờ / đang trong trận ----
+      header(st.connecting&&!st.on?tr('connecting'):(st.started?tr('inGame'):tr('lobby')));
+      const room=el('div','room');
+      if(!st.on){
+        room.appendChild(el('div','wait','⏳ '+tr('connecting')+(st.code?'  '+st.code:'')));
+      }else{
+        room.appendChild(el('div','sm',tr('roomCode')));
+        room.appendChild(el('div','code',st.code));
+        const bs=el('div','btns');
+        const b1=el('button','mbtn',tr('copy'));b1.type='button';b1.addEventListener('click',()=>copy(st.code,b1));
+        const b2=el('button','mbtn',tr('copyLink'));b2.type='button';b2.addEventListener('click',()=>copy(inviteLink(),b2));
+        bs.append(b1,b2);room.appendChild(bs);
+        if(st.host&&!st.started)room.appendChild(el('div','sm',tr('shareH')));
+        room.appendChild(el('div','sm','👥 '+tr('players')+': '+NET.roster.size+' / '+st.cfg.max+(st.started?'  ·  '+tr('ping')+': '+st.ping+' ms':'')));
+        const ul=el('ul','plist');let i=0;
+        for(const p of sorted()){
+          const li=el('li',p.me?'me':'');
+          const av=el('div','av',initial(p.name));av.style.background=COL[(p.id|0)%COL.length];
+          const pn=el('div','pn');pn.appendChild(el('b',null,(p.host?'👑 ':'')+p.name));
+          pn.appendChild(el('span',null,st.started?'🎯 '+p.k+'   ☠ '+p.d:(p.host?tr('hostTag'):(p.me?tr('you'):''))));
+          li.append(av,pn);ul.appendChild(li);i++;
+        }
+        room.appendChild(ul);
+        if(st.host){
+          const o=el('div','opts');o.appendChild(el('b',null,tr('youHost')));
+          o.appendChild(chk(tr('pvp'),st.cfg.pvp,v=>NET.setCfg({pvp:v})));
+          o.appendChild(chk(tr('bots'),st.cfg.bots,v=>NET.setCfg({bots:v})));
+          room.appendChild(o);
+          if(!st.started){const sb=el('button','mbtn gr',tr('start'));sb.type='button';sb.style.fontSize='24px';sb.style.padding='12px 34px';sb.addEventListener('click',()=>NET.start());room.appendChild(sb)}
+        }else if(!st.started)room.appendChild(el('div','wait','⏳ '+tr('waitHost')));
+        room.appendChild(el('div','sm',tr('note')));
+      }
+      wrap.appendChild(room);
+      const bs=el('div','btns');bs.style.marginTop='14px';
+      const lv=el('button','mbtn',tr('leave'));lv.type='button';lv.addEventListener('click',()=>{NET.leave();view='mode';render()});bs.appendChild(lv);
+      if(st.started){const cl=el('button','mbtn pk',tr('close'));cl.type='button';cl.addEventListener('click',close);bs.appendChild(cl)}
+      wrap.appendChild(bs);
+    }
+  }
+  // Solo: rời phòng (nếu đang ở trong) rồi vào bảng "Bấm để chơi"
+  function solo(){if(st.on||st.connecting)NET.leave(true);hide();view='mode'}
+  // profile.js gọi khi chọn xong nhân vật
+  function afterProfile(){document.body.classList.remove('pfon');if(st.on||st.connecting){open();return}view='mode';show()}
 
   // ---------- HUD ----------
   const hud=$('hud');
@@ -173,7 +243,7 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 
   function updBar(){
     const on=st.on&&st.started;bar.style.display=on?'flex':'none';
-    btn.classList.toggle('live',st.on);btn.textContent=st.on?'🌐 '+st.code+' · '+NET.roster.size:'🌐 '+tr('btn');
+    btn.classList.toggle('live',st.on);btn.textContent=st.on?'🌐 '+st.code+' · '+NET.roster.size:'🌐';
     if(on){barT.textContent='🌐 '+st.code+' · 👥 '+NET.roster.size+' · '+st.ping+' ms'+(st.cfg.pvp?' · ⚔️':'');hint.textContent=tr('hint')}
     else{sb.style.display='none';closeChat()}
   }
@@ -232,8 +302,10 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 
   // ---------- nối với NET ----------
   NET.sub('status',()=>{
-    updBar();if(isOpen())render();
-    if(!st.on&&st.err==='closed')showMsg(tr('lost'));
+    updBar();
+    if(!st.on&&!st.connecting&&st.err){   // thất bại / mất kết nối / chủ phòng đóng phòng -> về màn chọn, hiện lý do
+      view='team';if(document.pointerLockElement&&document.exitPointerLock)document.exitPointerLock();show();
+    }else if(isOpen())render();
   });
   NET.sub('score',()=>{updBar();if(sbOn)drawSb();if(isOpen())render()});
   NET.sub('cfg',()=>{if(isOpen())render()});
@@ -243,29 +315,27 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   NET.sub('chat',o=>pushChat(o.name,o.text,false));
   // chủ phòng bấm Bắt đầu: đóng sảnh, bảng "Bấm để chơi" hiện sẵn với nút "Vào trận" (trình duyệt cần 1 cú bấm để khoá chuột)
   NET.sub('start',()=>{
-    close();
+    hide();
     $('ov').style.display='flex';
     if(typeof ovState!=='undefined'&&ovState==='dead')return;
     $('sub').textContent=tr('startedSub');$('go').textContent=tr('go');
   });
-  // chưa tới lúc bắt đầu thì không cho bấm "Bấm để chơi": mở lại sảnh chờ
+  // chưa tới lúc bắt đầu thì không cho vào game: mở lại sảnh chờ
   document.addEventListener('click',e=>{
-    if(st.on&&!st.started&&e.target.closest&&e.target.closest('#ov')&&!e.target.closest('#lanm')&&!e.target.closest('.lb')&&!e.target.closest('.wb')){
+    if(st.on&&!st.started&&e.target.closest&&e.target.closest('#ov')&&!e.target.closest('.lb')&&!e.target.closest('.wb')){
       e.stopPropagation();e.preventDefault();showMsg(tr('needStart'));open();
     }
   },true);
   setInterval(()=>{if(st.on){updBar();if(isOpen())render()}},4000);   // ping / số người cập nhật định kỳ
 
-  // link mời ?room=MÃ : đợi người chơi qua màn chọn ngôn ngữ / tên / nhân vật (#pf ẩn đi) rồi tự vào phòng
+  // link mời ?room=MÃ : đợi người chơi qua màn chọn ngôn ngữ / tên / nhân vật (#pf ẩn đi) rồi tự vào phòng. (Khi đó profile.js gọi afterProfile -> bỏ qua vì đang vào phòng)
   const rm=(new URLSearchParams(location.search).get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if(rm.length>=4){
-    codeVal=rm;
-    (function wait(){
-      const pf=$('pf');
-      if(pf&&pf.style.display!=='none'){setTimeout(wait,300);return}
-      NET.joinRoom(rm);open();
-    })();
+  let pending=rm.length>=4?rm:'';
+  const origAfter=afterProfile;
+  function afterProfile2(){
+    if(pending){const c=pending;pending='';codeVal=c;view='team';NET.joinRoom(c);view='room';show();return}
+    origAfter();
   }
 
-  return {open,close};
+  return {open,close,afterProfile:afterProfile2};
 })();

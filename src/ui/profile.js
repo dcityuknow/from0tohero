@@ -29,7 +29,7 @@ function fix(s,l){
 let saved='';try{saved=localStorage.getItem('ba_name')||''}catch(e){}
 
 const css=document.createElement('style');
-css.textContent=`#pf{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+css.textContent=`#pf{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(207,232,255,.55);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}   /* nền mờ: thấy cảnh game phía sau, giống bảng "Bấm để chơi" */
 #pfc{background:var(--card);color:var(--ink);border:3px solid var(--pink);border-radius:22px;padding:22px 24px;width:min(94vw,520px);max-height:94vh;overflow-y:auto;text-align:center;box-sizing:border-box}
 #pfc h1{margin:0 0 6px;font-size:30px}
 #pfc .pfs{margin:6px 0 14px;font-weight:bold;opacity:.85}
@@ -41,7 +41,8 @@ css.textContent=`#pf{position:fixed;inset:0;z-index:50;display:flex;align-items:
 #pfi{width:100%;box-sizing:border-box;font:700 22px "Segoe UI","Noto Sans","Noto Sans Bengali","Noto Sans Devanagari","Noto Sans SC","Microsoft YaHei","Malgun Gothic",sans-serif;text-align:center;padding:10px 12px;border:3px solid var(--pink);border-radius:12px;background:#fff;color:#2b2a3a;outline:none}
 #pfn{font-size:13px;opacity:.7;text-align:right;margin-top:4px}
 #pfc .pfh{font-size:13px;opacity:.8;line-height:1.5;margin:6px 0 10px}
-#who{margin-top:10px;font-weight:bold}`;
+#who{margin-top:10px;font-weight:bold}
+body.pfon #ov,body.pfon #hud{visibility:hidden}`;   /* lúc chọn ngôn ngữ / tên / nhân vật chỉ còn cảnh game mờ phía sau (ẩn bảng hướng dẫn + HUD) */
 document.head.appendChild(css);
 
 const pf=document.createElement('div');pf.id='pf';pf.innerHTML='<div id="pfc"></div>';document.body.appendChild(pf);
@@ -92,12 +93,12 @@ function stepName(){
   upd();setTimeout(()=>inp.focus(),50);
 }
 // (3) chọn nhân vật: ui/character.js dựng màn chọn trong cùng khung. Thiếu file đó thì bỏ qua bước này.
-function finish(){card.classList.remove('wide');showWho();pf.style.display='none'}
+function finish(){card.classList.remove('wide');showWho();pf.style.display='none';document.body.classList.remove('pfon');if(window.LanUI&&LanUI.afterProfile)LanUI.afterProfile()}   // xong hồ sơ -> màn chọn Solo / Team (net/lan-ui.js)
 function stepChar(){
   if(!window.CharPick||!window.THREE){finish();return}
   card.classList.add('wide');
   try{CharPick.show(card,L,finish,()=>{card.classList.remove('wide');stepName()})}catch(e){console.warn('CharPick',e);finish()}
 }
-function open(){pf.style.display='flex';card.classList.remove('wide');stepLang()}
+function open(){pf.style.display='flex';document.body.classList.add('pfon');card.classList.remove('wide');stepLang()}
 open();
 })();
