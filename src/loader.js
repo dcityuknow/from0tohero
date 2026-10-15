@@ -56,10 +56,14 @@
     'ui/mobile.js',
     // Góc nhìn thứ 3 (phím C): cần voxel.js, viewmodel.js, effects.js (groundY), physics.js (hitAny) nạp trước; main.js gọi TP.apply
     'player/thirdperson.js',
+    // Chơi mạng LAN: avatar người chơi khác + lõi mạng (cần voxel.js, effects.js, character.js nạp trước lúc chạy; main.js gọi NET.tick)
+    'vendor/peerjs.min.js',   // WebRTC (PeerJS 1.5.4) cho phòng chơi nhiều người: định nghĩa window.Peer
+    'net/avatar.js','net/hub.js','net/net.js',
     // Vòng lặp chính + màn hình bắt đầu (luôn cuối cùng)
     'main.js','ui/ui.js',
     'ui/character.js',   // 11 nhân vật quân phục theo quốc gia + màn chọn nhân vật (cần voxel.js; phải nạp TRƯỚC profile.js)
-    'ui/profile.js'
+    'ui/profile.js',
+    'net/lan-ui.js'   // nút 🌐 LAN, hộp thoại vào phòng, bảng điểm, chat, kill feed (cần profile.js nạp trước)
   ];
   const B=window.BOOT||{set(){},done(f){f&&f()}};
   const W_JS=.85;          // 85% tiến độ = tải file JS, 15% còn lại = dựng tầng 1
