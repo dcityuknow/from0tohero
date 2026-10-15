@@ -116,6 +116,26 @@ Block Arena/
          └─ runtime.js
 ```
 
+## Multiplayer rooms (room code)
+
+Play with friends from the main menu, no server to run:
+
+1. Everyone picks language / name / character as usual, then presses **🌐 Multiplayer**.
+2. One player presses **🏠 Create room** and becomes the host. A 5-character **room code** (and an invite link) appears.
+3. Friends press **🌐 Multiplayer**, type the code, **Join room** (or just open the invite link `…/?room=CODE`).
+4. The host sees everyone in the lobby, can toggle PvP / bots, and presses **▶ Start**. The whole room enters the match together (each player clicks once to lock the mouse).
+
+| Key | Action |
+| --- | ------ |
+| `Tab` (hold) | Scoreboard (kills / deaths / ping) |
+| `Enter` or `T` | Chat (Enter sends, Esc cancels). Touch: 💬 / 👥 buttons in the top bar |
+
+**How it works**: browsers connect directly with WebRTC ([PeerJS](https://peerjs.com), bundled in `src/vendor/`). The host's browser runs the room logic (`src/net/hub.js`), so **the host must keep the tab open**; if the host leaves, the room closes. The free public PeerJS broker (`0.peerjs.com`) only introduces the browsers to each other (needs internet); to use your own, set `window.BA_PEER_OPTS={host:'…',port:9000,secure:true}` before `src/loader.js` in `index.html`.
+
+**What is synced**: position, aim, held weapon, health, shots, death / respawn, chat, scoreboard. Hitting a player damages them (head / body like bots); the pavilion is a safe zone; spawn gives 3 s of protection.
+**Not synced**: bots, bosses, pickups, grenades run locally on each PC. Turn bots off for pure PvP. Trusted model: the shooter reports hits, so there is no anti-cheat.
+Code: `src/net/` (`avatar.js`, `hub.js`, `net.js`, `lan-ui.js`). Hooks into old code: search for `NET.` in `src/`.
+
 ## Quick tweaks
 | To change | Edit |
 |---|---|
