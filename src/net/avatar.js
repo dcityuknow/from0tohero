@@ -97,7 +97,7 @@ window.NetAvatar=(function(){
     g.add(body,head);
     const tag=mkTag();g.add(tag.sp);
     root.add(g);
-    const av={p,g,m,pivot,guns,sling,body,head,tag,x:p.x||0,y:p.y||0,z:p.z||0,yw:p.yw||0,pt:0,sp:0,ph:0,rec:0,deadT:0,wasDead:false,cur:'',alive:true,snap:true,sw:0,sl:0,rl:0,rlOn:false,thr:0,thrOn:false,pin:0};
+    const av={p,g,m,pivot,guns,sling,body,head,tag,x:p.x||0,y:p.y||0,z:p.z||0,yw:p.yw||0,pt:0,sp:0,ph:0,rec:0,deadT:0,wasDead:false,cur:'',alive:true,snap:true,sw:0,sl:0,rl:0,rlOn:false,thr:0,thrOn:false,pin:0,fwdV:0,swimming:false,swimBack:false,backK:0,stk:0,tb:Math.random()*6,slT:0,leanS:0};
     g.position.set(av.x,av.y,av.z);set.add(av);return av;
   }
   function remove(av){
@@ -109,14 +109,21 @@ window.NetAvatar=(function(){
   const attach=()=>{if(root.parent!==S)S.add(root)};
 
   // ---- cập nhật mỗi khung: nội suy vị trí, tư thế đi / bơi / trượt / ngã, súng, bảng tên ----
-  const ang=a=>Math.atan2(Math.sin(a),Math.cos(a)),e3=t=>t*t*(3-2*t);
+  const ang=a=>Math.atan2(Math.sin(a),Math.cos(a)),e3=t=>t*t*(3-2*t),cl01=(u,a,b)=>Math.min(1,Math.max(0,(u-a)/(b-a)));
+  // ---- bơi / lộn nhào: cùng công thức với góc thứ 3 của mình (player/thirdperson.js) để người khác thấy đúng tư thế ----
+  const V3=(x,y,z)=>new THREE.Vector3(x,y,z),_hv=V3(0,0,0),_hw=V3(0,0,0),_Y=V3(0,1,0),_E=new THREE.Euler(),_se=new THREE.Euler(),_bp=V3(0,0,0),
+        _sq=new THREE.Quaternion(),_sq2=new THREE.Quaternion(),_ra=V3(0,0,0),DOWN=V3(0,-1,0),
+        SHR=V3(.336,1.344,0),REACH=.588,BGRIP=V3(.2,1.08,.34);
+  const swimLean=(av,v)=>{const l=1.3+(v<0?Math.min(.45,-v/2.8*.45):-Math.min(.5,v/3.6*.5));return av.backK>.5?-l:l};   // tới: nằm sấp · lùi: nằm ngửa · lặn: chúi đầu · trồi: ngẩng
+  function reachArm(arm,sh,target){_ra.copy(target).sub(sh);const len=_ra.length()||1e-3;_ra.divideScalar(len);arm.quaternion.setFromUnitVectors(DOWN,_ra);arm.scale.y=Math.max(.8,Math.min(1.35,len/REACH))}
   function update(av,dt){
-    const p=av.p,f=p.f|0,dead=(f&1)!==0,swim=(f&2)!==0,slide=(f&4)!==0,paused=(f&8)!==0,reload=(f&16)!==0,pinned=(f&32)!==0,throwing=(f&64)!==0;
+    const p=av.p,f=p.f|0,dead=(f&1)!==0,swim=(f&2)!==0,slide=(f&4)!==0,paused=(f&8)!==0,reload=(f&16)!==0,pinned=(f&32)!==0,throwing=(f&64)!==0,under=(f&128)!==0;
     // vị trí: tới gần mục tiêu theo hàm mũ; lệch quá xa (hồi sinh / đổi tầng) thì nhảy thẳng tới
-    const dx=p.x-av.x,dy=p.y-av.y,dz=p.z-av.z,k=1-Math.exp(-dt*16);
+    const ox=av.x,oz=av.z,dx=p.x-av.x,dy=p.y-av.y,dz=p.z-av.z,k=1-Math.exp(-dt*16);
     if(av.snap||dx*dx+dy*dy+dz*dz>36){av.x=p.x;av.y=p.y;av.z=p.z;av.yw=p.yw;av.pt=p.pt;av.snap=false}
     else{av.x+=dx*k;av.y+=dy*k;av.z+=dz*k;av.yw+=ang(p.yw-av.yw)*k;av.pt+=(p.pt-av.pt)*k}
     const spd=dt>0?Math.hypot(dx,dz)*k/dt:0;av.sp+=(spd-av.sp)*Math.min(1,dt*8);
+    const vf=dt>0?((av.x-ox)*-Math.sin(av.yw)+(av.z-oz)*-Math.cos(av.yw))/dt:0;av.fwdV+=((Math.abs(vf)>40?0:vf)-av.fwdV)*Math.min(1,dt*12);   // >0 đi tới, <0 đang lùi
     const mv=Math.min(1,av.sp/6);av.ph+=dt*av.sp*1.35;
     // chết -> ngã ngửa ra sau rồi biến mất; hồi sinh -> đứng dậy
     if(dead){av.deadT+=dt;av.wasDead=true}
@@ -124,14 +131,38 @@ window.NetAvatar=(function(){
     const fall=dead?e3(Math.min(1,av.deadT/.55)):0;
     av.alive=!dead;
     av.g.visible=!(dead&&av.deadT>3.5);
-    // thân
-    av.sw+=((swim?1:0)-av.sw)*Math.min(1,dt*8);av.sl+=((slide?1:0)-av.sl)*Math.min(1,dt*14);
-    av.g.position.set(av.x,av.y-(dead?.0:0)+Math.abs(Math.sin(av.ph))*.04*mv*(1-av.sw),av.z);
-    av.g.rotation.set(-1.45*fall+1.15*av.sw*(1-fall),av.yw+PI,0);
-    av.g.scale.y=1-.38*av.sl;
-    // chân / tay
-    const m=av.m,a=.9*mv*(1-av.sw),sw=Math.sin(av.ph),t=performance.now()/1000;
-    m.legL.rotation.x=sw*a+(av.sw?Math.sin(t*9)*.5*av.sw:0);m.legR.rotation.x=-sw*a-(av.sw?Math.sin(t*9)*.5*av.sw:0);
+    // ---- trạng thái bơi / lộn ----
+    const spw=swim&&!dead,rolling=slide&&!swim&&!dead,sa=p.sa||0,swv=p.sv||0;
+    if(!spw)av.swimming=false;else if(!av.swimming){if(av.sp>.5||under)av.swimming=true}else if(av.sp<.2&&!under)av.swimming=false;   // đứng yên trên nước -> đứng thẳng đạp nước
+    if(!spw)av.swimBack=false;else if(av.fwdV<-.5)av.swimBack=true;else if(av.fwdV>.5)av.swimBack=false;   // có độ trễ để không nhấp nháy khi đi ngang
+    av.backK+=((av.swimBack?1:0)-av.backK)*Math.min(1,dt*6);
+    av.sw+=((av.swimming?1:0)-av.sw)*Math.min(1,dt*6);
+    if(av.sw>.02)av.stk+=dt*(4.2+Math.min(av.sp,6)*.6);
+    av.tb+=dt;
+    av.sl+=((rolling?1:0)-av.sl)*Math.min(1,dt*18);
+    if(rolling)av.slT+=dt;else av.slT=0;
+    const rru=rolling?Math.min(1,av.slT/.7):1,tuck=e3(cl01(rru,.08,.3))*(1-e3(cl01(rru,.85,1)));   // tiến độ cú lộn 0.7s · mức co người
+    let lean=0;
+    if(rolling)lean=2*PI*e3(cl01(rru,.08,.92))+.45*Math.sin(PI*cl01(rru,0,.2));   // chồm tới rồi quay trọn 360° về phía trước
+    else if(spw)lean=av.swimming?swimLean(av,swv):0;
+    if(!rolling&&av.leanS>4)av.leanS-=2*PI;   // lộn xong -> về góc 0 mà không quay ngược
+    if(rolling)av.leanS=lean;else av.leanS+=(lean-av.leanS)*Math.min(1,dt*10);
+    const hd0=av.yw+PI;let dh=sa-hd0;dh-=Math.round(dh/(2*PI))*2*PI;const hdg=hd0+dh*av.sl;   // lăn: thân quay theo HƯỚNG LĂN chứ không phải hướng nhìn
+    const roll=av.sw*Math.sin(av.stk)*.2;
+    // thân (giữ chỗ hông khi nghiêng để chân không trượt)
+    if(dead){av.g.position.set(av.x,av.y,av.z);av.g.rotation.set(-1.45*fall,av.yw+PI,0)}
+    else{
+      _hv.set(0,.75,0);_hw.copy(_hv).applyEuler(_E.set(av.leanS,0,0));_hv.sub(_hw).applyAxisAngle(_Y,hdg);
+      const bob=Math.abs(Math.sin(av.ph))*.04*mv*(1-av.sw)*(1-av.sl)+(spw?(av.swimming?Math.sin(av.stk*2)*.02*av.sw:Math.sin(av.tb*2.1)*.035):0);
+      av.g.position.set(av.x+_hv.x,av.y+_hv.y+bob,av.z+_hv.z);
+      av.g.rotation.set(av.leanS,hdg,roll);
+    }
+    av.g.scale.y=1;
+    // chân
+    const m=av.m,sw=Math.sin(av.ph),t=performance.now()/1000;
+    m.legL.rotation.x=sw*.9*mv;m.legR.rotation.x=-sw*.9*mv;
+    if(av.sl>.02){const w=Math.min(1,av.sl*1.6),tg=-1.55*tuck;m.legL.rotation.x+=(tg-m.legL.rotation.x)*w;m.legR.rotation.x+=(tg-m.legR.rotation.x)*w}   // lộn: gập chân lên ngực
+    if(spw){const kk=av.swimming?Math.sin(av.stk*3)*.5:Math.sin(av.tb*5)*.55;m.legL.rotation.x=kk;m.legR.rotation.x=-kk}   // bơi: đập chân · đứng nước: đạp nước
     const rec=av.rec>0?(av.rec-=dt,av.rec/.12):0,hold=av.cur!=='grenade';
     // nạp đạn: u chạy 0->1 trong lúc cờ nạp đạn bật (thời gian nạp thật tuỳ súng, người nạp báo bật / tắt)
     if(reload&&!dead){if(!av.rlOn){av.rlOn=true;av.rl=0}av.rl=Math.min(1,av.rl+dt/(av.cur==='sniper'?2.2:av.cur==='rifle'?1.8:1.3))}else{av.rlOn=false;av.rl=0}
@@ -139,27 +170,51 @@ window.NetAvatar=(function(){
     // lựu đạn: giật chốt (người lùi, tay phải vươn ra sau) -> vung tay ném
     av.pin+=((pinned?1:0)-av.pin)*Math.min(1,dt*10);
     if(throwing&&!dead){if(!av.thrOn){av.thrOn=true;av.thr=0}av.thr=Math.min(1,av.thr+dt/.35)}else{av.thrOn=false;av.thr=0}
-    const aim=-(1.35+av.pt*.9)-rec*.12;
-    if(av.sw>.5){   // bơi sải: hai tay quạt luân phiên
-      const s=Math.sin(t*5)*1.1;m.armL.rotation.set(-2.6+s,0,0);m.armR.rotation.set(-2.6-s,0,0);av.pivot.visible=false;
-    }else{
-      av.pivot.visible=!dead;
-      m.armR.rotation.set(aim,0,-.08);m.armL.rotation.set(aim+.05,0,.45);
-      av.pivot.rotation.x=-av.pt*.9-rec*.1;av.pivot.position.z=-rec*.08;av.pivot.rotation.z=0;
-      if(!hold){   // cầm lựu đạn: tay trái giật chốt, tay phải vươn ra sau rồi vung ra trước khi ném
-        const wind=av.pin*(1-(av.thrOn?e3(Math.min(1,av.thr/.4)):0)),swing=av.thrOn?Math.sin(Math.min(1,av.thr)*PI):0;
-        m.armL.rotation.set(-.9-.5*av.pin,0,.3);
-        m.armR.rotation.set(-1.1+wind*2.3-swing*2.4,0,-.1);
-        av.pivot.rotation.x=.2;av.g.rotation.x+=wind*.18-swing*.3;
-      }else if(ru>0){   // nạp: nghiêng súng, tay trái rút băng ở hông rồi nhét lại
-        const dip=Math.sin(ru*PI*2*1.5);   // 1.5 nhịp: rút ra - nhét vào
-        m.armL.rotation.set(aim+(.9+.35*dip)*rk,0,.45-.55*rk);
-        av.pivot.rotation.x=-av.pt*.9+.5*rk;av.pivot.rotation.z=-.45*rk;
+    const aim=-(1.35+av.pt*.9)-rec*.12,busy=av.sw>.5||av.sl>.5;
+    // tay + súng cầm: tư thế thường (đứng / chạy / nạp / ném)
+    av.pivot.visible=!dead;
+    m.armL.scale.y=m.armR.scale.y=1;
+    m.armR.rotation.set(aim,0,-.08);m.armL.rotation.set(aim+.05,0,.45);
+    av.pivot.position.set(.14,1.344,-rec*.08);av.pivot.rotation.set(-av.pt*.9-rec*.1,0,0);
+    if(!busy&&!hold){   // cầm lựu đạn: tay trái giật chốt, tay phải vươn ra sau rồi vung ra trước khi ném
+      const wind=av.pin*(1-(av.thrOn?e3(Math.min(1,av.thr/.4)):0)),swing=av.thrOn?Math.sin(Math.min(1,av.thr)*PI):0;
+      m.armL.rotation.set(-.9-.5*av.pin,0,.3);
+      m.armR.rotation.set(-1.1+wind*2.3-swing*2.4,0,-.1);
+      av.pivot.rotation.x=.2;av.g.rotation.x+=wind*.18-swing*.3;
+    }else if(!busy&&ru>0){   // nạp: nghiêng súng, tay trái rút băng ở hông rồi nhét lại
+      const dip=Math.sin(ru*PI*2*1.5);   // 1.5 nhịp: rút ra - nhét vào
+      m.armL.rotation.set(aim+(.9+.35*dip)*rk,0,.45-.55*rk);
+      av.pivot.rotation.x=-av.pt*.9+.5*rk;av.pivot.rotation.z=-.45*rk;
+    }
+    // BƠI: tay quạt nước, súng đeo ra sau lưng · bơi ngửa (lùi): tay trái quạt ngược ra sau đầu, tay phải giữ súng trên ngực
+    let carry=false;
+    if(av.sw>.02&&spw){
+      const w=Math.min(1,av.sw*1.5);
+      if(av.backK>.5){
+        _sq.setFromEuler(_se.set(-av.stk,0,-.2));m.armL.quaternion.slerp(_sq,w);m.armL.scale.y+=(1-m.armL.scale.y)*w;
+        _sq2.copy(m.armR.quaternion);reachArm(m.armR,SHR,BGRIP);m.armR.quaternion.slerp(_sq2,1-w);
+        if(av.cur!=='grenade'&&av.sw>.5){carry=true;av.pivot.position.set(.2,1.58,.44);av.pivot.rotation.set(PI/2,0,0)}   // nòng song song thân, hướng về phía chân (= phía trước)
+      }else{
+        for(const[arm,o,z]of[[m.armR,0,.2],[m.armL,PI,-.2]]){_sq.setFromEuler(_se.set(av.stk+o,0,z));arm.quaternion.slerp(_sq,w);arm.scale.y+=(1-arm.scale.y)*w}
       }
+    }
+    if(av.sw>.5&&!carry)av.pivot.visible=false;
+    // LỘN NHÀO (Shift): hai tay vươn ra trước lúc lao, ôm gối lúc lăn; súng đeo ra sau lưng
+    if(av.sl>.02){
+      const w=Math.min(1,av.sl*1.6),ax=-1.3-1.5*(1-tuck);
+      _sq.setFromEuler(_se.set(ax,0,-.12));m.armL.quaternion.slerp(_sq,w);m.armL.scale.y+=(1-m.armL.scale.y)*w;
+      _sq.setFromEuler(_se.set(ax,0,.12));m.armR.quaternion.slerp(_sq,w);m.armR.scale.y+=(1-m.armR.scale.y)*w;
+      if(av.sl>.5)av.pivot.visible=false;
+      // đặt thân sao cho điểm thấp nhất (đầu / lưng / chân) luôn vừa chạm đất -> lăn trên đất chứ không lộn giữa không trung
+      av.g.updateMatrixWorld(true);
+      const la=m.legL.rotation.x,fy=.75-.75*Math.cos(la),fz=-.75*Math.sin(la);let mn=1e9;
+      for(const[x,y,z]of[[0,1.7,.1],[0,.75,-.25],[0,1.3,-.25],[.14,fy,fz],[-.14,fy,fz]]){_bp.set(x,y,z).applyMatrix4(av.g.matrixWorld);if(_bp.y<mn)mn=_bp.y}
+      av.g.position.y+=(av.y+.04-mn)*w;
     }
     // súng đang cầm / súng đeo
     if(p.w!==av.cur){av.cur=p.w;for(const t in av.guns)av.guns[t].visible=t===av.cur}
-    for(const t in av.sling)av.sling[t].visible=t!==av.cur&&!(dead&&av.deadT>3);
+    const stow=(av.sw>.5&&av.backK<=.5)||av.sl>.5;   // tay bận (bơi sải / lộn): súng đeo hết ra sau lưng
+    for(const t in av.sling)av.sling[t].visible=(stow&&t!=='grenade'?true:t!==av.cur)&&!(dead&&av.deadT>3);
     // bảng tên
     const dd=Math.hypot(av.x-P.x,av.z-P.z);
     av.tag.sp.visible=!dead&&dd<60;

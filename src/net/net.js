@@ -148,7 +148,7 @@ window.NET=(function(){
       case 'pl':{const e=roster.get(m.i);if(e){NetAvatar.remove(e.av);roster.delete(m.i);emit('leave',e);emit('score')}break}
       case 's':{
         const e=roster.get(m.i);if(!e||e.me)break;
-        e.x=m.x;e.y=m.y;e.z=m.z;e.yw=m.yw;e.pt=m.pt;e.w=m.w;e.h=m.h;e.f=m.f;e.fl=m.fl;
+        e.x=m.x;e.y=m.y;e.z=m.z;e.yw=m.yw;e.pt=m.pt;e.w=m.w;e.h=m.h;e.f=m.f;e.fl=m.fl;e.sa=m.sa||0;e.sv=m.sv||0;
         if(!e.av)e.av=NetAvatar.create(e);
         break}
       case 'gren':{   // người khác ném lựu đạn: chỉ hiện quả bay + vụ nổ (không gây sát thương)
@@ -197,9 +197,9 @@ window.NET=(function(){
 
   // ---------- gửi đi ----------
   function sendState(){
-    const f=(dead?1:0)|(P.sw?2:0)|(slideT>0?4:0)|(!playing?8:0)|(rel>0?16:0)|((holding||autoP)?32:0)|(throwT>0?64:0);   // 16 nạp đạn · 32 giật chốt lựu đạn · 64 đang ném
+    const f=(dead?1:0)|(P.sw?2:0)|(slideT>0?4:0)|(!playing?8:0)|(rel>0?16:0)|((holding||autoP)?32:0)|(throwT>0?64:0)|(P.under?128:0);   // 16 nạp đạn · 32 giật chốt lựu đạn · 64 đang ném · 128 chìm đầu dưới nước
     const me=roster.get(st.id);if(me){me.f=f;me.h=P.hp}
-    send({t:'s',x:r2(P.x),y:r2(P.y),z:r2(P.z),yw:r3(yaw),pt:r3(pitch),w:cur,h:Math.max(0,Math.round(P.hp)),f,fl:curFl});
+    send({t:'s',x:r2(P.x),y:r2(P.y),z:r2(P.z),yw:r3(yaw),pt:r3(pitch),w:cur,h:Math.max(0,Math.round(P.hp)),f,fl:curFl,sa:r3(slideT>0?Math.atan2(sd.x,sd.z):0),sv:r2(P.swv||0)});   // sa: hướng lăn (Shift) · sv: tốc độ lặn / trồi khi bơi
   }
   // gọi mỗi khung từ main.js (kể cả khi đang tạm dừng: người khác vẫn phải thấy mình và mình vẫn thấy họ)
   function tick(dt){

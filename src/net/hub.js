@@ -38,7 +38,7 @@ window.LanHub=(function(){
         }
         switch(m.t){
           case 's':   // trạng thái người chơi -> chuyển cho người khác (kèm id)
-            broadcast({t:'s',i:me.id,x:num(m.x,-1e4,1e4,0),y:num(m.y,-1e4,1e4,0),z:num(m.z,-1e4,1e4,0),yw:num(m.yw,-100,100,0),pt:num(m.pt,-3,3,0),w:clampStr(m.w,8),h:num(m.h,0,100,100),f:m.f|0,fl:m.fl|0},me.id);
+            broadcast({t:'s',i:me.id,x:num(m.x,-1e4,1e4,0),y:num(m.y,-1e4,1e4,0),z:num(m.z,-1e4,1e4,0),yw:num(m.yw,-100,100,0),pt:num(m.pt,-3,3,0),w:clampStr(m.w,8),h:num(m.h,0,100,100),f:m.f|0,fl:m.fl|0,sa:num(m.sa,-7,7,0),sv:num(m.sv,-20,20,0)},me.id);
             break;
           case 'shot':
             if(Array.isArray(m.a)&&Array.isArray(m.b)&&m.a.length===3&&m.b.length===3)
