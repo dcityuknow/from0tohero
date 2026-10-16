@@ -116,7 +116,8 @@ function frame(now){
     const px0=P.x,pz0=P.z,vy0=P.vy;
     move(P,vx*dt,P.vy*dt,vz*dt);
     if(window.NET)NET.collide();   // LAN: không đi xuyên qua người chơi khác
-    {const fd=fallDmg(P);if(fd>0)playerFall(fd)}   // rơi từ trên cao xuống thì mất máu (gameplay/fall.js)
+    {const fd=fallDmg(P);if(fd>0&&!(window.NET&&NET.peaceMode()))playerFall(fd)}   // hòa bình: rơi không mất máu
+       // rơi từ trên cao xuống thì mất máu (gameplay/fall.js)
     // tiếng bước chân theo quãng đường thực đi (lội nước thì tiếng bì bõm); rơi xuống đất có tiếng thịch
     {const wd=window.Nature&&Nature.wading;
       if(P.ground&&slideT<=0){stepD+=Math.hypot(P.x-px0,P.z-pz0);if(stepD>=(wd?1.4:1.9)){stepD=0;if(wd)wadeSnd();else stepSnd()}}
@@ -127,7 +128,7 @@ function frame(now){
     if(md&&W[cur].auto)shoot();
     // bots
     const dt0=dt;lodN++;
-    peace=curFl===0&&!dead&&!!window.PavilionPeace&&PavilionPeace(P.x,P.y,P.z);   // đang ở trong chòi -> bot đi lại bình thường, không tấn công; bước ra là thù địch lại ngay
+    peace=!!(window.NET&&NET.peaceMode())||(curFl===0&&!dead&&!!window.PavilionPeace&&PavilionPeace(P.x,P.y,P.z));   // đang ở trong chòi -> bot đi lại bình thường, không tấn công; bước ra là thù địch lại ngay
     const BH=!!(window.NET&&NET.botsHost()),BR=!!(window.NET&&NET.botsRemote());   // LAN: chủ phòng chạy quái cho cả phòng, máy khách chỉ vẽ lại
     for(const b of(BR?NOB:bots)){
       if(b.ally||b.arch)continue;      // đồng minh do ally.js điều khiển · lính cung trên tường thành do archer.js điều khiển

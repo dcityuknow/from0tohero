@@ -13,7 +13,7 @@
 window.NET=(function(){
   const SEND_IV=.05,PING_IV=2;                    // 20 gói trạng thái / giây · đo ping mỗi 2 giây
   const PREFIX='blockarena-',ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // id trên máy môi giới PeerJS = PREFIX + mã phòng 5 ký tự (bỏ O/0/I/1 cho khỏi nhầm)
-  const st={on:false,connecting:false,id:0,name:'',host:false,code:'',started:false,assign:null,cfg:{name:'',pvp:true,bots:true,max:16,dmg:1},ping:0,err:''};
+  const st={on:false,connecting:false,id:0,name:'',host:false,code:'',started:false,assign:null,cfg:{name:'',mode:'ffa',pvp:true,bots:false,team:false,peace:false,max:16,dmg:1,dur:300},ping:0,err:'',endAt:0,round:0,result:null};   // endAt: giờ kết thúc trận (performance.now) · round: trận thứ mấy · result: bảng điểm trận vừa xong
   const roster=new Map();    // id -> {id,name,ch,k,d,ping,host,me, x,y,z,yw,pt,w,h,f,fl, av}  (gồm cả chính mình, me=true, không có av)
   const subs={};
   let tx=null,peer=null,hub=null,sendT=0,pingT=0,tmo=0,lastHit=null,botsOff=false;
@@ -120,7 +120,7 @@ window.NET=(function(){
   }
   function cleanup(){
     const wasRemote=st.on&&st.started&&st.cfg.bots&&!st.host;
-    st.on=false;st.connecting=false;st.id=0;st.host=false;st.started=false;st.assign=null;lastHit=null;
+    st.on=false;st.connecting=false;st.id=0;st.host=false;st.started=false;st.assign=null;lastHit=null;st.round=0;st.result=null;st.endAt=0;
     NetAvatar.removeAll();roster.clear();
     if(botsOff){botsOff=false;if(typeof setupFloor==='function')setupFloor()}   // rời phòng: bot của mình chạy lại như chơi 1 mình
     if(window.BotSync)BotSync.reset();
@@ -132,7 +132,7 @@ window.NET=(function(){
   function entry(p){
     let e=roster.get(p.id);
     if(!e){e={id:p.id,x:0,y:0,z:0,yw:0,pt:0,w:'pistol',h:100,f:0,fl:0,av:null,me:p.id===st.id};roster.set(p.id,e)}
-    e.name=p.name;e.ch=p.ch;e.k=p.k|0;e.d=p.d|0;e.ping=p.ping|0;e.host=!!p.host;
+    e.name=p.name;e.ch=p.ch;e.tm=p.tm|0;e.k=p.k|0;e.d=p.d|0;e.ping=p.ping|0;e.host=!!p.host;
     return e;
   }
   function handle(m){
@@ -143,9 +143,10 @@ window.NET=(function(){
         roster.clear();for(const p of m.players)entry(p);
         sendT=0;pingT=0;botsOff=false;
         emit('status');emit('score');
-        if(m.started)begin(null);   // vào phòng khi trận đã bắt đầu: vào thẳng
+        if(m.started)begin(null,m.left);   // vào phòng khi trận đã bắt đầu: vào thẳng
         break}
-      case 'start':begin(m.sp&&m.sp[st.id]);break;
+      case 'start':begin(m.sp&&m.sp[st.id],m.dur);break;
+      case 'end':endGame(m);break;
       case 'closed':leave(true);st.err='hostleft';emit('status');break;
       case 'full':fail('full');break;
       case 'pj':{entry(m.p);emit('join',m.p);emit('score');break}
@@ -183,18 +184,38 @@ window.NET=(function(){
   }
 
   // trận bắt đầu (chủ phòng bấm Bắt đầu, hoặc vào phòng muộn): đặt điểm xuất hiện được chia sẵn, tắt bot nếu phòng yêu cầu, bất tử 3 giây
-  function begin(spawnIdx){
+  function begin(spawnIdx,dur){
     if(st.started)return;
-    st.started=true;st.assign=spawnIdx==null?null:spawnIdx;applyCfg();
+    st.started=true;st.round++;st.result=null;st.endAt=performance.now()+(dur||st.cfg.dur||300)*1000;
+    st.assign=spawnIdx==null?null:spawnIdx;applyCfg();
     if(window.BotSync)BotSync.enter();
-    if(typeof spawnRandom==='function')spawnRandom();
+    if(st.round>1&&typeof restart==='function'){restart();if(typeof setupFloor==='function')setupFloor()}   // trận thứ 2 trở đi: dọn sạch như "chơi lại" (restart() cũng gọi spawnRandom)
+    else if(typeof spawnRandom==='function')spawnRandom();
+    if(st.cfg.peace)unlockAll();
     reviveT=Math.max(reviveT,3);sendT=0;
     emit('start');emit('status');
   }
 
+  // chế độ hòa bình: mở hết cổng + coi như đã hạ mọi boss (không có boss xuất hiện) để đi lên tầng 2, 3... tùy thích
+  function unlockAll(){
+    if(typeof bossDone!=='undefined')for(let f=0;f<NF;f++)bossDone[f]=true;
+    if(typeof openGate==='function')for(let f=0;f<NF-1;f++)try{openGate(f)}catch(e){console.warn('[NET] openGate',f,e)}
+  }
+  // hết 5 phút (hub gửi 'end'): dừng game, dọn quái + người chơi khác, giữ bảng điểm cuối để màn sảnh chờ hiện kết quả
+  function endGame(m){
+    if(!st.started)return;
+    st.started=false;st.result={list:m.list||[],mode:m.mode,round:m.round|0};
+    for(const p of st.result.list)entry(p);
+    NetAvatar.removeAll();for(const e of roster.values())e.av=null;
+    stopBots();if(window.BotSync)BotSync.reset();
+    playing=false;md=false;for(const k in keys)keys[k]=0;
+    if(document.pointerLockElement&&document.exitPointerLock)document.exitPointerLock();
+    emit('score');emit('end',st.result);emit('status');
+  }
   // ---------- cấu hình phòng ----------
   const noBots=()=>st.on&&st.started&&!st.cfg.bots;
   // ĐỒNG BỘ QUÁI (net/botsync.js): phòng bật bot -> CHỦ PHÒNG chạy toàn bộ quái, máy khác chỉ nhận ảnh chụp rồi vẽ lại
+  const peaceMode=()=>st.on&&st.started&&st.cfg.peace;   // hòa bình: bot không tấn công, không mất máu, mở hết các tầng
   const botsHost=()=>st.on&&st.started&&st.cfg.bots&&st.host;
   const botsRemote=()=>st.on&&st.started&&st.cfg.bots&&!st.host;
   const noArchers=()=>st.on&&st.started;   // lính cung (archer.js) chưa đồng bộ: tắt khi chơi trong phòng
@@ -206,7 +227,9 @@ window.NET=(function(){
     if(off&&!botsOff){botsOff=true;stopBots()}
     else if(!off&&botsOff){botsOff=false;if(typeof setupFloor==='function')setupFloor()}
   }
-  function setCfg(o){if(st.on&&st.host)send(Object.assign({t:'cfg'},o))}
+  function setCfg(o){if(st.on&&st.host&&!st.started)send(Object.assign({t:'cfg'},o))}   // đổi chế độ: chỉ khi chưa vào trận
+  const myTeam=()=>{const e=roster.get(st.id);return e?e.tm|0:0};
+  function setTeam(tm){if(st.on&&!st.started)send({t:'tm',tm:tm?1:0})}
 
   // ---------- gửi đi ----------
   function sendState(){
@@ -230,7 +253,7 @@ window.NET=(function(){
   }
   // combat.js: đạn của mình trúng người chơi rp (đầu hay thân)
   function hit(rp,head,w){
-    if(!st.on||!st.started||!st.cfg.pvp||peace||dead||!rp||rp.me)return;
+    if(!st.on||!st.started||!st.cfg.pvp||peace||dead||!rp||rp.me||(st.cfg.team&&rp.tm===myTeam()))return;   // cùng phe: không bắn được nhau
     const g=W[w];if(!g)return;
     send({t:'hit',to:rp.id,d:head?g.hd:g.dmg,hs:head?1:0,w});
     hitMark(head);
@@ -284,7 +307,8 @@ window.NET=(function(){
     if(!st.on)return;
     for(const e of roster.values()){
       if(e.me||!e.av||(e.f&1)||Math.abs(e.y-FY(curFl))>=FHT[curFl])continue;
-      mc.fillStyle='#4d9dff';mc.strokeStyle='#fff';mc.lineWidth=2;mc.beginPath();mc.arc(X(e.av.x),X(e.av.z),6,0,6.3);mc.fill();mc.stroke();
+      mc.fillStyle=st.cfg.team&&e.tm!==myTeam()?'#ff3355':'#4d9dff';mc.strokeStyle='#fff';   // chơi theo phe: đồng đội xanh, đối thủ đỏ
+      mc.lineWidth=2;mc.beginPath();mc.arc(X(e.av.x),X(e.av.z),6,0,6.3);mc.fill();mc.stroke();
     }
   }
 
@@ -293,7 +317,8 @@ window.NET=(function(){
     typing:false,
     get on(){return st.on},
     get cfg(){return st.cfg},
-    noBots,botsHost,botsRemote,noArchers,raw:send,
-    targets(out){if(st.on&&st.started&&st.cfg.pvp)NetAvatar.targets(out)},   // combat.js: thêm hộp va chạm người chơi khác vào danh sách có thể trúng đạn
+    noBots,botsHost,botsRemote,noArchers,peaceMode,setTeam,myTeam,raw:send,
+    targets(out){if(!(st.on&&st.started&&st.cfg.pvp))return;if(!st.cfg.team){NetAvatar.targets(out);return}
+      const tmp=[],my=myTeam();NetAvatar.targets(tmp);for(const m of tmp){const rp=m.userData&&m.userData.rp;if(rp&&rp.tm===my)continue;out.push(m)}},   // đồng đội không chặn đạn   // combat.js: thêm hộp va chạm người chơi khác vào danh sách có thể trúng đạn
   };
 })();

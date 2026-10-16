@@ -37,7 +37,7 @@ window.BotSync=(function(){
   function push(e){
     stack.push({x:P.x,y:P.y,z:P.z,h:P.h,yaw,dead,peace});
     P.x=e.x;P.y=e.y;P.z=e.z;P.h=(e.f&4)?1:1.7;yaw=e.yw;dead=false;
-    peace=curFl===0&&!!window.PavilionPeace&&!!PavilionPeace(e.x,e.y,e.z);
+    peace=NET.peaceMode()||(curFl===0&&!!window.PavilionPeace&&!!PavilionPeace(e.x,e.y,e.z));
   }
   function pop(){
     const s=stack.pop();if(!s)return;

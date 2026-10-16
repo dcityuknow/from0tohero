@@ -20,7 +20,14 @@ window.LanUI=(function(){
       note:'Lưu ý: bot và boss do chủ phòng chạy (đồng bộ cho cả phòng). Vật phẩm rơi chạy riêng từng máy; lính cung tạm tắt khi chơi trong phòng.',hostTag:'Chủ phòng',you:'Bạn',
       kills:'Hạ',deaths:'Chết',name:'Tên',sbH:'Bảng điểm',chatPh:'Nhắn tin… (Enter để gửi, Esc để huỷ)',
       joined:'{0} vào phòng',left:'{0} rời phòng',died:'{0} ☠',lost:'Mất kết nối',hint:'Enter: chat · Tab: bảng điểm',
-      go:'▶ Vào trận',startedSub:'Chủ phòng đã bắt đầu! Bấm để vào trận.',needStart:'Chờ chủ phòng bấm Bắt đầu.',slotWait:'Đang chờ bạn bè…'},
+      go:'▶ Vào trận',startedSub:'Chủ phòng đã bắt đầu! Bấm để vào trận.',needStart:'Chờ chủ phòng bấm Bắt đầu.',slotWait:'Đang chờ bạn bè…',
+      modeH:'Chế độ chơi',time:'⏱ Mỗi trận 5 phút',locked:'🔒 Chế độ bị khóa tới khi hết giờ.',onlyHost:'Chỉ chủ phòng đổi được chế độ.',
+      m_ffa:'⚔️ PvP hỗn chiến',d_ffa:'Ai cũng bắn được nhau. Hạ 1 người = 1 điểm.',
+      m_team:'🛡️ PvP theo phe',d_team:'Chia 2 phe, chọn phe ở sảnh chờ. Điểm xếp hạng tính theo phe. Cùng phe không bắn trúng nhau.',
+      m_ffabot:'⚔️🤖 PvP hỗn chiến + bot',d_ffabot:'Ai cũng bắn được nhau, thêm bot tấn công tất cả mọi người.',
+      m_teambot:'🛡️🤖 PvP theo phe + bot',d_teambot:'Chia 2 phe, thêm bot tấn công cả hai phe.',
+      m_peace:'🕊️ Hòa bình',d_peace:'Chỉ tham quan: đi lên tầng 2, 3 tùy thích, không cần hạ boss. Bot vẫn xuất hiện và nói chuyện nhưng không tấn công.',
+      teamH:'Chọn phe của bạn',t0:'🔴 Đỏ',t1:'🔵 Xanh',endT:'Hết giờ!',winT:'{0} thắng!',draw:'Hòa!',pts:'Điểm',peaceEnd:'Hết giờ tham quan. Cảm ơn bạn đã ghé thăm!',again:'Chủ phòng có thể đổi chế độ rồi bấm Bắt đầu để chơi tiếp.'},
     en:{btn:'Room',hello:'Hello, {0}!',ask:'How do you want to play?',soloT:'Play solo',soloD:'Climb 4 floors and beat every boss on your own.',soloB:'▶ Play solo',
       teamT:'Play with friends',teamD:'Create a room, send the code to your friends and enter the match together.',teamB:'Play team',back:'← Back',
       createT:'Create a room',createD:'You are the host: get a room code to invite friends, press Start when everyone is in.',createB:'🏠 Create room',
@@ -36,7 +43,14 @@ window.LanUI=(function(){
       note:'Note: bots and bosses are run by the host and synced to the room. Dropped items run separately on each PC; archers are disabled in rooms for now.',hostTag:'Host',you:'You',
       kills:'Kills',deaths:'Deaths',name:'Name',sbH:'Scoreboard',chatPh:'Type a message… (Enter to send, Esc to cancel)',
       joined:'{0} joined',left:'{0} left',died:'{0} ☠',lost:'Disconnected',hint:'Enter: chat · Tab: scoreboard',
-      go:'▶ Enter match',startedSub:'The host started the match! Click to enter.',needStart:'Waiting for the host to press Start.',slotWait:'Waiting for friends…'}
+      go:'▶ Enter match',startedSub:'The host started the match! Click to enter.',needStart:'Waiting for the host to press Start.',slotWait:'Waiting for friends…',
+      modeH:'Game mode',time:'⏱ 5 minutes per match',locked:'🔒 Mode is locked until time is up.',onlyHost:'Only the host can change the mode.',
+      m_ffa:'⚔️ Free-for-all PvP',d_ffa:'Everyone can shoot everyone. 1 kill = 1 point.',
+      m_team:'🛡️ Team PvP',d_team:'Two sides, pick yours in the lobby. Ranking is per team. Teammates cannot hurt each other.',
+      m_ffabot:'⚔️🤖 Free-for-all PvP + bots',d_ffabot:'Everyone can shoot everyone, plus bots attacking all players.',
+      m_teambot:'🛡️🤖 Team PvP + bots',d_teambot:'Two sides, plus bots attacking both teams.',
+      m_peace:'🕊️ Peace',d_peace:'Sightseeing only: go up to floors 2, 3... freely, no boss to beat. Bots appear and talk as usual but never attack.',
+      teamH:'Pick your side',t0:'🔴 Red',t1:'🔵 Blue',endT:'Time is up!',winT:'{0} wins!',draw:'Draw!',pts:'Points',peaceEnd:'Sightseeing time is over. Thanks for visiting!',again:'The host can change the mode and press Start to play again.'}
   };
   const tr=(k,...a)=>{let s=((NT[L]||NT.en)[k])||NT.en[k]||k;a.forEach((v,i)=>s=s.split('{'+i+'}').join(v));return s};
   const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
@@ -174,7 +188,20 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 #lansb th:first-child,#lansb td:first-child{text-align:left}
 #lansb td{padding:4px 6px;text-align:right;border-top:1px solid rgba(0,0,0,.1)}
 #lansb td:first-child{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#lansb tr.me td{background:rgba(255,127,168,.22);font-weight:bold}`;
+#lansb tr.me td{background:rgba(255,127,168,.22);font-weight:bold}
+#lrank{position:absolute;left:16px;top:calc(64px + env(safe-area-inset-top,0px));display:none;min-width:150px;max-width:230px;background:rgba(20,20,30,.62);color:#fff;border-radius:12px;padding:6px 10px;font-size:13px;line-height:1.45;pointer-events:none}
+#lrank .rt{font-weight:800;margin-bottom:3px;white-space:nowrap}
+#lrank .rr{font-weight:800}
+#lrank .rp{display:flex;justify-content:space-between;gap:10px;white-space:nowrap}
+#lrank .rp.me{background:rgba(255,255,255,.2);border-radius:6px;padding:0 4px;margin:0 -4px}
+body.touch #lrank{font-size:11px;min-width:120px;left:calc(12px + env(safe-area-inset-left,0px));top:calc(54px + env(safe-area-inset-top,0px))}
+#modes .room.mini .opts input[type=radio]{accent-color:#7a5cff}
+#modes .room.mini .opts .sm{margin:2px 0}
+#modes .room.mini .opts.team .btns .mbtn{font-size:15px;padding:6px 14px}
+#modes .res{background:#fffbe6;border:4px solid #ffd23f;border-radius:22px;padding:10px 14px;margin:0 0 12px;text-align:center;box-shadow:0 6px 0 rgba(43,42,58,.14)}
+#modes .res h2{margin:0 0 4px;font-size:22px}
+#modes .res table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+#modes .res td{padding:2px 4px;text-align:right}#modes .res td:first-child{text-align:left}`;
   document.head.appendChild(css);
 
   // nút nhỏ trên bảng "Bấm để chơi" - CHỈ hiện khi đang ở trong phòng (xem mã phòng / người chơi / rời phòng)
@@ -197,6 +224,30 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   const sorted=()=>Array.from(NET.roster.values()).sort((a,b)=>b.k-a.k||a.d-b.d||a.name.localeCompare(b.name));
   const COL=['#ff7fa8','#7fbfff','#6fd6a0','#ffb347','#b9a5ff','#4dd0e1','#f06292','#9ccc65'];
   const initial=n=>Array.from(String(n||'?'))[0].toUpperCase();
+  const MODE_IDS=['ffa','team','ffabot','teambot','peace'],TEAMC=['#ff5a5f','#3b82f6'];
+  const teamName=i=>tr('t'+(i?1:0));
+  function teamScores(list){const s=[{k:0,d:0,n:0},{k:0,d:0,n:0}];for(const p of list){const t=p.tm?1:0;s[t].k+=p.k|0;s[t].d+=p.d|0;s[t].n++}return s}
+  const isTeamMode=m=>m==='team'||m==='teambot';
+  // bảng kết quả trận vừa xong (hiện ở sảnh chờ sau khi hết 5 phút)
+  function resultCard(){
+    const R=st.result,c=el('div','res');c.appendChild(el('h2',null,'⏱ '+tr('endT')));
+    if(R.mode==='peace'){c.appendChild(el('div','sm',tr('peaceEnd')));return c}
+    const L2=R.list.slice().sort((a,b)=>b.k-a.k||a.d-b.d||a.name.localeCompare(b.name));
+    if(isTeamMode(R.mode)){
+      const s=teamScores(R.list);
+      c.appendChild(el('div','',s[0].k===s[1].k?tr('draw'):'🏆 '+tr('winT',teamName(s[0].k>s[1].k?0:1))));
+      const t=el('table');
+      for(const i of[0,1]){const r=el('tr');r.style.color=TEAMC[i];r.style.fontWeight='800';r.append(el('td',null,teamName(i)),el('td',null,tr('pts')+': '+s[i].k));t.appendChild(r)}
+      c.appendChild(t);
+    }else if(L2.length){
+      c.appendChild(el('div','',L2.length>1&&L2[0].k===L2[1].k&&L2[0].d===L2[1].d?tr('draw'):'🏆 '+tr('winT',L2[0].name)));
+    }
+    const t=el('table');
+    L2.slice(0,8).forEach((p,i)=>{const r=el('tr');if(isTeamMode(R.mode))r.style.color=TEAMC[p.tm?1:0];if(p.id===st.id)r.style.fontWeight='800';
+      r.append(el('td',null,(i+1)+'. '+p.name),el('td',null,'🎯 '+p.k+'  ☠ '+p.d));t.appendChild(r)});
+    c.appendChild(t);c.appendChild(el('div','sm',tr('again')));
+    return c;
+  }
 
   function header(sub,parent){
     parent=parent||wrap;
@@ -220,19 +271,20 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   function playerSlot(p,i,t){
     const li=el('div','pl'+(p.me?' me':'')+(seenIds.has(p.id)?'':' new'));seenIds.add(p.id);
     const fig=el('div','fig'),pch=el('div','pch');
+    if(st.cfg.team){fig.style.setProperty('filter','drop-shadow(0 0 6px '+TEAMC[p.tm?1:0]+')')}   // chơi theo phe: viền sáng màu phe quanh nhân vật
     pch.style.animationDelay=-((t+i*.45)%3.2)+'s';   // mỗi người nhún lệch nhịp; trừ theo đồng hồ để render lại không giật
     const src=charCanvas(p.ch,i%2?.45:-.45);   // xen kẽ quay nhẹ trái / phải cho sinh động
     if(src){const c=document.createElement('canvas');c.width=src.width;c.height=src.height;c.getContext('2d').drawImage(src,0,0);pch.appendChild(c)}
     else{const a=el('div','avbig',initial(p.name));a.style.background=COL[(p.id|0)%COL.length];pch.appendChild(a)}
     fig.append(el('div','gs'),pch);
-    const tag=el('div','tag');tag.title=p.name;
+    const tag=el('div','tag');tag.title=p.name;if(st.cfg.team)tag.style.borderColor=TEAMC[p.tm?1:0];
     tag.appendChild(el('b',null,(p.host?'👑 ':'')+p.name));
-    const sub=st.started?'🎯 '+p.k+'   ☠ '+p.d:[p.host?tr('hostTag'):'',p.me?tr('you'):''].filter(Boolean).join(' · ');
+    const sub=st.started?'🎯 '+p.k+'   ☠ '+p.d:[st.cfg.team?teamName(p.tm):'',p.host?tr('hostTag'):'',p.me?tr('you'):''].filter(Boolean).join(' · ');
     tag.appendChild(el('span',null,sub||' '));
     li.append(fig,tag);return li;
   }
   function buildStage(stage){
-    const list=st.started?sorted():Array.from(NET.roster.values()).sort((a,b)=>a.id-b.id);   // sảnh chờ: theo thứ tự vào phòng (chủ phòng đầu tiên); trong trận: theo điểm
+    const list=st.started?sorted():Array.from(NET.roster.values()).sort((a,b)=>(st.cfg.team?(a.tm|0)-(b.tm|0):0)||a.id-b.id);   // sảnh chờ: theo thứ tự vào phòng (chủ phòng đầu tiên); trong trận: theo điểm
     const ghost=!st.started&&list.length<st.cfg.max;   // ô trống "đang chờ bạn bè" cho đỡ trống trải
     const n=list.length+(ghost?1:0);stage.style.setProperty('--rows',n<=6?1:n<=12?2:3);
     const t=performance.now()/1000;
@@ -326,15 +378,31 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
         if(st.host&&!st.started)room.appendChild(el('div','sm x',tr('shareH')));
         room.appendChild(el('div','sm','👥 '+tr('players')+': '+NET.roster.size+' / '+st.cfg.max+(st.started?'  ·  '+tr('ping')+': '+st.ping+' ms':'')));
         buildStage(stage);   // danh sách người chơi -> các nhân vật ở giữa màn hình
-        if(st.host){
-          const o=el('div','opts');o.appendChild(el('b',null,tr('youHost')));
-          o.appendChild(chk(tr('pvp'),st.cfg.pvp,v=>NET.setCfg({pvp:v})));
-          o.appendChild(chk(tr('bots'),st.cfg.bots,v=>NET.setCfg({bots:v})));
+        {   // chế độ chơi: chủ phòng chọn 1 trong 5 (khóa khi đã vào trận), người khác chỉ xem
+          const o=el('div','opts');o.appendChild(el('b',null,tr('modeH')));
+          const lockedUI=st.started||!st.host;
+          for(const m of MODE_IDS){
+            const l=el('label','chk'),i=el('input');i.type='radio';i.name='lanmode';i.checked=st.cfg.mode===m;i.disabled=lockedUI;
+            i.addEventListener('change',()=>{if(i.checked)NET.setCfg({mode:m})});
+            const sp=el('span',null,tr('m_'+m));sp.title=tr('d_'+m);l.append(i,sp);o.appendChild(l);
+          }
+          o.appendChild(el('div','sm',tr('d_'+st.cfg.mode)));
+          o.appendChild(el('div','sm',tr('time')));
+          if(st.started)o.appendChild(el('div','sm',tr('locked')));else if(!st.host)o.appendChild(el('div','sm',tr('onlyHost')));
           room.appendChild(o);
+        }
+        if(st.cfg.team&&!st.started){   // chọn phe
+          const o=el('div','opts team');o.appendChild(el('b',null,tr('teamH')));
+          const row=el('div','btns'),my=NET.myTeam();
+          for(const i of[0,1]){const b=el('button','mbtn',teamName(i)),on=my===i;b.type='button';b.style.background=on?TEAMC[i]:'#fff';b.style.color=on?'#fff':'#2b2a3a';b.addEventListener('click',()=>NET.setTeam(i));row.appendChild(b)}
+          o.appendChild(row);room.appendChild(o);
+        }
+        if(st.host){
           if(!st.started){const sb=el('button','mbtn gr big',tr('start'));sb.type='button';sb.addEventListener('click',()=>NET.start());room.appendChild(sb)}
         }else if(!st.started)room.appendChild(el('div','wait','⏳ '+tr('waitHost')));
         room.appendChild(el('div','sm x',tr('note')));
       }
+      if(!st.started&&st.result)side.appendChild(resultCard());   // kết quả trận vừa xong
       side.appendChild(room);
       const bs=el('div','btns');bs.style.marginTop='12px';
       const lv=el('button','mbtn',tr('leave'));lv.type='button';lv.addEventListener('click',()=>{NET.leave();view='mode';render()});bs.appendChild(lv);
@@ -354,6 +422,23 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   const barT=el('span');const bSb=el('button','nb','👥'),bCh=el('button','nb','💬'),hint=el('span','hint');
   bar.append(barT,bSb,bCh,hint);hud.appendChild(bar);
   const feed=el('div');feed.id='kfeed';hud.appendChild(feed);
+  const rank=el('div');rank.id='lrank';hud.appendChild(rank);
+  // bảng xếp hạng ở góc + đồng hồ đếm ngược 5 phút. Chế độ phe: điểm 2 phe; chế độ hỗn chiến: top 5; hòa bình: chỉ đồng hồ
+  function drawRank(){
+    if(!(st.on&&st.started)){rank.style.display='none';return}
+    rank.style.display='block';rank.textContent='';
+    const left=Math.max(0,Math.ceil((st.endAt-performance.now())/1000));
+    rank.appendChild(el('div','rt','⏱ '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' · '+tr('m_'+st.cfg.mode)));
+    if(st.cfg.peace)return;
+    const all=Array.from(NET.roster.values());
+    if(st.cfg.team){const s=teamScores(all);for(const i of[0,1]){const r=el('div','rr',teamName(i)+': '+s[i].k);r.style.color=TEAMC[i]==='#3b82f6'?'#8ab8ff':'#ff8a8e';rank.appendChild(r)}}
+    for(const p of sorted().slice(0,5)){
+      const r=el('div','rp'+(p.me?' me':''));r.append(el('span',null,p.name.length>12?p.name.slice(0,11)+'…':p.name),el('span',null,String(p.k)));
+      if(st.cfg.team)r.style.borderLeft='3px solid '+TEAMC[p.tm?1:0];
+      rank.appendChild(r);
+    }
+  }
+  setInterval(drawRank,500);
   const chatLog=el('div');chatLog.id='lchat';hud.appendChild(chatLog);
   const sb=el('div');sb.id='lansb';hud.appendChild(sb);
   const chatW=el('div');chatW.id='lanchatw';const chatI=el('input');chatI.id='lanchat';chatI.type='text';chatI.maxLength=160;chatI.autocomplete='off';chatI.spellcheck=false;
@@ -364,11 +449,14 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
     btn.classList.toggle('live',st.on);btn.textContent=st.on?'🌐 '+st.code+' · '+NET.roster.size:'🌐';
     if(on){barT.textContent='🌐 '+st.code+' · 👥 '+NET.roster.size+' · '+st.ping+' ms'+(st.cfg.pvp?' · ⚔️':'');hint.textContent=tr('hint')}
     else{sb.style.display='none';closeChat()}
+    drawRank();
   }
   function drawSb(){
     sb.textContent='';sb.appendChild(el('h3',null,'🏆 '+tr('sbH')+' · '+(st.cfg.name||'')));
+    if(st.cfg.team){const s=teamScores(Array.from(NET.roster.values())),d=el('div');d.style.cssText='display:flex;justify-content:space-around;font-weight:800;margin-bottom:6px';
+      for(const i of[0,1]){const x=el('span',null,teamName(i)+': '+s[i].k);x.style.color=TEAMC[i];d.appendChild(x)}sb.appendChild(d)}
     const t=el('table'),h=el('tr');for(const c of[tr('name'),tr('kills'),tr('deaths'),tr('ping')])h.appendChild(el('th',null,c));t.appendChild(h);
-    for(const p of sorted()){const r=el('tr',p.me?'me':'');r.appendChild(el('td',null,(p.host?'👑 ':'')+p.name));for(const v of[p.k,p.d,p.ping+' ms'])r.appendChild(el('td',null,String(v)));t.appendChild(r)}
+    for(const p of sorted()){const r=el('tr',p.me?'me':'');if(st.cfg.team)r.style.boxShadow='inset 4px 0 0 '+TEAMC[p.tm?1:0];r.appendChild(el('td',null,(p.host?'👑 ':'')+p.name));for(const v of[p.k,p.d,p.ping+' ms'])r.appendChild(el('td',null,String(v)));t.appendChild(r)}
     sb.appendChild(t);
   }
   let sbOn=false;
@@ -427,6 +515,7 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   });
   NET.sub('score',()=>{updBar();if(sbOn)drawSb();if(isOpen())render()});
   NET.sub('cfg',()=>{if(isOpen())render()});
+  NET.sub('end',()=>{showSb(false);closeChat();$('ov').style.display='none';view='room';updBar();show()});   // hết 5 phút: về sảnh chờ kèm bảng kết quả, chủ phòng đổi chế độ được lại
   NET.sub('join',p=>pushChat('',tr('joined',p.name),true));
   NET.sub('leave',p=>pushChat('',tr('left',p.name),true));
   NET.sub('kill',o=>pushFeed(o.k,o.v,o.hs));
