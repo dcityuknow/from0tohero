@@ -20,7 +20,7 @@ window.LanUI=(function(){
       note:'Lưu ý: bot, boss và vật phẩm chạy riêng trên từng máy; chỉ người chơi được đồng bộ.',hostTag:'Chủ phòng',you:'Bạn',
       kills:'Hạ',deaths:'Chết',name:'Tên',sbH:'Bảng điểm',chatPh:'Nhắn tin… (Enter để gửi, Esc để huỷ)',
       joined:'{0} vào phòng',left:'{0} rời phòng',died:'{0} ☠',lost:'Mất kết nối',hint:'Enter: chat · Tab: bảng điểm',
-      go:'▶ Vào trận',startedSub:'Chủ phòng đã bắt đầu! Bấm để vào trận.',needStart:'Chờ chủ phòng bấm Bắt đầu.'},
+      go:'▶ Vào trận',startedSub:'Chủ phòng đã bắt đầu! Bấm để vào trận.',needStart:'Chờ chủ phòng bấm Bắt đầu.',slotWait:'Đang chờ bạn bè…'},
     en:{btn:'Room',hello:'Hello, {0}!',ask:'How do you want to play?',soloT:'Play solo',soloD:'Climb 4 floors and beat every boss on your own.',soloB:'▶ Play solo',
       teamT:'Play with friends',teamD:'Create a room, send the code to your friends and enter the match together.',teamB:'Play team',back:'← Back',
       createT:'Create a room',createD:'You are the host: get a room code to invite friends, press Start when everyone is in.',createB:'🏠 Create room',
@@ -36,7 +36,7 @@ window.LanUI=(function(){
       note:'Note: bots, bosses and items run separately on each PC; only players are synchronised.',hostTag:'Host',you:'You',
       kills:'Kills',deaths:'Deaths',name:'Name',sbH:'Scoreboard',chatPh:'Type a message… (Enter to send, Esc to cancel)',
       joined:'{0} joined',left:'{0} left',died:'{0} ☠',lost:'Disconnected',hint:'Enter: chat · Tab: scoreboard',
-      go:'▶ Enter match',startedSub:'The host started the match! Click to enter.',needStart:'Waiting for the host to press Start.'}
+      go:'▶ Enter match',startedSub:'The host started the match! Click to enter.',needStart:'Waiting for the host to press Start.',slotWait:'Waiting for friends…'}
   };
   const tr=(k,...a)=>{let s=((NT[L]||NT.en)[k])||NT.en[k]||k;a.forEach((v,i)=>s=s.split('{'+i+'}').join(v));return s};
   const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
@@ -96,6 +96,58 @@ body.modes-on #ov,body.modes-on #hud{visibility:hidden}   /* màn chọn nằm r
 #modes .opts b{display:block;margin-bottom:4px}
 #modes .chk{display:flex;gap:8px;align-items:center;font-size:15px;font-weight:700;margin:6px 0;cursor:pointer}
 #modes .chk input{width:20px;height:20px;accent-color:#ff7fa8}
+/* ---- sảnh chờ: cột thông tin ở GÓC PHẢI (.side) + sân khấu ở giữa (.stage), mỗi người chơi là 1 nhân vật họ đã chọn ---- */
+#modes .mwrap.lobby{position:absolute;inset:0;width:auto;max-height:none;overflow:hidden;padding:clamp(10px,2.4vh,26px) clamp(12px,2vw,28px);display:flex;gap:clamp(12px,2vw,28px);align-items:stretch}
+#modes .side{order:2;flex:0 0 clamp(250px,27vw,350px);display:flex;flex-direction:column;align-items:center;overflow-y:auto;scrollbar-width:none;padding:2px 2px 10px}
+#modes .side::-webkit-scrollbar,#modes .stage::-webkit-scrollbar{display:none}
+#modes .side h1{font-size:clamp(26px,3.3vw,50px)}
+#modes .side .sub{margin:8px 0 12px;font-size:clamp(15px,1.5vw,20px)}
+#modes .room.mini{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:22px}
+#modes .room.mini .code{font-size:clamp(30px,4vw,50px);letter-spacing:.16em;padding:8px 4px 8px 16px;border-width:3px;margin:4px auto 6px}
+#modes .room.mini .mbtn{font-size:15px;padding:7px 12px}
+#modes .room.mini .opts{margin:8px 0;padding:6px 12px}
+#modes .room.mini .chk{font-size:14px;margin:5px 0}
+#modes .stage{order:1;flex:1 1 0;min-width:0;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;align-items:flex-end;gap:clamp(10px,2.4vh,26px) clamp(8px,1.4vw,22px);overflow-y:auto;scrollbar-width:none;padding:8px;--rows:1;--ph:clamp(96px,calc((100vh - 130px) / var(--rows) - 96px),340px)}   /* --ph: chiều cao nhân vật. Đây chỉ là giá trị khởi đầu: fitStage() (JS) đo khung thật rồi chọn cỡ lớn nhất mà mọi người vẫn vừa, không phải cuộn */
+#modes .pl{display:flex;flex-direction:column;align-items:center;max-width:calc(var(--ph) * .95)}
+#modes .pl.new{animation:ppop .45s cubic-bezier(.2,1.4,.4,1) both}   /* chỉ người MỚI vào mới nảy lên (render lại định kỳ không làm nháy) */
+@keyframes ppop{from{transform:translateY(40px) scale(.5);opacity:0}}
+#modes .fig{position:relative;height:var(--ph);aspect-ratio:260/360}
+#modes .gs{position:absolute;left:2%;right:2%;bottom:-2%;height:13%;border-radius:50%;background:radial-gradient(closest-side,rgba(127,191,255,.55),rgba(127,191,255,0))}   /* vòng sáng dưới chân */
+#modes .pl.me .gs{background:radial-gradient(closest-side,rgba(255,127,168,.65),rgba(255,127,168,0))}
+#modes .pch{position:absolute;inset:0;animation:pbob 3.2s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes pbob{50%{transform:translateY(-2.2%)}}
+#modes .pch canvas{position:static;inset:auto;display:block;width:100%;height:100%;pointer-events:none;z-index:auto}   /* style.css đặt MỌI canvas ở position:fixed toàn màn hình -> phải ghi đè */
+#modes .avbig{position:absolute;inset:8% 14% 4%;display:flex;align-items:center;justify-content:center;border-radius:22px;font:900 clamp(36px,9vh,80px)/1 "Trebuchet MS",sans-serif;color:#fff;box-shadow:inset -8px -8px 0 rgba(0,0,0,.16)}   /* dự phòng khi thiếu nhân vật */
+#modes .tag{margin-top:8px;max-width:100%;min-width:min(100%,92px);box-sizing:border-box;text-align:center;background:#fff;border:3px solid #7fbfff;border-radius:14px;padding:4px 10px 5px;box-shadow:0 4px 0 rgba(43,42,58,.2);color:#2b2a3a}
+#modes .pl.me .tag{border-color:#ff7fa8;background:#fff0f5}
+#modes .tag b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(13px,1.9vh,17px)}
+#modes .tag span{display:block;font-size:clamp(11px,1.5vh,13px);opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#modes .pl.ghost .fig{height:calc(var(--ph) * .5);border:3px dashed rgba(255,255,255,.3);border-radius:18px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.35);font:900 clamp(36px,8vh,76px)/1 "Trebuchet MS",sans-serif}
+#modes .pl.ghost .tag{background:transparent;border:0;box-shadow:none;color:rgba(255,255,255,.75);padding-top:0;min-width:0}
+#modes .pl.ghost{max-width:calc(var(--ph) * .62)}
+#modes .pl.ghost .tag b{white-space:normal;font-size:clamp(11px,1.5vh,14px);line-height:1.25}
+@media (max-width:660px){#modes .mwrap.lobby{flex-direction:column;overflow-y:auto}#modes .side{order:1;flex:0 0 auto;width:100%;overflow:visible}#modes .stage{order:2;flex:0 0 auto;overflow:visible;--ph:clamp(96px,32vw,200px)}}
+#modes .room.mini .mbtn.big{font-size:22px;padding:10px 26px;margin-top:4px}
+@media (max-height:520px){   /* điện thoại nằm ngang: gọn cột thông tin để thấy hết nút Start / Leave không cần cuộn */
+  #modes .mwrap.lobby{padding:6px 12px}
+  #modes .side{flex-basis:clamp(220px,32vw,270px)}
+  #modes .side h1{font-size:clamp(20px,3vw,28px)}
+  #modes .side .sub{margin:7px 0 6px;font-size:13px}
+  #modes .room.mini{padding:7px 10px;border-radius:18px;border-width:3px}
+  #modes .room.mini .sm.x{display:none}
+  #modes .room.mini .code{font-size:28px;margin:2px auto 4px;padding:3px 4px 3px 12px}
+  #modes .room.mini .btns{margin:4px 0;gap:6px}
+  #modes .room.mini .mbtn{font-size:12px;padding:4px 8px;border-width:2px;box-shadow:0 3px 0 #2b2a3a}
+  #modes .room.mini .opts{margin:4px 0;padding:3px 10px;border-width:2px}
+  #modes .room.mini .opts b{margin-bottom:0;font-size:12px}
+  #modes .room.mini .chk{font-size:11px;margin:3px 0;gap:6px}
+  #modes .room.mini .chk input{width:16px;height:16px}
+  #modes .room.mini .mbtn.big{font-size:16px;padding:5px 16px;margin-top:2px}
+  #modes .side>.btns{margin:6px 0 0!important}
+  #modes .side>.btns .mbtn{font-size:12px;padding:4px 10px}
+  #modes .tag{margin-top:4px;padding:2px 8px 3px;border-width:2px}
+  #modes .stage{padding:4px;gap:6px 8px}
+}
 #modes .wait{font-weight:800;font-size:17px;margin:10px 0;animation:mwait 1.4s ease-in-out infinite}
 @keyframes mwait{50%{opacity:.45}}
 .lb.lan{display:none;border-color:#3dd17a;background:#3dd17a;color:#14301f}.lb.lan.live{display:inline-block}
@@ -136,7 +188,7 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   if(window.MenuFX)MenuFX.attach(modes);
   let view='mode',codeVal='';
   const isOpen=()=>modes.classList.contains('on');
-  const show=()=>{render();modes.classList.add('on');document.body.classList.add('modes-on')};
+  const show=()=>{render();modes.classList.add('on');document.body.classList.add('modes-on');fitStage()};
   const hide=()=>{modes.classList.remove('on');document.body.classList.remove('modes-on')};
   const open=()=>{if(st.on||st.connecting)view='room';show()};
   const close=hide;
@@ -146,10 +198,60 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   const COL=['#ff7fa8','#7fbfff','#6fd6a0','#ffb347','#b9a5ff','#4dd0e1','#f06292','#9ccc65'];
   const initial=n=>Array.from(String(n||'?'))[0].toUpperCase();
 
-  function header(sub){
-    wrap.appendChild(el('h1',null,'BLOCK ARENA'));
-    wrap.appendChild(el('div','sub',sub));
+  function header(sub,parent){
+    parent=parent||wrap;
+    parent.appendChild(el('h1',null,'BLOCK ARENA'));
+    parent.appendChild(el('div','sub',sub));
   }
+
+  // ---------- nhân vật người chơi trong sảnh chờ ----------
+  // Mỗi người chơi hiện đúng nhân vật họ đã chọn (p.ch = mã nhân vật, gửi qua hub). Ảnh chụp bằng CharPick.snapshot (ui/character.js, cùng lõi voxel với màn chọn nhân vật)
+  // rồi CACHE theo (nhân vật, góc xoay): render() chạy lại thường xuyên nhưng chỉ vẽ lại canvas từ cache, không dựng lại WebGL.
+  const CHC={},seenIds=new Set();let fresh=0;
+  function charCanvas(k,ry){
+    const key=k+'|'+ry;if(CHC[key])return CHC[key];
+    if(!window.CharPick||!CharPick.snapshot||!window.THREE||!(CharPick.list||[]).some(c=>c.k===k))return null;   // thiếu module / mã lạ -> dùng ô chữ cái dự phòng
+    try{const c=CharPick.snapshot(k,260,360,ry);fresh++;return CHC[key]=c}catch(e){console.warn('[LanUI] không chụp được nhân vật',k,e);return null}
+  }
+  function freeGL(){   // chụp xong thì trả WebGL (trừ khi màn chọn nhân vật đang mở bằng nút ✏️)
+    const pf=document.getElementById('pf');
+    if(window.CharPick&&CharPick.release&&(!pf||pf.style.display==='none'))try{CharPick.release()}catch(e){}
+  }
+  function playerSlot(p,i,t){
+    const li=el('div','pl'+(p.me?' me':'')+(seenIds.has(p.id)?'':' new'));seenIds.add(p.id);
+    const fig=el('div','fig'),pch=el('div','pch');
+    pch.style.animationDelay=-((t+i*.45)%3.2)+'s';   // mỗi người nhún lệch nhịp; trừ theo đồng hồ để render lại không giật
+    const src=charCanvas(p.ch,i%2?.45:-.45);   // xen kẽ quay nhẹ trái / phải cho sinh động
+    if(src){const c=document.createElement('canvas');c.width=src.width;c.height=src.height;c.getContext('2d').drawImage(src,0,0);pch.appendChild(c)}
+    else{const a=el('div','avbig',initial(p.name));a.style.background=COL[(p.id|0)%COL.length];pch.appendChild(a)}
+    fig.append(el('div','gs'),pch);
+    const tag=el('div','tag');tag.title=p.name;
+    tag.appendChild(el('b',null,(p.host?'👑 ':'')+p.name));
+    const sub=st.started?'🎯 '+p.k+'   ☠ '+p.d:[p.host?tr('hostTag'):'',p.me?tr('you'):''].filter(Boolean).join(' · ');
+    tag.appendChild(el('span',null,sub||' '));
+    li.append(fig,tag);return li;
+  }
+  function buildStage(stage){
+    const list=st.started?sorted():Array.from(NET.roster.values()).sort((a,b)=>a.id-b.id);   // sảnh chờ: theo thứ tự vào phòng (chủ phòng đầu tiên); trong trận: theo điểm
+    const ghost=!st.started&&list.length<st.cfg.max;   // ô trống "đang chờ bạn bè" cho đỡ trống trải
+    const n=list.length+(ghost?1:0);stage.style.setProperty('--rows',n<=6?1:n<=12?2:3);
+    const t=performance.now()/1000;
+    list.forEach((p,i)=>stage.appendChild(playerSlot(p,i,t)));
+    if(ghost){
+      const g=el('div','pl ghost'),fig=el('div','fig','+'),tag=el('div','tag');tag.appendChild(el('b',null,tr('slotWait')));tag.appendChild(el('span',null,' '));
+      g.append(fig,tag);stage.appendChild(g);
+    }
+    if(fresh){fresh=0;freeGL()}
+  }
+  // đo khung thật rồi chọn cỡ nhân vật LỚN NHẤT mà mọi người (và ô chờ) vẫn nằm vừa, không bị cuộn / cắt - màn nào, số người nào cũng vừa
+  function fitStage(){
+    const s=wrap.querySelector('.stage');if(!s||!isOpen())return;
+    if(innerWidth<=660){s.style.removeProperty('--ph');return}   // màn hẹp: bố cục cột, cuộn bình thường (CSS lo)
+    let ph=Math.min(360,s.clientHeight-50);
+    for(;ph>72;ph-=6){s.style.setProperty('--ph',ph+'px');if(s.scrollHeight<=s.clientHeight+1)break}
+    s.style.setProperty('--ph',Math.max(72,ph)+'px');
+  }
+  addEventListener('resize',()=>{if(view==='room')fitStage()});
   function chk(label,val,fn){
     const l=el('label','chk'),i=el('input');i.type='checkbox';i.checked=!!val;i.addEventListener('change',()=>fn(i.checked));
     l.append(i,el('span',null,label));return l;
@@ -180,9 +282,10 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 
   function render(){
     const old=wrap.querySelector('#lancode');if(old)codeVal=old.value;
-    wrap.textContent='';
+    wrap.textContent='';wrap.className='mwrap';
     if(st.on||st.connecting)view='room';
     else if(view==='room')view='team';
+    if(view!=='room')seenIds.clear();   // rời phòng: lần sau vào lại, mọi người nảy lên như mới
 
     if(view==='mode'){   // ---- Solo hay Team ----
       header(tr('hello',PROFILE.name||'')+'  '+tr('ask'));
@@ -206,42 +309,38 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
       const go=()=>{codeVal=inp.value;NET.joinRoom(codeVal)};
       setTimeout(()=>{if(!touch()&&isOpen()&&view==='team'&&codeVal)inp.focus()},30);
     }else{   // ---- phòng: kết nối / sảnh chờ / đang trong trận ----
-      header(st.connecting&&!st.on?tr('connecting'):(st.started?tr('inGame'):tr('lobby')));
-      const room=el('div','room');
+      // Bố cục: cột thông tin (.side) ở GÓC PHẢI · giữa màn hình là sân khấu (.stage) - mỗi người chơi là 1 nhân vật họ đã chọn (thay cho bảng trắng + danh sách chữ cũ)
+      wrap.className='mwrap lobby';
+      const stage=el('div','stage'),side=el('div','side');wrap.append(stage,side);
+      header(st.connecting&&!st.on?tr('connecting'):(st.started?tr('inGame'):tr('lobby')),side);
+      const room=el('div','room mini');
       if(!st.on){
         room.appendChild(el('div','wait','⏳ '+tr('connecting')+(st.code?'  '+st.code:'')));
       }else{
-        room.appendChild(el('div','sm',tr('roomCode')));
+        room.appendChild(el('div','sm x',tr('roomCode')));
         room.appendChild(el('div','code',st.code));
         const bs=el('div','btns');
         const b1=el('button','mbtn',tr('copy'));b1.type='button';b1.addEventListener('click',()=>copy(st.code,b1));
         const b2=el('button','mbtn',tr('copyLink'));b2.type='button';b2.addEventListener('click',()=>copy(inviteLink(),b2));
         bs.append(b1,b2);room.appendChild(bs);
-        if(st.host&&!st.started)room.appendChild(el('div','sm',tr('shareH')));
+        if(st.host&&!st.started)room.appendChild(el('div','sm x',tr('shareH')));
         room.appendChild(el('div','sm','👥 '+tr('players')+': '+NET.roster.size+' / '+st.cfg.max+(st.started?'  ·  '+tr('ping')+': '+st.ping+' ms':'')));
-        const ul=el('ul','plist');let i=0;
-        for(const p of sorted()){
-          const li=el('li',p.me?'me':'');
-          const av=el('div','av',initial(p.name));av.style.background=COL[(p.id|0)%COL.length];
-          const pn=el('div','pn');pn.appendChild(el('b',null,(p.host?'👑 ':'')+p.name));
-          pn.appendChild(el('span',null,st.started?'🎯 '+p.k+'   ☠ '+p.d:(p.host?tr('hostTag'):(p.me?tr('you'):''))));
-          li.append(av,pn);ul.appendChild(li);i++;
-        }
-        room.appendChild(ul);
+        buildStage(stage);   // danh sách người chơi -> các nhân vật ở giữa màn hình
         if(st.host){
           const o=el('div','opts');o.appendChild(el('b',null,tr('youHost')));
           o.appendChild(chk(tr('pvp'),st.cfg.pvp,v=>NET.setCfg({pvp:v})));
           o.appendChild(chk(tr('bots'),st.cfg.bots,v=>NET.setCfg({bots:v})));
           room.appendChild(o);
-          if(!st.started){const sb=el('button','mbtn gr',tr('start'));sb.type='button';sb.style.fontSize='24px';sb.style.padding='12px 34px';sb.addEventListener('click',()=>NET.start());room.appendChild(sb)}
+          if(!st.started){const sb=el('button','mbtn gr big',tr('start'));sb.type='button';sb.addEventListener('click',()=>NET.start());room.appendChild(sb)}
         }else if(!st.started)room.appendChild(el('div','wait','⏳ '+tr('waitHost')));
-        room.appendChild(el('div','sm',tr('note')));
+        room.appendChild(el('div','sm x',tr('note')));
       }
-      wrap.appendChild(room);
-      const bs=el('div','btns');bs.style.marginTop='14px';
+      side.appendChild(room);
+      const bs=el('div','btns');bs.style.marginTop='12px';
       const lv=el('button','mbtn',tr('leave'));lv.type='button';lv.addEventListener('click',()=>{NET.leave();view='mode';render()});bs.appendChild(lv);
       if(st.started){const cl=el('button','mbtn pk',tr('close'));cl.type='button';cl.addEventListener('click',close);bs.appendChild(cl)}
-      wrap.appendChild(bs);
+      side.appendChild(bs);
+      fitStage();   // (đang mở sẵn: đo lại ngay; lần mở đầu tiên thì show() gọi sau khi hiện khung)
     }
   }
   // Solo: rời phòng (nếu đang ở trong) rồi vào bảng "Bấm để chơi"
