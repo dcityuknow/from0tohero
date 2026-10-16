@@ -151,6 +151,9 @@ window.NET=(function(){
         e.x=m.x;e.y=m.y;e.z=m.z;e.yw=m.yw;e.pt=m.pt;e.w=m.w;e.h=m.h;e.f=m.f;e.fl=m.fl;
         if(!e.av)e.av=NetAvatar.create(e);
         break}
+      case 'gren':{   // người khác ném lựu đạn: chỉ hiện quả bay + vụ nổ (không gây sát thương)
+        const e=roster.get(m.i);if(!e||e.me||!Array.isArray(m.a)||!Array.isArray(m.v))break;
+        NetAvatar.grenade(m.a,m.v);break}
       case 'shot':{
         const e=roster.get(m.i);if(!e||!e.av)break;
         NetAvatar.shot(e.av,m.w,m.a,m.b);break}
@@ -194,7 +197,7 @@ window.NET=(function(){
 
   // ---------- gửi đi ----------
   function sendState(){
-    const f=(dead?1:0)|(P.sw?2:0)|(slideT>0?4:0)|(!playing?8:0);
+    const f=(dead?1:0)|(P.sw?2:0)|(slideT>0?4:0)|(!playing?8:0)|(rel>0?16:0)|((holding||autoP)?32:0)|(throwT>0?64:0);   // 16 nạp đạn · 32 giật chốt lựu đạn · 64 đang ném
     const me=roster.get(st.id);if(me){me.f=f;me.h=P.hp}
     send({t:'s',x:r2(P.x),y:r2(P.y),z:r2(P.z),yw:r3(yaw),pt:r3(pitch),w:cur,h:Math.max(0,Math.round(P.hp)),f,fl:curFl});
   }
@@ -222,6 +225,17 @@ window.NET=(function(){
     const c=document.getElementById('cross');
     if(c){c.style.borderColor='#ff3355';clearTimeout(hitMark.t);hitMark.t=setTimeout(()=>{c.style.borderColor=''},130)}
     if(typeof snd==='function')snd(head?1300:900,.06,'square',.05);
+  }
+  // grenade.js launchG(): mình vừa ném lựu đạn (vị trí + vận tốc ban đầu) -> người khác thấy quả bay + nổ
+  function gren(g){
+    if(!st.on||!st.started)return;
+    send({t:'gren',a:[r2(g.x),r2(g.y),r2(g.z)],v:[r2(g.vx),r2(g.vy),r2(g.vz)]});
+  }
+  // main.js: sau khi di chuyển, đẩy mình ra khỏi người chơi khác (không đi xuyên qua nhau)
+  function collide(){
+    if(!st.on||!st.started||dead)return;
+    const o=NetAvatar.pushOut(P,P.r+(window.TP?TP.extra:0));
+    if(o){const g0=P.ground;move(P,o.x,0,o.z);P.ground=g0}
   }
   function chat(text){text=String(text||'').trim();if(st.on&&text)send({t:'chat',m:text.slice(0,160)})}
 
@@ -261,7 +275,7 @@ window.NET=(function(){
   }
 
   return {
-    st,roster,sub,emit,createRoom,joinRoom,start,leave,setCfg,chat,tick,shot,hit,onDeath,onRespawn,pickSpawn,drawMap,
+    st,roster,sub,emit,createRoom,joinRoom,start,leave,setCfg,chat,tick,shot,gren,collide,hit,onDeath,onRespawn,pickSpawn,drawMap,
     typing:false,
     get on(){return st.on},
     get cfg(){return st.cfg},

@@ -2,8 +2,8 @@
 // hub chuyển tiếp vị trí / phát bắn, định tuyến sát thương tới nạn nhân, giữ bảng điểm + cấu hình phòng + trạng thái "đã bắt đầu".
 // Không biết gì về mạng: net/net.js gắn từng kết nối vào bằng hub.attach(conn) với conn = {send(obj), close()}.
 //
-//   client -> hub : join · s (trạng thái) · shot · hit · died · chat · cfg / start (chỉ chủ phòng) · p (ping)
-//   hub -> client : welcome · pj · pl · s · shot · hit · kill · score · chat · cfg · start · p · full · closed
+//   client -> hub : join · s (trạng thái) · shot · gren · hit · died · chat · cfg / start (chỉ chủ phòng) · p (ping)
+//   hub -> client : welcome · pj · pl · s · shot · gren · hit · kill · score · chat · cfg · start · p · full · closed
 window.LanHub=(function(){
   const clampStr=(s,n)=>Array.from(String(s==null?'':s)).slice(0,n).join('').replace(/[\u0000-\u001f\u007f]/g,'');
   const num=(v,lo,hi,d)=>{v=+v;return Number.isFinite(v)?Math.max(lo,Math.min(hi,v)):d};
@@ -43,6 +43,10 @@ window.LanHub=(function(){
           case 'shot':
             if(Array.isArray(m.a)&&Array.isArray(m.b)&&m.a.length===3&&m.b.length===3)
               broadcast({t:'shot',i:me.id,w:clampStr(m.w,8),a:m.a.map(v=>num(v,-1e4,1e4,0)),b:m.b.map(v=>num(v,-1e4,1e4,0)),hit:m.hit?1:0},me.id);
+            break;
+          case 'gren':
+            if(Array.isArray(m.a)&&Array.isArray(m.v)&&m.a.length===3&&m.v.length===3)
+              broadcast({t:'gren',i:me.id,a:m.a.map(v=>num(v,-1e4,1e4,0)),v:m.v.map(v=>num(v,-100,100,0))},me.id);
             break;
           case 'hit':{   // người bắn báo trúng -> chỉ gửi cho nạn nhân
             if(!cfg.pvp||!started)return;

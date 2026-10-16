@@ -114,6 +114,7 @@ function frame(now){
     P.vy-=22*dt;
     const px0=P.x,pz0=P.z,vy0=P.vy;
     move(P,vx*dt,P.vy*dt,vz*dt);
+    if(window.NET)NET.collide();   // LAN: không đi xuyên qua người chơi khác
     {const fd=fallDmg(P);if(fd>0)playerFall(fd)}   // rơi từ trên cao xuống thì mất máu (gameplay/fall.js)
     // tiếng bước chân theo quãng đường thực đi (lội nước thì tiếng bì bõm); rơi xuống đất có tiếng thịch
     {const wd=window.Nature&&Nature.wading;
