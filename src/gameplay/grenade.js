@@ -25,7 +25,9 @@ function launchG(){
   const d=new THREE.Vector3();C.getWorldDirection(d);
   const m=grenadeModel();
   S.add(m);
-  grenades.push({x:C.position.x+d.x*.5,y:C.position.y-.3+d.y*.5,z:C.position.z+d.z*.5,vx:d.x*tpow,vy:d.y*tpow+3,vz:d.z*tpow,r:.12,h:.24,ground:false,t:2,m});
+  const gg={x:C.position.x+d.x*.5,y:C.position.y-.3+d.y*.5,z:C.position.z+d.z*.5,vx:d.x*tpow,vy:d.y*tpow+3,vz:d.z*tpow,r:.12,h:.24,ground:false,t:2,m};
+  grenades.push(gg);
+  if(window.NET)NET.gren(gg);   // LAN: người khác thấy quả lựu đạn bay + nổ
   snd(200,.12,'sine');
 }
 const BLG=new THREE.SphereGeometry(1,10,8);   // dùng chung cho mọi vụ nổ
