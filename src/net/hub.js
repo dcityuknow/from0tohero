@@ -2,8 +2,9 @@
 // hub chuyển tiếp vị trí / phát bắn, định tuyến sát thương tới nạn nhân, giữ bảng điểm + cấu hình phòng + trạng thái "đã bắt đầu".
 // Không biết gì về mạng: net/net.js gắn từng kết nối vào bằng hub.attach(conn) với conn = {send(obj), close()}.
 //
-//   client -> hub : join · s (trạng thái) · shot · gren · hit · died · chat · cfg / start (chỉ chủ phòng) · p (ping)
-//   hub -> client : welcome · pj · pl · s · shot · gren · hit · kill · score · chat · cfg · start · p · full · closed
+//   client -> hub : join · s (trạng thái) · shot · gren · hit · died · chat · cfg / start (chỉ chủ phòng) · p (ping) · bh (bắn trúng quái)
+//   chủ phòng -> hub : bs (ảnh chụp quái) · bx (sự kiện quái) · bu (sát thương cận chiến cho 1 người)
+//   hub -> client : welcome · pj · pl · s · shot · gren · hit · kill · score · chat · cfg · start · p · full · closed · bs · bx · bu · bh
 window.LanHub=(function(){
   const clampStr=(s,n)=>Array.from(String(s==null?'':s)).slice(0,n).join('').replace(/[\u0000-\u001f\u007f]/g,'');
   const num=(v,lo,hi,d)=>{v=+v;return Number.isFinite(v)?Math.max(lo,Math.min(hi,v)):d};
@@ -17,6 +18,9 @@ window.LanHub=(function(){
     const pub=p=>({id:p.id,name:p.name,ch:p.ch,k:p.k,d:p.d,ping:p.ping,host:p.host});
     const list=()=>Array.from(players.values()).map(pub);
     const roomCfg=()=>({name:cfg.name,pvp:cfg.pvp,bots:cfg.bots,max:cfg.max,dmg:cfg.dmg});
+    const hostP=()=>{for(const p of players.values())if(p.host)return p;return null};
+    const safeObj=o=>{const r={};if(o&&typeof o==='object')for(const k of Object.keys(o).slice(0,24)){const v=o[k];r[clampStr(k,6)]=typeof v==='number'?num(v,-1e6,1e6,0):typeof v==='string'?clampStr(v,8):v?1:0}return r};
+    const numArr=(a,n,lo,hi)=>Array.isArray(a)?a.slice(0,n).map(v=>num(v,lo,hi,0)):[];
     function broadcast(o,except){for(const p of players.values())if(p.id!==except)p.conn.send(o)}
     const sendScore=()=>broadcast({t:'score',list:list()});
     function uniqueName(n){let name=n||'Player',i=2;const taken=()=>Array.from(players.values()).some(p=>p.name===name);while(taken())name=(n||'Player')+'#'+i++;return name}
@@ -72,6 +76,23 @@ window.LanHub=(function(){
             for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}
             const sp={};let i=0;for(const p of players.values())sp[p.id]=idx[i++%n];
             broadcast({t:'start',sp});break}
+          // ---- ĐỒNG BỘ QUÁI (net/botsync.js): chủ phòng chạy quái, hub chỉ chuyển tiếp ----
+          case 'bs':   // chủ phòng -> mọi người: ảnh chụp quái (vị trí, máu...) + tiến độ tầng
+            if(!me.host||!started||!Array.isArray(m.q)||m.q.length>1200)return;
+            broadcast({t:'bs',fl:m.fl|0,q:numArr(m.q,1200,-2e6,2e6),fk:numArr(m.fk,8,0,9999),bd:numArr(m.bd,8,0,1),ba:m.ba?1:0,bfl:m.bfl|0},me.id);
+            break;
+          case 'bx':   // chủ phòng -> mọi người: sự kiện (đạn / đá / lựu đạn của quái, boss bị hạ)
+            if(!me.host||!started)return;
+            broadcast({t:'bx',e:clampStr(m.e,8),d:safeObj(m.d)},me.id);
+            break;
+          case 'bu':{  // chủ phòng -> 1 người: quái cận chiến gây sát thương cho người đó
+            if(!me.host||!started)return;
+            const v=players.get(m.to|0);if(!v||v.id===me.id)return;
+            v.conn.send({t:'bu',d:Math.round(num(m.d,0,200,0))});break}
+          case 'bh':{  // người chơi -> chủ phòng: "tôi bắn trúng quái số b"
+            if(!started)return;
+            const h=hostP();if(!h||h.id===me.id)return;
+            h.conn.send({t:'bh',i:me.id,b:m.b|0,d:num(m.d,0,9999,0),hs:m.hs?1:0});break}
           case 'p':conn.send({t:'p',ts:m.ts});if(typeof m.ping==='number')me.ping=Math.max(0,Math.min(999,m.ping|0));break;
         }
       }

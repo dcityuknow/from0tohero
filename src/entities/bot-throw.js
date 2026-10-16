@@ -57,7 +57,8 @@ function rkRelease(b,Q){
   const tx=P.x+rvx*T0*.7+(Math.random()-.5)*1.4,ty=P.y+1.0+(Math.random()-.5)*.6,tz=P.z+rvz*T0*.7+(Math.random()-.5)*1.4;
   const vx=(tx-ox)/T0,vz=(tz-oz)/T0,vy=(ty-oy+.5*ROCK.grav*T0*T0)/T0;
   const m=new THREE.Mesh(ROCKG,VMAT);m.scale.setScalar(bs?3.2:1.35);m.frustumCulled=false;m.position.set(ox,oy,oz);S.add(m);
-  rocks.push({m,x:ox,y:oy,z:oz,vx,vy,vz,t:5,dmg:bs?18:ROCK.dmg,rad:bs?.6:.24});   // đá của boss to hơn, đau hơn
+  rocks.push({m,x:ox,y:oy,z:oz,vx,vy,vz,t:5,dmg:bs?18:ROCK.dmg,rad:bs?.6:.24});
+  if(window.BotSync)BotSync.proj('rock',{x:ox,y:oy,z:oz,vx,vy,vz,b:bs?1:0});   // LAN: cả phòng thấy viên đá bay   // đá của boss to hơn, đau hơn
   snd(520,.14,'sawtooth',.04*GV,{x:ox,y:oy,z:oz});   // tiếng vút
 }
 const rkStill=(b,dt)=>{move(b,0,b.vy*dt,0);return 0};   // đứng yên nhưng vẫn áp trọng lực (main.js đã trừ b.vy)

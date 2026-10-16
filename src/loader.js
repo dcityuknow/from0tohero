@@ -58,7 +58,8 @@
     'player/thirdperson.js',
     // Chơi mạng LAN: avatar người chơi khác + lõi mạng (cần voxel.js, effects.js, character.js nạp trước lúc chạy; main.js gọi NET.tick)
     'vendor/peerjs.min.js',   // WebRTC (PeerJS 1.5.4) cho phòng chơi nhiều người: định nghĩa window.Peer
-    'net/avatar.js','net/hub.js','net/net.js',
+    'net/avatar.js','net/hub.js','net/net.js','net/botsync.js',   // botsync.js: đồng bộ quái trong phòng LAN (cần net.js; dùng bots / boss / bossFor ở thời điểm chạy)
+   
     // Vòng lặp chính + màn hình bắt đầu (luôn cuối cùng)
     'main.js','ui/ui.js',
     'ui/menu-fx.js',   // nền đen + hạt cho các màn chờ (profile.js, net/lan-ui.js dùng)

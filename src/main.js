@@ -1,4 +1,5 @@
 // Vòng lặp chính, nhận sát thương, chơi lại
+const NOB=[];   // danh sách rỗng: máy khách LAN không chạy AI quái (xem BotSync)
 let deadT=0,stepD=0,pg=true;   // deadT: 0->1 hoạt ảnh ngã xuống khi hết máu
 // ---- NGHIÊNG KHUNG CẢNH KHI MẤT MÁU: mỗi lần trúng đòn, camera nghiêng nhẹ (cùng chiều với lúc ngã chết, nhưng chỉ vài độ) rồi tự trả về ----
 const HURT_TILT=.008;        // rad nghiêng thêm cho mỗi 1 máu mất (đạn 10 máu = +.08 rad ~ 4.6 độ)
@@ -127,25 +128,30 @@ function frame(now){
     // bots
     const dt0=dt;lodN++;
     peace=curFl===0&&!dead&&!!window.PavilionPeace&&PavilionPeace(P.x,P.y,P.z);   // đang ở trong chòi -> bot đi lại bình thường, không tấn công; bước ra là thù địch lại ngay
-    for(const b of bots){
+    const BH=!!(window.NET&&NET.botsHost()),BR=!!(window.NET&&NET.botsRemote());   // LAN: chủ phòng chạy quái cho cả phòng, máy khách chỉ vẽ lại
+    for(const b of(BR?NOB:bots)){
       if(b.ally||b.arch)continue;      // đồng minh do ally.js điều khiển · lính cung trên tường thành do archer.js điều khiển
       if(!b.on){b.g.visible=false;continue}
       if(b.hp>0&&(b.y<FY(curFl)-4||b.y>FY(curFl)+(curFl===1?44:12))){spawnBot(b);continue}   // +12 (tầng 2: +44): bot được phép leo lên núi / mặt tường thành
       if(b.hp<=0)continue;      // bot chết được tái sử dụng bởi bộ sinh quái (tickSpawn)
-      const dx=P.x-b.x,dz=P.z-b.z,d=Math.hypot(dx,dz);let mv=0,dt=dt0;
+      const TG=BH?BotSync.pick(b):null,T0=TG||P,dx=T0.x-b.x,dz=T0.z-b.z,d=Math.hypot(dx,dz);let mv=0,dt=dt0;   // TG: người chơi từ xa gần nhất (null = người chơi trên máy này)
       // AI LOD: bot ở xa (sương đã che gần hết) chỉ chạy AI + va chạm 1/3 (xa > 100m: 1/6) số khung, bù lại bằng bước thời gian dài hơn -> cùng tốc độ di chuyển, nhẹ CPU, hình ảnh không đổi
       if(!b.boss){const st=d>100?6:d>55?3:1;if(st>1){b.lod=(b.lod||0)+dt0;if((lodN+(b.id||(b.id=++botSeq)))%st)continue;dt=Math.min(b.lod,.12);b.lod=0}}
       // người chơi không được đi xuyên quái: đẩy ra qua move() nên không bị đẩy vào tường
       {const pr=P.r+(window.TP?TP.extra:0);   // góc thứ 3: thân nhân vật rộng hơn P.r nên đẩy xa thêm (TP.extra), khỏi đi xuyên bot
-      if(!dead&&d<pr+b.r&&Math.abs(P.y-b.y)<1.6){const o=pr+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}}
-      b.hdUse=0;if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(peace){b.vy-=22*dt;mv=botWander(b,dt)}else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
-      else if(!dead&&Math.abs(P.y-b.y)<1.5)hurt(28*dt);
+      if(!TG&&!dead&&d<pr+b.r&&Math.abs(P.y-b.y)<1.6){const o=pr+b.r-d+.01,ux=d>1e-3?dx/d:1,uz=d>1e-3?dz/d:0,g0=P.ground;move(P,ux*o,0,uz*o);P.ground=g0}}
+      b.hdUse=0;if(TG)BotSync.push(TG);   // đổi tạm P / yaw / dead / peace sang người chơi từ xa để AI cũ (đọc thẳng P) nhắm vào họ
+      try{
+        if(b.boss)mv=bossAI(b,dt,dx,dz,d);else if(peace){b.vy-=22*dt;mv=botWander(b,dt)}else if(d>1.4){b.vy-=22*dt;mv=botBrain(b,dt,dx,dz,d)}
+        else if(!dead&&Math.abs(P.y-b.y)<1.5){if(TG)BotSync.melee(TG,28*dt);else hurt(28*dt)}
+      }finally{if(TG)BotSync.pop()}
       if(fallBot(b))continue;   // bot / boss rơi từ trên cao cũng mất máu
       b.mv+=(mv-b.mv)*Math.min(1,dt*8);{const s0=Math.sin(b.t);b.t+=dt*11*b.mv;if(b.mv>.5&&s0*Math.sin(b.t)<0&&d<14){if(b.sw)snd(280+Math.random()*140,.14,'sine',.05,b.g.position);else botStepSnd(b.g.position,b.boss)}}
       const sw=Math.sin(b.t)*.95*b.mv;b.lL.rotation.x=sw;b.lR.rotation.x=-sw;b.aL.rotation.x=-sw*.8;b.aR.rotation.x=sw*.8;
       b.g.position.set(b.x,b.y+Math.abs(Math.sin(b.t))*.07*b.mv,b.z);{const ty=b.hdUse?b.hd:Math.atan2(dx,dz);if(b.ry===undefined)b.ry=ty;let da=ty-b.ry;da=Math.atan2(Math.sin(da),Math.cos(da));b.ry+=da*Math.min(1,dt*10);b.g.rotation.y=b.ry}   // quay mượt: gần thì nhìn người chơi, xa / đi cầu thì nhìn theo hướng đi
       if(b.rk)rockPose(b);if(b.boss)bossPose(b);
     }
+    if(BR)BotSync.frame(dt);   // máy khách LAN: nội suy + hoạt ảnh quái theo ảnh chụp của chủ phòng
     tickAllies(dt);
     // fx
     if(fx>0){fx-=dt;if(fx<=0){tracer.visible=false;spark.visible=false;flash.visible=false}}

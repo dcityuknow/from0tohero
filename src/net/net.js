@@ -3,11 +3,12 @@
 // Chủ phòng chạy "hub" (net/hub.js) ngay trong trình duyệt của mình, không cần server riêng. Gửi vị trí / phát bắn của mình, nhận của người khác
 // và hiện họ bằng net/avatar.js. Giao diện (nút vào phòng, bảng điểm, chat) ở net/lan-ui.js.
 //
-// MÔ HÌNH: mỗi máy tự chạy thế giới + bot (quái) của riêng nó; người chơi thấy nhau, bắn nhau (PvP), chat. Bot KHÔNG đồng bộ giữa các máy.
+// MÔ HÌNH: người chơi thấy nhau, bắn nhau (PvP), chat. QUÁI: CHỦ PHÒNG chạy toàn bộ bot / boss (net/botsync.js) và gửi ảnh chụp ~15 lần/giây; máy khác chỉ vẽ lại.
+//   Lính cung, vật phẩm rơi, đồng minh thu phục CHƯA đồng bộ.
 // Sát thương PvP do người BẮN báo ("trúng ai, bao nhiêu"), máy NẠN NHÂN tự trừ máu rồi báo "tôi chết" -> server cộng điểm. (Mạng LAN tin cậy, không chống gian lận.)
 //
 // Hook vào code cũ (mỗi chỗ 1 dòng, tìm "NET." để thấy hết): main.js (frame · hurt · restart · spawnRandom) · combat.js (bắn) · spawner.js (tắt bot) ·
-//   archer.js (tắt cung thủ) · minimap.js (chấm người chơi) · input.js (phím Tab / Enter / T).
+//   archer.js (tắt cung thủ) · boss.js / bot-throw.js / combat.js (đồng bộ quái: net/botsync.js) · minimap.js (chấm người chơi) · input.js (phím Tab / Enter / T).
 // Nạp SAU net/avatar.js, TRƯỚC main.js. Các biến toàn cục của game (P, yaw, pitch, cur, dead, playing, hurt...) đọc trực tiếp lúc chạy.
 window.NET=(function(){
   const SEND_IV=.05,PING_IV=2;                    // 20 gói trạng thái / giây · đo ping mỗi 2 giây
@@ -118,9 +119,12 @@ window.NET=(function(){
     if(!silent)emit('status');
   }
   function cleanup(){
+    const wasRemote=st.on&&st.started&&st.cfg.bots&&!st.host;
     st.on=false;st.connecting=false;st.id=0;st.host=false;st.started=false;st.assign=null;lastHit=null;
     NetAvatar.removeAll();roster.clear();
     if(botsOff){botsOff=false;if(typeof setupFloor==='function')setupFloor()}   // rời phòng: bot của mình chạy lại như chơi 1 mình
+    if(window.BotSync)BotSync.reset();
+    if(wasRemote&&typeof setupFloor==='function')setupFloor();   // máy khách rời phòng: tự sinh quái lại như chơi 1 mình
     emit('score');
   }
 
@@ -170,6 +174,10 @@ window.NET=(function(){
       case 'score':{for(const p of m.list)entry(p);emit('score');break}
       case 'chat':emit('chat',{id:m.i,name:m.n,text:m.m});break;
       case 'cfg':{st.cfg=m.cfg;applyCfg();emit('cfg');emit('status');break}
+      case 'bs':if(window.BotSync)BotSync.onSnap(m);break;
+      case 'bx':if(window.BotSync)BotSync.onEvent(m.e,m.d);break;
+      case 'bh':if(window.BotSync)BotSync.onHit(m);break;
+      case 'bu':if(peace||dead||reviveT>0)break;hurt(m.d);break;   // quái cận chiến (chủ phòng tính, báo cho nạn nhân)
       case 'p':st.ping=Math.max(0,Math.round(performance.now()-m.ts));{const me=roster.get(st.id);if(me)me.ping=st.ping}break;
     }
   }
@@ -178,6 +186,7 @@ window.NET=(function(){
   function begin(spawnIdx){
     if(st.started)return;
     st.started=true;st.assign=spawnIdx==null?null:spawnIdx;applyCfg();
+    if(window.BotSync)BotSync.enter();
     if(typeof spawnRandom==='function')spawnRandom();
     reviveT=Math.max(reviveT,3);sendT=0;
     emit('start');emit('status');
@@ -185,6 +194,10 @@ window.NET=(function(){
 
   // ---------- cấu hình phòng ----------
   const noBots=()=>st.on&&st.started&&!st.cfg.bots;
+  // ĐỒNG BỘ QUÁI (net/botsync.js): phòng bật bot -> CHỦ PHÒNG chạy toàn bộ quái, máy khác chỉ nhận ảnh chụp rồi vẽ lại
+  const botsHost=()=>st.on&&st.started&&st.cfg.bots&&st.host;
+  const botsRemote=()=>st.on&&st.started&&st.cfg.bots&&!st.host;
+  const noArchers=()=>st.on&&st.started;   // lính cung (archer.js) chưa đồng bộ: tắt khi chơi trong phòng
   function stopBots(){
     for(const b of bots){if(b.ally||b.arch)continue;b.on=false;if(b.g)b.g.visible=false}   // gồm cả boss (boss nằm trong mảng bots)
   }
@@ -206,6 +219,7 @@ window.NET=(function(){
     if(!st.on)return;
     if(!st.started)return;   // còn ở sảnh chờ: chưa gửi / vẽ gì
     NetAvatar.attach();NetAvatar.tick(dt);
+    if(window.BotSync)BotSync.tick(dt);
     sendT-=dt;if(sendT<=0){sendT=SEND_IV;sendState()}
     pingT-=dt;if(pingT<=0){pingT=PING_IV;send({t:'p',ts:performance.now(),ping:st.ping})}
   }
@@ -279,7 +293,7 @@ window.NET=(function(){
     typing:false,
     get on(){return st.on},
     get cfg(){return st.cfg},
-    noBots,
+    noBots,botsHost,botsRemote,noArchers,raw:send,
     targets(out){if(st.on&&st.started&&st.cfg.pvp)NetAvatar.targets(out)},   // combat.js: thêm hộp va chạm người chơi khác vào danh sách có thể trúng đạn
   };
 })();

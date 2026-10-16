@@ -41,7 +41,8 @@ function shoot(){
       }
       const b=x.object.userData.bot;if(!b||b.hp<=0||seen.has(b))continue;seen.add(b);
       const hd=x.object.userData.head,n=x.face.normal.clone().transformDirection(x.object.matrixWorld);
-      if(b.boss)b.hp-=hd?w.hd:w.dmg;else b.hp=0;
+      if(window.NET&&NET.botsRemote())BotSync.hit(b,b.boss?(hd?w.hd:w.dmg):9999,hd);   // LAN (máy khách): báo chủ phòng, máu do chủ phòng quyết
+      else if(b.boss)b.hp-=hd?w.hd:w.dmg;else b.hp=0;
       col=0xff3355;snd(180,.1,'sawtooth',.07*GV,x.point);blood(x.point,n,rc.ray.direction,hd?18:11);
       if(b.hp<=0)killBot(b,rc.ray.direction);
     }
@@ -57,7 +58,7 @@ function shoot(){
     to=h.point;const b=h.object.userData.bot,rp=h.object.userData.rp,n=h.face.normal.clone().transformDirection(h.object.matrixWorld);
     if(rp){const hd=h.object.userData.head;NET.hit(rp,hd,cur);col=0xff3355;blood(h.point,n,rc.ray.direction,hd?18:11)}   // LAN: bắn trúng người chơi khác
     else if(b){
-      const hd=h.object.userData.head;b.hp-=hd?w.hd:w.dmg;col=0xff3355;snd(180,.1,'sawtooth',.07*GV,h.point);
+      const hd=h.object.userData.head;if(window.NET&&NET.botsRemote())BotSync.hit(b,hd?w.hd:w.dmg,hd);else b.hp-=hd?w.hd:w.dmg;col=0xff3355;snd(180,.1,'sawtooth',.07*GV,h.point);
       blood(h.point,n,rc.ray.direction,hd?18:11);
       if(b.hp<=0)killBot(b,rc.ray.direction);
     }else hole(h.point,n,(Array.isArray(h.object.material)?h.object.material[0]:h.object.material).color);

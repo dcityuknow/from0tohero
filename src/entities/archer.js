@@ -297,7 +297,7 @@ const Archer=(function(){
   // ---------- VÒNG LẶP ----------
   const turn=(b,ty,k)=>{if(b.ry===undefined)b.ry=ty;let da=ty-b.ry;da=Math.atan2(Math.sin(da),Math.cos(da));b.ry+=da*Math.min(1,k)};
   function tick(dt){
-    const act=curFl===1&&window.FM&&FM.has(1)&&!(window.NET&&NET.noBots());   // LAN: phòng tắt bot -> cung thủ cũng nghỉ
+    const act=curFl===1&&window.FM&&FM.has(1)&&!(window.NET&&(NET.noBots()||NET.noArchers()));   // LAN: phòng tắt bot -> cung thủ cũng nghỉ
     if(!act){if(on){on=false;show(false);clearArrows();for(const b of list)dropJob(b);if(window.GreatWall&&GreatWall.torchIdle)GreatWall.torchIdle()}return}
     if(!placed)place();
     if(!on){on=true;for(const b of list)if(b.dd===undefined&&b.hp>0){b.cd=1+Math.random()*2;b.ph=0}}
