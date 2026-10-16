@@ -58,7 +58,13 @@ body.modes-on #ov,body.modes-on #hud{visibility:hidden}   /* màn chọn nằm r
 #modes .mcard.pink{border-color:#ff7fa8;background:linear-gradient(#fff,#ffe9f1)}
 #modes .mcard.blue{border-color:#7fbfff;background:linear-gradient(#fff,#e5f3ff)}
 #modes .mcard.green{border-color:#6fd6a0;background:linear-gradient(#fff,#e5f9ee)}
-#modes .mcard.btnlike{cursor:pointer}
+#modes .mcard.btnlike{cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;outline:none}
+#modes .mcard.btnlike:active{transform:translateY(2px) scale(.985);box-shadow:0 4px 0 rgba(43,42,58,.16),0 8px 18px rgba(30,30,60,.2)}
+#modes .mcard.btnlike:focus-visible{box-shadow:0 0 0 5px #fff,0 8px 0 rgba(43,42,58,.16),0 18px 34px rgba(30,30,60,.22)}
+#modes .mcard.whole{padding-bottom:22px}
+#modes .mcard.whole p{margin-bottom:0;flex:0 0 auto;min-height:0}
+#modes .mcard.btnlike:hover .pic img{transform:scale(1.05)}
+#modes .mcard .pic img{transition:transform .2s}
 #modes .mcard.btnlike:hover{transform:translateY(-6px) rotate(-.6deg);box-shadow:0 14px 0 rgba(43,42,58,.13),0 26px 40px rgba(30,30,60,.26)}
 #modes .mcard .ic{font-size:64px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 5px 0 rgba(43,42,58,.15))}
 #modes .mcard .pic{width:100%;height:clamp(150px,28vh,240px);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
@@ -159,6 +165,18 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
     const b=el('button','mbtn '+btnCls,btnTxt);b.type='button';b.addEventListener('click',e=>{e.stopPropagation();fn()});c.appendChild(b);
     return c;
   }
+  // Thẻ chọn chế độ (Solo / Team): KHÔNG có nút con, cả thẻ là nút - bấm vào đâu trên thẻ cũng chọn luôn (chuột, cảm ứng, hoặc Tab + Enter / Space)
+  function modeCard(cls,img,title,desc,fn){
+    const c=el('div','mcard btnlike whole '+cls);
+    c.tabIndex=0;c.setAttribute('role','button');c.setAttribute('aria-label',title);
+    const pic=el('div','pic'),im=el('img');im.src=img;im.alt='';im.draggable=false;im.decoding='async';pic.appendChild(im);
+    c.append(pic,el('h2',null,title),el('p',null,desc));
+    const act=e=>{e.stopPropagation();fn()};
+    c.addEventListener('click',act);
+    c.addEventListener('keydown',e=>{e.stopPropagation();if((e.key==='Enter'||e.key===' ')&&!e.repeat){e.preventDefault();fn()}});   // chặn phím lọt xuống phím tắt của game
+    c.addEventListener('keyup',e=>e.stopPropagation());
+    return c;
+  }
 
   function render(){
     const old=wrap.querySelector('#lancode');if(old)codeVal=old.value;
@@ -169,8 +187,8 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
     if(view==='mode'){   // ---- Solo hay Team ----
       header(tr('hello',PROFILE.name||'')+'  '+tr('ask'));
       const row=el('div','row');
-      row.appendChild(card('pink','img:assets/img/mode-solo.jpg',tr('soloT'),tr('soloD'),tr('soloB'),'pk',solo));   // solo: nhân vật xé áo
-      row.appendChild(card('blue','img:assets/img/mode-team.jpg',tr('teamT'),tr('teamD'),tr('teamB'),'bl',()=>{view='team';render()}));   // team: nhiều người
+      row.appendChild(modeCard('pink','assets/img/mode-solo.jpg',tr('soloT'),tr('soloD'),solo));   // solo: nhân vật xé áo - bấm cả thẻ là vào chơi
+      row.appendChild(modeCard('blue','assets/img/mode-team.jpg',tr('teamT'),tr('teamD'),()=>{view='team';render()}));   // team: nhiều người - bấm cả thẻ là sang bước tạo / vào phòng
       wrap.appendChild(row);
     }else if(view==='team'){   // ---- Tạo phòng hay Vào phòng ----
       header(tr('teamT'));
