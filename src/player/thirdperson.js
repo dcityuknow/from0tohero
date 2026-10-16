@@ -39,7 +39,7 @@ const TP=(function(){
     pistol:{p:[.275,.74,.02],dir:[0,-1,.05],s:1,mid:-.04},     // bao súng hông phải, báng chúc lên
     grenade:{p:[-.27,.8,.09],dir:[0,0,1],s:1,mid:0}            // móc ở hông trái
   };
-  let on=false,model=null,key='',held=null,slung=null,holster=null,shown=false,ph=0,dist=CFG.dist,sq=1,lx=0,lz=0,lastSpd=0,near=false;
+  let glow=null,on=false,model=null,key='',held=null,slung=null,holster=null,shown=false,ph=0,dist=CFG.dist,sq=1,lx=0,lz=0,lastSpd=0,near=false;
   // ---- lựu đạn: các mốc của bàn tay phải / trái (toạ độ thân nhân vật, m) ----
   const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
   const GP={rest:V3(.3,.85,.08),lrest:V3(-.3,.9,.12),hip:V3(-.18,.84,.22),chest:V3(.2,1.12,.42),back:V3(.33,1.52,-.5),fwd:V3(.26,1.38,.62),low:V3(.12,.88,.55),
@@ -60,6 +60,7 @@ const TP=(function(){
     const k=(window.PROFILE&&PROFILE.char)||(window.CharPick&&CharPick.current())||'vn';
     if(model&&key===k)return true;
     if(!window.CharPick||!CharPick.make)return false;
+    if(glow){glow.material.dispose();glow=null}
     if(model){S.remove(model.g);model.g.traverse(o=>{if(o.geometry)o.geometry.dispose()});model=null}
     model=CharPick.make(k);key=k;
     // súng cầm trong tay: 1 nhóm, mỗi loại 1 mesh (chỉ hiện loại đang cầm)
@@ -78,6 +79,7 @@ const TP=(function(){
     // bao súng ngắn (luôn hiện, rỗng khi đang cầm súng ngắn) + dây đeo súng chéo ngực
     {const v=new VB();v.box(.275,.7,.02,.085,.17,.115,0x1d1d22,.025,true);model.g.add(v.mesh());
       const s=new VB();s.box(0,0,0,.5,.045,.02,0x1d1d22,.02,true);const sm=s.mesh();sm.position.set(0,1.0,-.2);sm.rotation.z=.9;model.g.add(sm);}   // tâm hộp ở gốc rồi mới đặt vị trí: xoay quanh chính giữa dây (bản cũ xoay quanh chân nên dây văng ra sàn thành 'cái que')
+    if(window.NetAvatar&&NetAvatar.mkGlow){glow=NetAvatar.mkGlow();model.g.add(glow)}   // hào quang phe của chính mình (chế độ team LAN), bật / tắt mỗi khung ở applyTP
     model.g.rotation.order='YXZ';   // xoay hướng (yaw) trước, nghiêng người (lean) sau
     model.g.visible=false;S.add(model.g);return true;
   }
@@ -395,6 +397,7 @@ const TP=(function(){
     const bk=bobK*Math.min(1,lastSpd/6),roll=swimK*Math.sin(stk)*.2+Math.sin(ph)*.035*bk,twist=-Math.sin(ph)*.06*bk;   // chạy: nghiêng nhẹ sang chân trụ + vai xoay ngược chân · bơi: thân lắc theo nhịp tay
     const hd0=yaw+Math.PI;let dh=Math.atan2(sd.x,sd.z)-hd0;dh-=Math.round(dh/(2*Math.PI))*2*Math.PI;const hdg=hd0+dh*slK;   // lộn nhào: thân quay theo HƯỚNG LĂN (hướng đang chạy, không phải hướng nhìn)
     model.g.visible=true;model.g.rotation.set(leanS,hdg+twist,roll);
+    if(glow){const ns=window.NET&&NET.st,tn=!!(ns&&ns.on&&ns.started&&ns.cfg&&ns.cfg.team);glow.visible=tn;if(tn){NetAvatar.glowTeam(glow,NET.myTeam()?1:0);glow.material.opacity=.9+.1*Math.sin(performance.now()/250)}}
     _hv.set(0,.75,0);_hw.copy(_hv).applyEuler(_E.set(leanS,0,0));_hv.sub(_hw).applyAxisAngle(_Y,hdg);   // giữ nguyên chỗ hông khi nghiêng (chân không trượt)
     model.g.position.set(P.x+_hv.x,P.y+_hv.y,P.z+_hv.z);
     model.g.position.y+=(Math.abs(Math.cos(ph))-.5)*.07*bk                       // chạy: thân nhấp nhô (cao nhất lúc hai chân khép, thấp nhất lúc dang rộng)

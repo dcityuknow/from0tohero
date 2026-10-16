@@ -320,5 +320,6 @@ window.NetAvatar=(function(){
   // các hộp va chạm của người còn sống (combat.js rayTargets thêm vào danh sách mesh có thể trúng đạn)
   function targets(out){for(const av of set)if(av.alive&&av.g.visible)out.push(av.body,av.head)}
 
-  return {root,create,remove,removeAll,attach,tick,shot,tracer,targets,set,grenade,pushOut};
+  const glowTeam=(sp,tm)=>{if(sp.userData.gtm!==tm){sp.userData.gtm=tm;sp.material.color.setHex(TEAM_COL[tm])}};   // thân của mình (thirdperson.js) dùng chung hào quang này
+  return {root,create,remove,removeAll,attach,tick,shot,tracer,targets,set,grenade,pushOut,mkGlow,glowTeam};
 })();
