@@ -29,8 +29,8 @@ function fix(s,l){
 let saved='';try{saved=localStorage.getItem('ba_name')||''}catch(e){}
 
 const css=document.createElement('style');
-css.textContent=`#pf{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(207,232,255,.55);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}   /* nền mờ: thấy cảnh game phía sau, giống bảng "Bấm để chơi" */
-#pfc{background:var(--card);color:var(--ink);border:3px solid var(--pink);border-radius:22px;padding:22px 24px;width:min(94vw,520px);max-height:94vh;overflow-y:auto;text-align:center;box-sizing:border-box}
+css.textContent=`#pf{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#000}   /* nền đen + hạt (ui/menu-fx.js) */
+#pfc{position:relative;z-index:1;background:var(--card);color:var(--ink);border:3px solid var(--pink);border-radius:22px;padding:22px 24px;width:min(94vw,520px);max-height:94vh;overflow-y:auto;text-align:center;box-sizing:border-box}
 #pfc h1{margin:0 0 6px;font-size:30px}
 #pfc .pfs{margin:6px 0 14px;font-weight:bold;opacity:.85}
 #pfl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
@@ -47,6 +47,7 @@ document.head.appendChild(css);
 
 const pf=document.createElement('div');pf.id='pf';pf.innerHTML='<div id="pfc"></div>';document.body.appendChild(pf);
 const card=pf.firstChild;
+if(window.MenuFX)MenuFX.attach(pf);
 
 // dòng "👤 tên ✏️" trên bảng bắt đầu / tạm dừng (bấm ✏️ để đổi ngôn ngữ / tên)
 const who=document.createElement('div');who.id='who';who.style.display='none';

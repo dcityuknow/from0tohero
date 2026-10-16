@@ -61,6 +61,7 @@
     'net/avatar.js','net/hub.js','net/net.js',
     // Vòng lặp chính + màn hình bắt đầu (luôn cuối cùng)
     'main.js','ui/ui.js',
+    'ui/menu-fx.js',   // nền đen + hạt cho các màn chờ (profile.js, net/lan-ui.js dùng)
     'ui/character.js',   // 11 nhân vật quân phục theo quốc gia + màn chọn nhân vật (cần voxel.js; phải nạp TRƯỚC profile.js)
     'ui/profile.js',
     'net/lan-ui.js'   // nút 🌐 LAN, hộp thoại vào phòng, bảng điểm, chat, kill feed (cần profile.js nạp trước)

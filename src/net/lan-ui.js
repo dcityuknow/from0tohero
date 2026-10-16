@@ -47,16 +47,12 @@ window.LanUI=(function(){
   const css=document.createElement('style');
   css.textContent=`
 #modes{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;overflow:hidden;
-  background:radial-gradient(1200px 700px at 20% 10%,rgba(255,127,168,.28),transparent 60%),radial-gradient(1000px 650px at 85% 90%,rgba(127,191,255,.35),transparent 60%),rgba(214,234,255,.58);
-  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);color:#2b2a3a}
+  background:#000;color:#2b2a3a}   /* nền đen + hạt (ui/menu-fx.js) */
 #modes.on{display:flex}
 body.modes-on #ov,body.modes-on #hud{visibility:hidden}   /* màn chọn nằm riêng: ẩn bảng hướng dẫn + HUD phía sau, chỉ còn cảnh game mờ */
-#modes .cubes{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-#modes .cube{position:absolute;border-radius:22%;opacity:.7;box-shadow:inset -8px -8px 0 rgba(0,0,0,.13),inset 6px 6px 0 rgba(255,255,255,.45),0 10px 24px rgba(40,40,80,.18);animation:mcf var(--d) ease-in-out infinite;animation-delay:var(--l)}
-@keyframes mcf{0%,100%{transform:translateY(0) rotate(var(--r))}50%{transform:translateY(-26px) rotate(calc(var(--r) + 14deg))}}
 #modes .mwrap{position:relative;z-index:1;width:min(94vw,860px);max-height:96vh;overflow-y:auto;padding:10px 6px;box-sizing:border-box;text-align:center}
 #modes h1{margin:0;font:900 clamp(34px,7vw,60px)/1.05 "Trebuchet MS","Segoe UI",sans-serif;letter-spacing:.04em;color:#fff;text-shadow:0 4px 0 #ff7fa8,0 8px 0 #7fbfff,0 14px 22px rgba(30,30,60,.35)}
-#modes .sub{margin:12px 0 20px;font-weight:800;font-size:clamp(16px,2.6vw,21px);text-shadow:0 1px 0 rgba(255,255,255,.7)}
+#modes .sub{margin:12px 0 20px;font-weight:800;font-size:clamp(16px,2.6vw,21px);color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.6)}
 #modes .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;margin:6px 0 14px}
 #modes .mcard{display:flex;flex-direction:column;align-items:center;position:relative;border-radius:26px;padding:22px 20px 20px;border:4px solid;background:#fff;box-shadow:0 8px 0 rgba(43,42,58,.16),0 18px 34px rgba(30,30,60,.22);text-align:center;transition:transform .15s,box-shadow .15s}
 #modes .mcard.pink{border-color:#ff7fa8;background:linear-gradient(#fff,#ffe9f1)}
@@ -127,11 +123,8 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 
   // ---------- màn hình chọn cách chơi ----------
   const modes=el('div');modes.id='modes';
-  const cubes=el('div','cubes');
-  [[8,12,70,'#ff7fa8',5.2,0,12],[82,8,54,'#7fbfff',6.4,-1,-18],[14,70,60,'#ffd23f',5.8,-2,24],[88,64,76,'#6fd6a0',6.9,-3,-10],[46,4,34,'#b9a5ff',4.6,-1.5,8],
-   [4,42,36,'#ffd23f',5.4,-2.5,-22],[93,35,38,'#ff7fa8',6.1,-.5,16],[40,86,48,'#7fbfff',5.1,-3.2,30],[68,82,32,'#ff7fa8',4.9,-1.8,-8],[27,24,28,'#6fd6a0',6.6,-2.2,20]]
-   .forEach(c=>{const d=el('div','cube');d.style.cssText='left:'+c[0]+'%;top:'+c[1]+'%;width:'+c[2]+'px;height:'+c[2]+'px;background:'+c[3]+';--d:'+c[4]+'s;--l:'+c[5]+'s;--r:'+c[6]+'deg';cubes.appendChild(d)});
-  const wrap=el('div','mwrap');modes.append(cubes,wrap);document.body.appendChild(modes);
+  const wrap=el('div','mwrap');modes.append(wrap);document.body.appendChild(modes);
+  if(window.MenuFX)MenuFX.attach(modes);
   let view='mode',codeVal='';
   const isOpen=()=>modes.classList.contains('on');
   const show=()=>{render();modes.classList.add('on');document.body.classList.add('modes-on')};
