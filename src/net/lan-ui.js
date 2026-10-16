@@ -183,6 +183,7 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
 #lanchat{width:100%;box-sizing:border-box;font:700 17px "Segoe UI","Noto Sans","Noto Sans Bengali","Noto Sans Devanagari","Noto Sans SC","Microsoft YaHei","Malgun Gothic",sans-serif;padding:9px 12px;border:3px solid var(--pink);border-radius:12px;background:rgba(255,255,255,.96);color:#2b2a3a;outline:none}
 #lansb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;width:min(92vw,560px);max-height:80vh;overflow:auto;background:rgba(255,255,255,.95);border-radius:18px;padding:12px 16px;box-shadow:0 0 0 3px #2b2a3a}
 #lansb h3{margin:0 0 6px;text-align:center;font-size:18px}
+#lansb .rt{text-align:center;font-weight:800;font-size:14px;margin-bottom:6px;opacity:.8}
 #lansb table{width:100%;border-collapse:collapse;font-size:15px}
 #lansb th{font-size:12px;opacity:.7;text-align:right;padding:2px 6px}
 #lansb th:first-child,#lansb td:first-child{text-align:left}
@@ -423,22 +424,11 @@ body.touch #lrank{font-size:11px;min-width:120px;left:calc(12px + env(safe-area-
   bar.append(barT,bSb,bCh,hint);hud.appendChild(bar);
   const feed=el('div');feed.id='kfeed';hud.appendChild(feed);
   const rank=el('div');rank.id='lrank';hud.appendChild(rank);
-  // bảng xếp hạng ở góc + đồng hồ đếm ngược 5 phút. Chế độ phe: điểm 2 phe; chế độ hỗn chiến: top 5; hòa bình: chỉ đồng hồ
-  function drawRank(){
-    if(!(st.on&&st.started)){rank.style.display='none';return}
-    rank.style.display='block';rank.textContent='';
-    const left=Math.max(0,Math.ceil((st.endAt-performance.now())/1000));
-    rank.appendChild(el('div','rt','⏱ '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' · '+tr('m_'+st.cfg.mode)));
-    if(st.cfg.peace)return;
-    const all=Array.from(NET.roster.values());
-    if(st.cfg.team){const s=teamScores(all);for(const i of[0,1]){const r=el('div','rr',teamName(i)+': '+s[i].k);r.style.color=TEAMC[i]==='#3b82f6'?'#8ab8ff':'#ff8a8e';rank.appendChild(r)}}
-    for(const p of sorted().slice(0,5)){
-      const r=el('div','rp'+(p.me?' me':''));r.append(el('span',null,p.name.length>12?p.name.slice(0,11)+'…':p.name),el('span',null,String(p.k)));
-      if(st.cfg.team)r.style.borderLeft='3px solid '+TEAMC[p.tm?1:0];
-      rank.appendChild(r);
-    }
-  }
-  setInterval(drawRank,500);
+  // Bảng xếp hạng góc màn hình đã bỏ (che bản đồ). Đồng hồ + điểm phe + xếp hạng giờ chỉ hiện trong bảng Tab (drawSb).
+  const leftSec=()=>Math.max(0,Math.ceil((st.endAt-performance.now())/1000));
+  const fmtT=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
+  function drawRank(){rank.style.display='none'}
+  setInterval(()=>{if(sbOn)drawSb()},500);   // bảng Tab đang mở: cập nhật đồng hồ
   const chatLog=el('div');chatLog.id='lchat';hud.appendChild(chatLog);
   const sb=el('div');sb.id='lansb';hud.appendChild(sb);
   const chatW=el('div');chatW.id='lanchatw';const chatI=el('input');chatI.id='lanchat';chatI.type='text';chatI.maxLength=160;chatI.autocomplete='off';chatI.spellcheck=false;
@@ -453,6 +443,7 @@ body.touch #lrank{font-size:11px;min-width:120px;left:calc(12px + env(safe-area-
   }
   function drawSb(){
     sb.textContent='';sb.appendChild(el('h3',null,'🏆 '+tr('sbH')+' · '+(st.cfg.name||'')));
+    sb.appendChild(el('div','rt','⏱ '+fmtT(leftSec())+' · '+tr('m_'+st.cfg.mode)));
     if(st.cfg.team){const s=teamScores(Array.from(NET.roster.values())),d=el('div');d.style.cssText='display:flex;justify-content:space-around;font-weight:800;margin-bottom:6px';
       for(const i of[0,1]){const x=el('span',null,teamName(i)+': '+s[i].k);x.style.color=TEAMC[i];d.appendChild(x)}sb.appendChild(d)}
     const t=el('table'),h=el('tr');for(const c of[tr('name'),tr('kills'),tr('deaths'),tr('ping')])h.appendChild(el('th',null,c));t.appendChild(h);
