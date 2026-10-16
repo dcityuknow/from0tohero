@@ -62,6 +62,19 @@ window.NetAvatar=(function(){
     tag.tx.needsUpdate=true;
   }
 
+  // ---- HÀO QUANG PHE (chế độ team): sprite cộng sáng gắn thẳng vào avatar, đi theo người đó. Optimum Mascot (tm=0) = đỏ · Optimum Ghost (tm=1) = xanh ----
+  const TEAM_COL=[0xff2a3a,0x2f8cff];let glowTex=null;
+  function mkGlow(){
+    if(!glowTex){
+      const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),r=x.createRadialGradient(64,64,2,64,64,64);
+      r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.5,'rgba(255,255,255,.85)');r.addColorStop(.75,'rgba(255,255,255,.35)');r.addColorStop(1,'rgba(255,255,255,0)');
+      x.fillStyle=r;x.fillRect(0,0,128,128);glowTex=new THREE.CanvasTexture(c);
+    }
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:TEAM_COL[0],blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,fog:false}));
+    sp.scale.set(2.8,3.6,1);sp.position.y=.9;sp.renderOrder=4;sp.frustumCulled=false;sp.visible=false;sp.userData.glow=true;   // renderOrder < bảng tên (5): tên vẫn đọc được
+    return sp;
+  }
+
   function fallbackBody(){   // thiếu CharPick: dựng người que bằng voxel
     const g=new THREE.Group(),mk=(x,y,z,w,h,d,c)=>{const v=new VB();v.box(x,y,z,w,h,d,c,.056,true);return v.mesh()};
     g.add(mk(0,1.57,0,.45,.45,.45,0xffd9c7),mk(0,1.0,0,.45,.67,.22,0x7fbfff));
@@ -96,13 +109,15 @@ window.NetAvatar=(function(){
     body.userData={rp:p,head:false};head.userData={rp:p,head:true};
     g.add(body,head);
     const tag=mkTag();g.add(tag.sp);
+    const glow=mkGlow();g.add(glow);
     root.add(g);
-    const av={p,g,m,pivot,guns,sling,body,head,tag,x:p.x||0,y:p.y||0,z:p.z||0,yw:p.yw||0,pt:0,sp:0,ph:0,rec:0,deadT:0,wasDead:false,cur:'',alive:true,snap:true,sw:0,sl:0,rl:0,rlOn:false,thr:0,thrOn:false,pin:0,fwdV:0,swimming:false,swimBack:false,backK:0,stk:0,tb:Math.random()*6,slT:0,leanS:0};
+    const av={p,g,m,pivot,guns,sling,body,head,tag,glow,x:p.x||0,y:p.y||0,z:p.z||0,yw:p.yw||0,pt:0,sp:0,ph:0,rec:0,deadT:0,wasDead:false,cur:'',alive:true,snap:true,sw:0,sl:0,rl:0,rlOn:false,thr:0,thrOn:false,pin:0,fwdV:0,swimming:false,swimBack:false,backK:0,stk:0,tb:Math.random()*6,slT:0,leanS:0};
     g.position.set(av.x,av.y,av.z);set.add(av);return av;
   }
   function remove(av){
     if(!av)return;set.delete(av);root.remove(av.g);
     av.g.traverse(o=>{if(o.geometry&&o.geometry!==GB&&o.geometry!==GH&&!Object.values(gp).some(q=>q.geometry===o.geometry))o.geometry.dispose();
+      if(o.userData&&o.userData.glow){o.material.dispose();return}
       if(o.material&&o.material.map&&o.material.isSpriteMaterial){o.material.map.dispose();o.material.dispose()}});
   }
   function removeAll(){for(const a of Array.from(set))remove(a);clearGren()}
@@ -215,6 +230,10 @@ window.NetAvatar=(function(){
     if(p.w!==av.cur){av.cur=p.w;for(const t in av.guns)av.guns[t].visible=t===av.cur}
     const stow=(av.sw>.5&&av.backK<=.5)||av.sl>.5;   // tay bận (bơi sải / lộn): súng đeo hết ra sau lưng
     for(const t in av.sling)av.sling[t].visible=(stow&&t!=='grenade'?true:t!==av.cur)&&!(dead&&av.deadT>3);
+    // hào quang phe: chỉ khi phòng chơi theo team và người này còn sống
+    const gl=av.glow,teamOn=!!(window.NET&&NET.st&&NET.st.cfg&&NET.st.cfg.team);
+    gl.visible=teamOn&&!dead;
+    if(gl.visible){const tm=p.tm?1:0;if(av.gtm!==tm){av.gtm=tm;gl.material.color.setHex(TEAM_COL[tm])}gl.material.opacity=.9+.1*Math.sin(av.tb*4)}
     // bảng tên
     const dd=Math.hypot(av.x-P.x,av.z-P.z);
     av.tag.sp.visible=!dead&&dd<60;

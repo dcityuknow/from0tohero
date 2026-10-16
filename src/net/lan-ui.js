@@ -27,7 +27,7 @@ window.LanUI=(function(){
       m_ffabot:'⚔️🤖 PvP hỗn chiến + bot',d_ffabot:'Ai cũng bắn được nhau, thêm bot tấn công tất cả mọi người.',
       m_teambot:'🛡️🤖 PvP theo phe + bot',d_teambot:'Chia 2 phe, thêm bot tấn công cả hai phe.',
       m_peace:'🕊️ Hòa bình',d_peace:'Chỉ tham quan: đi lên tầng 2, 3 tùy thích, không cần hạ boss. Bot vẫn xuất hiện và nói chuyện nhưng không tấn công.',
-      teamH:'Chọn phe của bạn',t0:'🔴 Đỏ',t1:'🔵 Xanh',endT:'Hết giờ!',winT:'{0} thắng!',draw:'Hòa!',pts:'Điểm',peaceEnd:'Hết giờ tham quan. Cảm ơn bạn đã ghé thăm!',again:'Chủ phòng có thể đổi chế độ rồi bấm Bắt đầu để chơi tiếp.'},
+      teamH:'Chọn team của bạn',t0:'🔴 Optimum Mascot',t1:'🔵 Optimum Ghost',endT:'Hết giờ!',winT:'{0} thắng!',draw:'Hòa!',pts:'Điểm',peaceEnd:'Hết giờ tham quan. Cảm ơn bạn đã ghé thăm!',again:'Chủ phòng có thể đổi chế độ rồi bấm Bắt đầu để chơi tiếp.'},
     en:{btn:'Room',hello:'Hello, {0}!',ask:'How do you want to play?',soloT:'Play solo',soloD:'Climb 4 floors and beat every boss on your own.',soloB:'▶ Play solo',
       teamT:'Play with friends',teamD:'Create a room, send the code to your friends and enter the match together.',teamB:'Play team',back:'← Back',
       createT:'Create a room',createD:'You are the host: get a room code to invite friends, press Start when everyone is in.',createB:'🏠 Create room',
@@ -50,7 +50,7 @@ window.LanUI=(function(){
       m_ffabot:'⚔️🤖 Free-for-all PvP + bots',d_ffabot:'Everyone can shoot everyone, plus bots attacking all players.',
       m_teambot:'🛡️🤖 Team PvP + bots',d_teambot:'Two sides, plus bots attacking both teams.',
       m_peace:'🕊️ Peace',d_peace:'Sightseeing only: go up to floors 2, 3... freely, no boss to beat. Bots appear and talk as usual but never attack.',
-      teamH:'Pick your side',t0:'🔴 Red',t1:'🔵 Blue',endT:'Time is up!',winT:'{0} wins!',draw:'Draw!',pts:'Points',peaceEnd:'Sightseeing time is over. Thanks for visiting!',again:'The host can change the mode and press Start to play again.'}
+      teamH:'Pick your team',t0:'🔴 Optimum Mascot',t1:'🔵 Optimum Ghost',endT:'Time is up!',winT:'{0} wins!',draw:'Draw!',pts:'Points',peaceEnd:'Sightseeing time is over. Thanks for visiting!',again:'The host can change the mode and press Start to play again.'}
   };
   const tr=(k,...a)=>{let s=((NT[L]||NT.en)[k])||NT.en[k]||k;a.forEach((v,i)=>s=s.split('{'+i+'}').join(v));return s};
   const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
