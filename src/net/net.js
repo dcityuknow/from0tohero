@@ -21,7 +21,27 @@ window.NET=(function(){
   const send=o=>{if(tx)try{tx.send(o)}catch(e){console.warn('[NET] send',e)}};
   const r2=n=>Math.round(n*100)/100,r3=n=>Math.round(n*1000)/1000;
   const clone=o=>JSON.parse(JSON.stringify(o));
-  const peerOpts=()=>Object.assign({debug:0},window.BA_PEER_OPTS||{});   // BA_PEER_OPTS: tự đặt máy môi giới riêng, vd {host:'my.server',port:9000,secure:true}
+  // ---------- ICE: STUN + TURN ----------
+  // Chỉ có STUN thì 2 máy ở 2 mạng khác nhau (4G, wifi công ty, NAT chặt) không bắt tay được -> treo rồi timeout, không vào được phòng.
+  // Nên lấy thêm thông tin TURN (tiếp sức) từ API /api/turn (api/turn.js, giữ key Metered phía server). Đổi địa chỉ bằng window.BA_TURN_API.
+  // Lỗi / chậm quá 4 giây -> dùng STUN dự phòng (mạng dễ tính vẫn vào được).
+  const FALLBACK_ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+  let iceCache=null,iceAt=0;
+  async function getIce(){
+    if(iceCache&&Date.now()-iceAt<180000)return iceCache;   // cache 3 phút, bấm tạo/vào phòng liên tục không gọi API lại
+    const ac=typeof AbortController!=='undefined'?new AbortController():null,to=setTimeout(()=>{if(ac)ac.abort()},4000);
+    try{
+      const r=await fetch(window.BA_TURN_API||'/api/turn',ac?{signal:ac.signal}:{});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const j=await r.json();
+      if(!Array.isArray(j)||!j.length)throw new Error('empty');
+      iceCache=j;iceAt=Date.now();return j;
+    }catch(e){console.warn('[NET] Không lấy được TURN, dùng STUN dự phòng:',e);return FALLBACK_ICE}
+    finally{clearTimeout(to)}
+  }
+  // BA_PEER_OPTS: tự đặt máy môi giới riêng, vd {host:'my.server',port:9000,secure:true}; đặt thêm config:{iceServers:[...]} nếu muốn tự quản ICE
+  const peerOpts=async()=>{const o=Object.assign({debug:0},window.BA_PEER_OPTS||{});if(!o.config)o.config={iceServers:await getIce()};return o};
+  let gen=0;   // tăng mỗi lần leave(): bỏ qua kết quả async của lần tạo/vào phòng cũ
 
   const genCode=()=>{let c='';for(let i=0;i<5;i++)c+=ALPHA[Math.floor(Math.random()*ALPHA.length)];return c};
   const normCode=c=>String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -35,8 +55,10 @@ window.NET=(function(){
   function createRoom(tries){
     tries=tries|0;leave(true);
     if(typeof Peer==='undefined')return fail('conn');
-    const code=genCode();st.connecting=true;st.err='';st.code=code;emit('status');
-    let p;try{p=peer=new Peer(PREFIX+code,peerOpts())}catch(e){return fail('conn')}
+    const code=genCode(),g=gen;st.connecting=true;st.err='';st.code=code;emit('status');
+    peerOpts().then(opts=>{
+    if(g!==gen)return;
+    let p;try{p=peer=new Peer(PREFIX+code,opts)}catch(e){return fail('conn')}
     tmo=setTimeout(()=>{if(peer===p&&!st.on)fail('timeout')},15000);
     p.on('open',()=>{
       if(peer!==p)return;
@@ -59,6 +81,7 @@ window.NET=(function(){
       fail('conn');
     });
     p.on('disconnected',()=>{try{if(peer===p&&!p.destroyed)p.reconnect()}catch(e){}});   // mất máy môi giới: người đã vào vẫn chơi được; nối lại để người mới vào được
+    });
   }
 
   // NGƯỜI VÀO: nối tới Peer của chủ phòng theo mã
@@ -67,23 +90,27 @@ window.NET=(function(){
     if(code.length<4)return fail('code');
     if(typeof Peer==='undefined')return fail('conn');
     st.connecting=true;st.err='';st.code=code;emit('status');
-    let p;try{p=peer=new Peer(peerOpts())}catch(e){return fail('conn')}
+    const g=gen;
+    peerOpts().then(opts=>{
+    if(g!==gen)return;
+    let p;try{p=peer=new Peer(opts)}catch(e){return fail('conn')}
     tmo=setTimeout(()=>{if(peer===p&&!st.on)fail('timeout')},15000);
     p.on('open',()=>{
       if(peer!==p)return;
-      const c=p.connect(PREFIX+code,{serialization:'json',reliable:true});
+      const c=p.connect(PREFIX+code,{serialization:'json'});
       c.on('open',()=>{if(peer!==p)return;tx={send(o){if(c.open)c.send(o)},close(){try{c.close()}catch(e){}}};send(myInfo())});
       c.on('data',d=>{if(peer===p)handle(d)});
       c.on('close',()=>{if(peer!==p)return;const was=st.on;leave(true);st.err=was?'closed':'conn';emit('status')});
-      c.on('error',()=>{});
+      c.on('error',()=>{if(peer===p&&!st.on)fail('conn')});
     });
     p.on('error',e=>{if(peer===p)fail(e.type==='peer-unavailable'?'nocode':'conn')});
+    });
   }
   // chủ phòng bấm Bắt đầu
   function start(){if(st.on&&st.host&&!st.started)send({t:'start',n:(typeof SPAWNS!=='undefined'?SPAWNS.length:4)})}
 
   function leave(silent){
-    clearTimeout(tmo);
+    gen++;clearTimeout(tmo);
     if(hub){try{hub.close()}catch(e){}hub=null}
     const t=tx;tx=null;if(t&&t.close)try{t.close()}catch(e){}
     const p=peer;peer=null;if(p)setTimeout(()=>{try{p.destroy()}catch(e){}},400);   // trễ chút để gói "closed" kịp tới mọi người
