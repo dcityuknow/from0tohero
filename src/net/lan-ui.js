@@ -6,7 +6,7 @@
 window.LanUI=(function(){
   const NT={
     vi:{btn:'Phòng',hello:'Xin chào, {0}!',ask:'Bạn muốn chơi thế nào?',soloT:'Chơi một mình',soloD:'Leo 4 tầng, hạ từng con boss bằng sức của chính bạn.',soloB:'▶ Chơi solo',
-      teamT:'Chơi cùng bạn bè',teamD:'Tạo phòng, gửi mã cho bạn bè rồi cùng vào trận.',teamB:'👥 Chơi team',back:'← Quay lại',
+      teamT:'Chơi cùng bạn bè',teamD:'Tạo phòng, gửi mã cho bạn bè rồi cùng vào trận.',teamB:'Chơi team',back:'← Quay lại',
       createT:'Tạo phòng',createD:'Bạn là chủ phòng: nhận mã phòng để mời bạn bè, bạn bấm Bắt đầu khi đủ người.',createB:'🏠 Tạo phòng',
       joinT:'Vào phòng',joinD:'Nhập mã phòng 5 ký tự mà chủ phòng gửi cho bạn.',joinB:'Vào phòng',codePh:'MÃ',leave:'Rời phòng',close:'Đóng',
       connecting:'Đang kết nối…',players:'Người chơi',ping:'Ping',
@@ -22,7 +22,7 @@ window.LanUI=(function(){
       joined:'{0} vào phòng',left:'{0} rời phòng',died:'{0} ☠',lost:'Mất kết nối',hint:'Enter: chat · Tab: bảng điểm',
       go:'▶ Vào trận',startedSub:'Chủ phòng đã bắt đầu! Bấm để vào trận.',needStart:'Chờ chủ phòng bấm Bắt đầu.'},
     en:{btn:'Room',hello:'Hello, {0}!',ask:'How do you want to play?',soloT:'Play solo',soloD:'Climb 4 floors and beat every boss on your own.',soloB:'▶ Play solo',
-      teamT:'Play with friends',teamD:'Create a room, send the code to your friends and enter the match together.',teamB:'👥 Play team',back:'← Back',
+      teamT:'Play with friends',teamD:'Create a room, send the code to your friends and enter the match together.',teamB:'Play team',back:'← Back',
       createT:'Create a room',createD:'You are the host: get a room code to invite friends, press Start when everyone is in.',createB:'🏠 Create room',
       joinT:'Join a room',joinD:'Enter the 5-character room code the host sent you.',joinB:'Join room',codePh:'CODE',leave:'Leave room',close:'Close',
       connecting:'Connecting…',players:'Players',ping:'Ping',
@@ -61,6 +61,9 @@ body.modes-on #ov,body.modes-on #hud{visibility:hidden}   /* màn chọn nằm r
 #modes .mcard.btnlike{cursor:pointer}
 #modes .mcard.btnlike:hover{transform:translateY(-6px) rotate(-.6deg);box-shadow:0 14px 0 rgba(43,42,58,.13),0 26px 40px rgba(30,30,60,.26)}
 #modes .mcard .ic{font-size:64px;line-height:1;margin-bottom:6px;filter:drop-shadow(0 5px 0 rgba(43,42,58,.15))}
+#modes .mcard .pic{width:100%;height:clamp(150px,28vh,240px);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+#modes .mcard .pic img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;mix-blend-mode:multiply;pointer-events:none;-webkit-user-drag:none;user-select:none}   /* multiply: nền trắng của ảnh hòa vào màu gradient của thẻ, không lộ khung chữ nhật */
+@media (max-height:520px){#modes .mcard .pic{height:clamp(70px,22vh,110px);margin-bottom:2px}#modes .mcard{padding:12px 14px 14px}#modes .mcard p{min-height:0;margin-bottom:8px}}
 #modes .mcard h2{margin:4px 0 6px;font-size:24px}
 #modes .mcard p{margin:0 0 14px;font-size:14.5px;line-height:1.5;opacity:.82;min-height:44px;flex:1}
 #modes .mbtn{font:inherit;font-weight:800;font-size:18px;border:3px solid #2b2a3a;background:#fff;color:#2b2a3a;border-radius:14px;padding:10px 20px;cursor:pointer;box-shadow:0 4px 0 #2b2a3a;transition:transform .1s,box-shadow .1s}
@@ -147,7 +150,12 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
   }
   function card(cls,icon,title,desc,btnTxt,btnCls,fn){
     const c=el('div','mcard '+cls);
-    c.append(el('div','ic',icon),el('h2',null,title),el('p',null,desc));
+    // icon dạng 'img:đường/dẫn.jpg' -> hiện ẢNH (khung .pic) thay vì emoji; các thẻ khác vẫn dùng emoji như cũ
+    if(typeof icon==='string'&&icon.slice(0,4)==='img:'){
+      const pic=el('div','pic'),im=el('img');im.src=icon.slice(4);im.alt=title;im.draggable=false;im.decoding='async';
+      pic.appendChild(im);c.append(pic);
+    }else c.append(el('div','ic',icon));
+    c.append(el('h2',null,title),el('p',null,desc));
     const b=el('button','mbtn '+btnCls,btnTxt);b.type='button';b.addEventListener('click',e=>{e.stopPropagation();fn()});c.appendChild(b);
     return c;
   }
@@ -161,8 +169,8 @@ body.touch #lchat{bottom:calc(80px + env(safe-area-inset-bottom,0px));left:calc(
     if(view==='mode'){   // ---- Solo hay Team ----
       header(tr('hello',PROFILE.name||'')+'  '+tr('ask'));
       const row=el('div','row');
-      row.appendChild(card('pink','🎯',tr('soloT'),tr('soloD'),tr('soloB'),'pk',solo));
-      row.appendChild(card('blue','👥',tr('teamT'),tr('teamD'),tr('teamB'),'bl',()=>{view='team';render()}));
+      row.appendChild(card('pink','img:assets/img/mode-solo.jpg',tr('soloT'),tr('soloD'),tr('soloB'),'pk',solo));   // solo: nhân vật xé áo
+      row.appendChild(card('blue','img:assets/img/mode-team.jpg',tr('teamT'),tr('teamD'),tr('teamB'),'bl',()=>{view='team';render()}));   // team: nhiều người
       wrap.appendChild(row);
     }else if(view==='team'){   // ---- Tạo phòng hay Vào phòng ----
       header(tr('teamT'));
