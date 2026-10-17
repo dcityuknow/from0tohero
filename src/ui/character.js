@@ -210,7 +210,7 @@ function build(def){
   const grp=(x,y)=>{const q=new THREE.Group();q.position.set(x*PX,y*PX,0);g.add(q);return q};
   // đầu
   {const hv=new VB(),H=def.hair;
-    const HSC=.9,hg=new THREE.Group();   // HSC: thu nhỏ toàn bộ đầu (cầu + kính VR + mũ) quanh đáy đầu (y=20 điểm ảnh) -> cằm vẫn dính cổ
+    const HSC=.81,hg=new THREE.Group();   // HSC: thu nhỏ toàn bộ đầu (cầu + kính VR + mũ) quanh đáy đầu (y=20 điểm ảnh) -> cằm vẫn dính cổ
     hg.scale.setScalar(HSC);hg.position.y=20*PX*(1-HSC);g.add(hg);
     if(def.head!=='square'){   // ĐẦU TRÒN (mặc định cho MỌI nhân vật; ghi head:'square' trong mảng CH để dùng lại đầu vuông cũ)
       const R=10.5,CY=30.5,HS=1.5,HY=43.5;   // R: bán kính đầu (điểm ảnh) · CY: độ cao tâm đầu · HS: phóng to mũ · HY: độ cao mà đỉnh đầu vuông cũ (y=32) được dời tới (mũ nằm trên đỉnh quả cầu)
