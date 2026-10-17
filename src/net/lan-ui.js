@@ -510,7 +510,7 @@ body.touch #lrank{font-size:11px;min-width:120px;left:calc(12px + env(safe-area-
   NET.sub('join',p=>pushChat('',tr('joined',p.name),true));
   NET.sub('leave',p=>pushChat('',tr('left',p.name),true));
   NET.sub('kill',o=>pushFeed(o.k,o.v,o.hs));
-  NET.sub('chat',o=>pushChat(o.name,o.text,false));
+  NET.sub('chat',o=>{pushChat(o.name,o.text,false);if(window.NetAvatar&&NetAvatar.say)NetAvatar.say(o.id,o.text)});   // + bong bóng thoại trên đầu người nói (net/avatar.js)
   // chủ phòng bấm Bắt đầu: đóng sảnh, bảng "Bấm để chơi" hiện sẵn với nút "Vào trận" (trình duyệt cần 1 cú bấm để khoá chuột)
   NET.sub('start',()=>{
     hide();

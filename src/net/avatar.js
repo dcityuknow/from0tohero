@@ -62,6 +62,68 @@ window.NetAvatar=(function(){
     tag.tx.needsUpdate=true;
   }
 
+  // ---- BONG BÓNG THOẠI trên đầu: khi ai đó gửi chat (Enter / T) thì chữ hiện ngay trên đầu họ vài giây rồi mờ dần ----
+  // Mỗi avatar có 1 bong bóng riêng (av.bub, gắn vào av.g nên đi theo người đó); bản thân mình dùng selfB (chỉ hiện khi đang ở góc nhìn thứ 3, vì góc nhìn thứ nhất không thấy đầu mình).
+  const BW=448,BH=224,BK=.0036,BLH=38,BPAD=16,BTAIL=30,BMAXL=4;   // cỡ canvas · mét / điểm ảnh · cao 1 dòng · lề · đuôi bong bóng · tối đa số dòng
+  const BFONT='700 30px "Segoe UI","Noto Sans","Noto Sans Bengali","Noto Sans Devanagari","Noto Sans SC","Microsoft YaHei","Malgun Gothic",sans-serif';
+  function mkBubble(){
+    const cv=document.createElement('canvas');cv.width=BW;cv.height=BH;
+    const tx=new THREE.CanvasTexture(cv);tx.minFilter=THREE.LinearFilter;tx.generateMipmaps=false;
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx,transparent:true,depthWrite:false,fog:false}));
+    sp.center.set(.5,0);sp.scale.set(BW*BK,BH*BK,1);sp.renderOrder=6;sp.visible=false;sp.frustumCulled=false;   // neo ở đáy canvas -> bong bóng mọc lên phía trên
+    return {sp,cv,tx,t:0,life:0};
+  }
+  function wrapText(x,text,maxW){   // ngắt dòng theo từng ký tự (chữ CJK không có dấu cách), ưu tiên ngắt ở dấu cách
+    const out=[];let line='';
+    for(const ch of Array.from(text)){
+      const t=line+ch;
+      if(x.measureText(t).width>maxW&&line){
+        const sp=line.lastIndexOf(' ');
+        if(sp>0&&ch!==' '){out.push(line.slice(0,sp));line=line.slice(sp+1)+ch}else{out.push(line);line=ch===' '?'':ch}
+      }else line=t;
+    }
+    if(line)out.push(line);
+    if(out.length>BMAXL){out.length=BMAXL;out[BMAXL-1]=out[BMAXL-1].replace(/.?$/,'…')}
+    return out;
+  }
+  function sayBub(b,text){
+    const x=b.cv.getContext('2d');x.font=BFONT;
+    const lines=wrapText(x,text,BW-BPAD*2-24);
+    let tw=0;for(const l of lines)tw=Math.max(tw,x.measureText(l).width);
+    const w=Math.min(BW-8,tw+BPAD*2+8),h=lines.length*BLH+BPAD*2,bx=(BW-w)/2,by=BH-BTAIL-h-4,cx=BW/2;
+    x.clearRect(0,0,BW,BH);
+    // nền đen bo tròn + MŨI NHỌN chỉ xuống đầu người nói (kiểu bong bóng thoại game)
+    x.fillStyle='rgba(12,12,16,.92)';
+    x.beginPath();x.roundRect?x.roundRect(bx,by,w,h,22):x.rect(bx,by,w,h);x.fill();
+    x.beginPath();x.moveTo(cx-18,by+h-2);x.lineTo(cx,by+h+BTAIL);x.lineTo(cx+18,by+h-2);x.closePath();x.fill();
+    x.fillStyle='#fff';x.textAlign='center';x.textBaseline='middle';
+    lines.forEach((l,i)=>x.fillText(l,BW/2,by+BPAD+BLH*(i+.5)));
+    b.tx.needsUpdate=true;b.t=0;b.life=Math.min(9,3.5+text.length*.07);   // chữ càng dài hiện càng lâu (tối đa 9 giây)
+  }
+  function tickBub(b,dt,hide){
+    if(!b.life){b.sp.visible=false;return}
+    b.t+=dt;
+    if(b.t>=b.life){b.life=0;b.sp.visible=false;return}
+    const k=b.t<.15?.6+2.67*b.t:1;                                  // nảy ra: phóng từ 60% lên 100% trong 0.15 giây
+    b.sp.scale.set(BW*BK*k,BH*BK*k,1);
+    b.sp.material.opacity=Math.min(1,(b.life-b.t)/.5);             // mờ dần trong 0.5 giây cuối
+    b.sp.visible=!hide;
+  }
+  const selfB=mkBubble();selfB.sp.userData.bubble=true;root.add(selfB.sp);
+  function tickSelf(dt){
+    if(!selfB.life)return;
+    const dd=typeof dead!=='undefined'&&dead;
+    selfB.sp.position.set(P.x,P.y+2.4,P.z);
+    tickBub(selfB,dt,dd||!(window.TP&&TP.shown));
+  }
+  // id = mã người chơi (net.js: roster / st.id), text = nội dung chat
+  function say(id,text){
+    text=String(text||'').trim();if(!text)return;
+    const st=window.NET&&NET.st;
+    if(st&&id===st.id){sayBub(selfB,text);return}
+    for(const av of set)if(av.p&&av.p.id===id){sayBub(av.bub,text);return}
+  }
+
   // ---- HÀO QUANG PHE (chế độ team): sprite cộng sáng gắn thẳng vào avatar, đi theo người đó. Optimum Mascot (tm=0) = đỏ · Optimum Ghost (tm=1) = xanh ----
   const TEAM_COL=[0xff2a3a,0x2f8cff];let glowTex=null;
   function mkGlow(){
@@ -109,9 +171,10 @@ window.NetAvatar=(function(){
     body.userData={rp:p,head:false};head.userData={rp:p,head:true};
     g.add(body,head);
     const tag=mkTag();g.add(tag.sp);
+    const bub=mkBubble();bub.sp.position.y=2.52;g.add(bub.sp);   // bong bóng thoại nằm ngay trên bảng tên (cao tới ~2.31), chừa khe nhỏ ~0.2m giữa mũi nhọn và bảng tên / đầu
     const glow=mkGlow();g.add(glow);
     root.add(g);
-    const av={p,g,m,pivot,guns,sling,body,head,tag,glow,x:p.x||0,y:p.y||0,z:p.z||0,yw:p.yw||0,pt:0,sp:0,ph:0,rec:0,deadT:0,wasDead:false,cur:'',alive:true,snap:true,sw:0,sl:0,rl:0,rlOn:false,thr:0,thrOn:false,pin:0,fwdV:0,swimming:false,swimBack:false,backK:0,stk:0,tb:Math.random()*6,slT:0,leanS:0};
+    const av={p,g,m,pivot,guns,sling,body,head,tag,bub,glow,x:p.x||0,y:p.y||0,z:p.z||0,yw:p.yw||0,pt:0,sp:0,ph:0,rec:0,deadT:0,wasDead:false,cur:'',alive:true,snap:true,sw:0,sl:0,rl:0,rlOn:false,thr:0,thrOn:false,pin:0,fwdV:0,swimming:false,swimBack:false,backK:0,stk:0,tb:Math.random()*6,slT:0,leanS:0};
     g.position.set(av.x,av.y,av.z);set.add(av);return av;
   }
   function remove(av){
@@ -238,6 +301,7 @@ window.NetAvatar=(function(){
     const dd=Math.hypot(av.x-P.x,av.z-P.z);
     av.tag.sp.visible=!dead&&dd<60;
     if(av.tag.sp.visible)drawTag(av.tag,p.name||'?',p.h==null?100:p.h,paused);
+    tickBub(av.bub,dt,dead||dd>60);   // bong bóng thoại: ẩn khi người đó đã gục hoặc ở quá xa
   }
 
   // ---- tia đạn của người khác ----
@@ -253,6 +317,7 @@ window.NetAvatar=(function(){
   function tick(dt){
     for(const t of TR)if(t.on){t.life-=dt;if(t.life<=0){t.on=false;t.l.visible=false}}
     for(const av of set)update(av,dt);
+    tickSelf(dt);
     tickGren(dt);
   }
   // tiếng súng 3D tại chỗ người bắn
@@ -321,5 +386,5 @@ window.NetAvatar=(function(){
   function targets(out){for(const av of set)if(av.alive&&av.g.visible)out.push(av.body,av.head)}
 
   const glowTeam=(sp,tm)=>{if(sp.userData.gtm!==tm){sp.userData.gtm=tm;sp.material.color.setHex(TEAM_COL[tm])}};   // thân của mình (thirdperson.js) dùng chung hào quang này
-  return {root,create,remove,removeAll,attach,tick,shot,tracer,targets,set,grenade,pushOut,mkGlow,glowTeam};
+  return {root,create,remove,removeAll,attach,tick,shot,tracer,targets,set,grenade,pushOut,mkGlow,glowTeam,say};
 })();
