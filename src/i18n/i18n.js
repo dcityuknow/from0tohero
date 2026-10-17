@@ -16,7 +16,7 @@ function renderOv(){
 }
 function applyLang(l){
   L=T[l]?l:'vi';document.documentElement.lang=L==='ng'?'en':L;
-  renderCards();$('pk').textContent=t('pk');$('kl').textContent=t('kills');$('hpl').textContent=t('hp');$('gk').textContent=t('gk');
+  renderCards();{const pk=$('pk');if(pk)pk.textContent=t('pk')}$('kl').textContent=t('kills');$('hpl').textContent=t('hp');$('gk').textContent=t('gk');
   document.querySelectorAll('.wb').forEach((b,i)=>b.textContent=(i+1)+' · '+t(b.dataset.w));
   $('wn').textContent=t(cur);
   document.querySelectorAll('.lb').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
