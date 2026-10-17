@@ -45,6 +45,17 @@ const TP=(function(){
   const GP={rest:V3(.3,.85,.08),lrest:V3(-.3,.9,.12),hip:V3(-.18,.84,.22),chest:V3(.2,1.12,.42),back:V3(.33,1.52,-.5),fwd:V3(.26,1.38,.62),low:V3(.12,.88,.55),
             pin:V3(.13,1.2,.43),pull:V3(-.14,1.14,.28),lwind:V3(-.22,1.28,.52)};
   const DRAW=.6;   // giây: móc túi lấy lựu đạn
+  // ---- tia đạn + chớp nòng ở góc thứ 3: combat.js vẽ tia từ nòng súng góc thứ nhất (đang ẩn) -> ở đây dời điểm đầu tia về đầu nòng súng THẬT trên tay nhân vật ----
+  const MUZZ={pistol:.3,rifle:.85,sniper:1.1};   // chỗ đầu nòng (z, toạ độ súng cầm tay) · cùng số với MUZ trong net/avatar.js
+  const _mz=new THREE.Vector3();let tpFlash=null;
+  function tpMuzzle(){
+    if(!tracer.visible||!MUZZ[cur]||!held||!held.m[cur]||!held.m[cur].visible){if(tpFlash)tpFlash.visible=false;return}
+    model.g.updateMatrixWorld(true);
+    _mz.set(0,.04,MUZZ[cur]).applyMatrix4(held.matrixWorld);   // đầu nòng trong toạ độ thế giới
+    const ps=tracer.geometry.attributes.position;ps.setXYZ(0,_mz.x,_mz.y,_mz.z);ps.needsUpdate=true;tracer.geometry.computeBoundingSphere();   // điểm cuối (trúng đâu) giữ nguyên
+    if(!tpFlash){tpFlash=new THREE.Mesh(UG,new THREE.MeshBasicMaterial({color:0xffe066}));tpFlash.scale.set(.16,.16,.06);tpFlash.renderOrder=3;S.add(tpFlash)}
+    tpFlash.position.copy(_mz);held.getWorldQuaternion(tpFlash.quaternion);tpFlash.visible=true;
+  }
   const e3=x=>x*x*(3-2*x),cl=(u,a,b)=>Math.min(1,Math.max(0,(u-a)/(b-a))),mix=(o,a,b,t)=>o.copy(a).lerp(b,t);
   let prevCur='',prevThrow=0,drawT=9,leanS=0;
   const rp=V3(.3,.85,.08),lp=V3(-.3,.9,.12),_rt=V3(0,0,0),_lt=V3(0,0,0),_hv=V3(0,0,0),_hw=V3(0,0,0),_Y=V3(0,1,0),_E=new THREE.Euler();
@@ -340,7 +351,7 @@ const TP=(function(){
   function applyTP(dt){
     tickCrumbs(dt);
     const a=active();
-    if(!a){if(model&&shown){model.g.visible=false;shown=false}if(window.FruitEat&&FruitEat.bites)lastBn=FruitEat.bites();swPrev=cur;swOn=false;handPrev=cur==='grenade'?null:cur;return false}
+    if(!a){if(tpFlash)tpFlash.visible=false;if(model&&shown){model.g.visible=false;shown=false}if(window.FruitEat&&FruitEat.bites)lastBn=FruitEat.bites();swPrev=cur;swOn=false;handPrev=cur==='grenade'?null:cur;return false}
     if(!ensure())return false;
     // camera: điểm quay = đầu nhân vật; lùi theo hướng nhìn, dò va chạm từng bước
     const cp=Math.cos(pitch),f=_f.set(-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp),r=_r.set(Math.cos(yaw),0,-Math.sin(yaw));
@@ -352,7 +363,7 @@ const TP=(function(){
     const allow=CFG.dist*frac;
     // sát tường: camera không còn chỗ lùi -> dùng góc thứ nhất (không để camera chui vào đầu / thân nhân vật)
     if(allow<CFG.fpIn)near=true;else if(allow>CFG.fpOut)near=false;
-    if(near){dist=allow;if(shown){model.g.visible=false;shown=false}swPrev=cur;swOn=false;handPrev=cur==='grenade'?null:cur;return false}
+    if(near){dist=allow;if(tpFlash)tpFlash.visible=false;if(shown){model.g.visible=false;shown=false}swPrev=cur;swOn=false;handPrev=cur==='grenade'?null:cur;return false}
     shown=true;
     dist=allow<dist?allow:dist+(allow-dist)*Math.min(1,dt*CFG.ease);
     const k=CFG.dist>0?dist/CFG.dist:0;
@@ -430,7 +441,7 @@ const TP=(function(){
     if(slK>.02){rollPose();rollLift()}
     if(slideT>0&&!P.sw){const ru=rollRu();if(ru<.12||ru>.6)slideDust(dt)}   // bụi lúc bật đi và lúc tiếp đất
     swimFx(dt);
-    tracer.visible=false;flash.visible=false;   // vệt đạn / chớp nòng vẽ từ nòng súng của góc nhìn thứ nhất (đã ẩn) nên ở góc thứ 3 sẽ lơ lửng lệch khỏi nhân vật -> không vẽ
+    flash.visible=false;tpMuzzle();   // chớp nòng góc thứ nhất vẫn ẩn; tia đạn + chớp nòng mới đặt ở đầu nòng súng của nhân vật
     if(vm)vm.visible=false;   // ẩn tay + súng góc nhìn thứ nhất
     return true;
   }
