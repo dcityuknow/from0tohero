@@ -39,7 +39,7 @@ const TP=(function(){
     pistol:{p:[.275,.74,.02],dir:[0,-1,.05],s:1,mid:-.04},     // bao súng hông phải, báng chúc lên
     grenade:{p:[-.27,.8,.09],dir:[0,0,1],s:1,mid:0}            // móc ở hông trái
   };
-  let glow=null,on=false,model=null,key='',held=null,slung=null,holster=null,shown=false,ph=0,dist=CFG.dist,sq=1,lx=0,lz=0,lastSpd=0,near=false;
+  let camPrev=false,glow=null,on=false,model=null,key='',held=null,slung=null,holster=null,shown=false,ph=0,dist=CFG.dist,sq=1,lx=0,lz=0,lastSpd=0,near=false;
   // ---- lựu đạn: các mốc của bàn tay phải / trái (toạ độ thân nhân vật, m) ----
   const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
   const GP={rest:V3(.3,.85,.08),lrest:V3(-.3,.9,.12),hip:V3(-.18,.84,.22),chest:V3(.2,1.12,.42),back:V3(.33,1.52,-.5),fwd:V3(.26,1.38,.62),low:V3(.12,.88,.55),
@@ -97,7 +97,7 @@ const TP=(function(){
   const msg=()=>{if(typeof showMsg==='function')showMsg((TXT[L]||TXT.en)[on?1:0]+' · C')};
   function toggle(){on=!on;msg()}
   // góc thứ 3 đang thực sự hiển thị? (đã bật, còn sống, không đang ngắm sniper)
-  const active=()=>on&&!dead&&!(scoped&&cur==='sniper');
+  const active=()=>(on||camPrev)&&!dead&&!(scoped&&cur==='sniper');   // camPrev: khung chỉnh camera đang mở -> xem trước góc thứ 3 ngay cả khi đang ở góc thứ nhất
   const _f=new THREE.Vector3(),_r=new THREE.Vector3(),_h=new THREE.Vector3(),_t=new THREE.Vector3(),_a=new THREE.Vector3(),_b=new THREE.Vector3(),
         DOWN=new THREE.Vector3(0,-1,0),AX=new THREE.Vector3(1,0,0),_q=new THREE.Quaternion(),_e=new THREE.Euler();
   const SH={r:new THREE.Vector3(.336,1.344,0),l:new THREE.Vector3(-.336,1.344,0)},REACH=.588;   // vai (tâm xoay tay) · khoảng từ vai tới giữa bàn tay (tay dài 12 điểm ảnh)
@@ -362,7 +362,8 @@ const TP=(function(){
       if(hitAny({x,y:y-CFG.pad,z,r:CFG.pad,h:CFG.pad*2})){frac=Math.max(0,(i-1)/N);break}}
     const allow=CFG.dist*frac;
     // sát tường: camera không còn chỗ lùi -> dùng góc thứ nhất (không để camera chui vào đầu / thân nhân vật)
-    if(allow<CFG.fpIn)near=true;else if(allow>CFG.fpOut)near=false;
+    const fpIn=Math.min(CFG.fpIn,CFG.dist*.5),fpOut=Math.min(CFG.fpOut,CFG.dist*.8);   // ngưỡng về góc thứ nhất co theo khoảng cách người chơi chọn (mặc định 3.2m -> giữ đúng 1.0 / 1.5)
+    if(allow<fpIn)near=true;else if(allow>fpOut)near=false;
     if(near){dist=allow;if(tpFlash)tpFlash.visible=false;if(shown){model.g.visible=false;shown=false}swPrev=cur;swOn=false;handPrev=cur==='grenade'?null:cur;return false}
     shown=true;
     dist=allow<dist?allow:dist+(allow-dist)*Math.min(1,dt*CFG.ease);
@@ -445,6 +446,55 @@ const TP=(function(){
     if(vm)vm.visible=false;   // ẩn tay + súng góc nhìn thứ nhất
     return true;
   }
+  // ---------- CÀI ĐẶT CAMERA GÓC THỨ 3 (nút 📷 ở bảng bắt đầu / tạm dừng) ----------
+  // Người chơi tuỳ ý: khoảng cách (zoom gần / xa), độ cao camera, lệch trái / phải. Lưu ở localStorage 'ba_tpcam'. Chưa chỉnh gì thì dùng đúng CFG gốc ở trên.
+  const CAMKEY='ba_tpcam',CAMDEF={dist:CFG.dist,up:CFG.up,side:CFG.side};
+  const CAMR={dist:[1.5,8,.1],up:[-.5,2.5,.05],side:[-2,2,.05]};   // [nhỏ nhất, lớn nhất, bước]
+  const CAMT={
+    vi:{btn:'Camera góc thứ 3',t:'Camera góc nhìn thứ 3',dist:'Khoảng cách (zoom)',up:'Độ cao',side:'Lệch trái / phải',reset:'Mặc định',close:'Xác nhận',hint:'Đang xem trước trực tiếp. Dùng khi bấm C (góc thứ 3).'},
+    en:{btn:'Third-person camera',t:'Third-person camera',dist:'Distance (zoom)',up:'Height',side:'Left / right offset',reset:'Default',close:'Confirm',hint:'Live preview. Used when you press C (third person).'}
+  };
+  try{const sv=JSON.parse(localStorage.getItem(CAMKEY)||'null');if(sv)for(const k in CAMR)if(typeof sv[k]==='number')CFG[k]=Math.min(CAMR[k][1],Math.max(CAMR[k][0],sv[k]))}catch(e){}
+  (function camUI(){
+    const ov=document.getElementById('ov'),go=document.getElementById('go');if(!ov||!go)return;
+    const css=document.createElement('style');
+    // class 'lb' ở khung ngoài để bộ chặn bấm của sảnh LAN (net/lan-ui.js) bỏ qua; #tpcam ghi đè mọi kiểu của .lb
+    css.textContent='#ov.tpcam-open{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}#ov.tpcam-open #card{display:none}'+   // đang chỉnh camera: bỏ nền mờ + ẩn thẻ tạm dừng để thấy rõ toàn cảnh
+      '#tpcam{position:fixed;right:18px;left:auto;top:50%;transform:translateY(-50%);z-index:30;display:none;width:min(92vw,380px);box-sizing:border-box;background:var(--card);color:var(--ink);border:3px solid var(--pink);border-radius:18px;padding:14px 18px;margin:0;text-align:left;font-size:15px;font-weight:normal;cursor:default}'+
+      '#tpcam h3{margin:0 0 6px;text-align:center;font-size:18px}#tpcam label{display:flex;justify-content:space-between;margin-top:10px;font-weight:bold}#tpcam input[type=range]{width:100%;margin:4px 0 0;cursor:pointer}'+
+      '#tpcam .tpr{display:flex;gap:8px;justify-content:center;margin-top:14px}#tpcam .tph{font-size:12px;opacity:.75;margin:10px 0 0;line-height:1.35}'+
+      '#tpcam .tpx{font:inherit;font-weight:bold;border:3px solid var(--blue);background:transparent;color:var(--ink);border-radius:12px;padding:6px 14px;cursor:pointer}';
+    document.head.appendChild(css);
+    const tr=()=>CAMT[L]||CAMT.en,pn=document.createElement('div');pn.id='tpcam';pn.className='lb';
+    const h=document.createElement('h3'),hint=document.createElement('p');hint.className='tph';
+    const rows={};
+    pn.appendChild(h);
+    for(const k in CAMR){
+      const lb=document.createElement('label'),nm=document.createElement('span'),vl=document.createElement('span'),ip=document.createElement('input');
+      ip.type='range';ip.min=CAMR[k][0];ip.max=CAMR[k][1];ip.step=CAMR[k][2];
+      ip.addEventListener('input',()=>{CFG[k]=+ip.value;vl.textContent=(+ip.value).toFixed(2);save()});
+      ip.addEventListener('change',()=>ip.blur());   // nhả phím mũi tên khỏi thanh trượt để không vướng điều khiển game
+      lb.append(nm,vl);pn.append(lb,ip);rows[k]={nm,vl,ip};
+    }
+    const bx=document.createElement('div');bx.className='tpr';
+    const bReset=document.createElement('button'),bClose=document.createElement('button');bReset.className=bClose.className='tpx';bReset.type=bClose.type='button';
+    bx.append(bReset,bClose);pn.append(bx,hint);ov.appendChild(pn);
+    const save=()=>{try{localStorage.setItem(CAMKEY,JSON.stringify({dist:CFG.dist,up:CFG.up,side:CFG.side}))}catch(e){}};
+    function paint(){const T=tr();h.textContent='📷 '+T.t;hint.textContent=T.hint;bReset.textContent=T.reset;bClose.textContent=T.close;btn.textContent='📷 '+T.btn;
+      for(const k in rows){rows[k].nm.textContent=T[k];rows[k].ip.value=CFG[k];rows[k].vl.textContent=(+CFG[k]).toFixed(2)}}
+    const openPn=()=>{paint();pn.style.display='block';ov.classList.add('tpcam-open');camPrev=true};
+    const close=()=>{pn.style.display='none';ov.classList.remove('tpcam-open');camPrev=false};
+    bReset.addEventListener('click',e=>{e.stopPropagation();Object.assign(CFG,CAMDEF);try{localStorage.removeItem(CAMKEY)}catch(x){}paint()});
+    bClose.addEventListener('click',e=>{e.stopPropagation();close()});
+    pn.addEventListener('click',e=>e.stopPropagation());   // bấm trong khung này không làm bảng tạm dừng "bấm để chơi tiếp"
+    const btn=document.createElement('button');btn.className='lb';btn.type='button';btn.style.margin='8px 0 0';
+    btn.addEventListener('click',e=>{e.stopPropagation();if(pn.style.display==='block')close();else openPn()});
+    // đang chỉnh: bấm ra nền (ngoài khung) không được làm game chạy tiếp - chỉ nút Xác nhận mới đóng
+    ov.addEventListener('click',e=>{if(pn.style.display==='block'&&!pn.contains(e.target)){e.stopPropagation();e.stopImmediatePropagation()}},true);
+    go.before(btn);paint();
+    document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement)close()});   // vào lại game -> tự đóng khung
+  })();
+
   addEventListener('keydown',e=>{if(e.code==='KeyC'&&playing&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey)toggle()});
   return {toggle,apply,active,cfg:CFG,setDraw(u){drawT=u*DRAW},get near(){return near},get swimming(){return swimming},get model(){return model},get shown(){return shown},get extra(){return shown?CFG.bodyPad:0},   // extra: bán kính đẩy thêm (m) khi thân nhân vật hiện ra (thân + tay rộng hơn vòng va chạm P.r) -> main.js / guide-bot.js cộng vào để không đi xuyên bot / nhân viên chòi
     get on(){return on},set on(v){on=!!v}};
