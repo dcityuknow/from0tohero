@@ -50,8 +50,9 @@ const MUSIC={
   });
   // Nút bật/tắt nhạc ngay trên bảng bắt đầu / tạm dừng (nhớ lựa chọn cho lần sau)
   const b=document.createElement('button');b.className='lb';b.style.margin='8px 0 0';
-  const paint=()=>b.textContent=(on?'🔊':'🔇')+' Music';
-  paint();
+  const MT={vi:'Nhạc',en:'Music',ru:'Музыка',ng:'Music',bn:'সংগীত',id:'Musik',hi:'संगीत',zh:'音乐',fil:'Musika',uk:'Музика',ko:'음악'};   // chữ nút theo ngôn ngữ đang chọn
+  const paint=()=>b.textContent=(on?'🔊':'🔇')+' '+(MT[typeof L!=='undefined'?L:'en']||MT.en);
+  paint();document.addEventListener('ba-lang',paint);
   b.addEventListener('click',e=>{
     e.stopPropagation();on=!on;paint();
     try{localStorage.setItem('ba_music',on?'1':'0')}catch(x){}

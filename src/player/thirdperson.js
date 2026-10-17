@@ -450,9 +450,18 @@ const TP=(function(){
   // Người chơi tuỳ ý: khoảng cách (zoom gần / xa), độ cao camera, lệch trái / phải. Lưu ở localStorage 'ba_tpcam'. Chưa chỉnh gì thì dùng đúng CFG gốc ở trên.
   const CAMKEY='ba_tpcam',CAMDEF={dist:CFG.dist,up:CFG.up,side:CFG.side};
   const CAMR={dist:[1.5,8,.1],up:[-.5,2.5,.05],side:[-2,2,.05]};   // [nhỏ nhất, lớn nhất, bước]
-  const CAMT={
+  const CAMT={   // đủ 11 ngôn ngữ của game; ngôn ngữ lạ -> tiếng Anh
     vi:{btn:'Camera góc thứ 3',t:'Camera góc nhìn thứ 3',dist:'Khoảng cách (zoom)',up:'Độ cao',side:'Lệch trái / phải',reset:'Mặc định',close:'Xác nhận',hint:'Đang xem trước trực tiếp. Dùng khi bấm C (góc thứ 3).'},
-    en:{btn:'Third-person camera',t:'Third-person camera',dist:'Distance (zoom)',up:'Height',side:'Left / right offset',reset:'Default',close:'Confirm',hint:'Live preview. Used when you press C (third person).'}
+    en:{btn:'Third-person camera',t:'Third-person camera',dist:'Distance (zoom)',up:'Height',side:'Left / right offset',reset:'Default',close:'Confirm',hint:'Live preview. Used when you press C (third person).'},
+    ru:{btn:'Камера от 3-го лица',t:'Камера от третьего лица',dist:'Дистанция (зум)',up:'Высота',side:'Смещение влево / вправо',reset:'По умолчанию',close:'Подтвердить',hint:'Предпросмотр в реальном времени. Работает при нажатии C (вид от 3-го лица).'},
+    ng:{btn:'Third-person camera',t:'Third-person camera',dist:'How far (zoom)',up:'How high',side:'Left / right',reset:'Default',close:'Confirm',hint:'You dey see am live. E go work when you press C (third person).'},
+    bn:{btn:'তৃতীয় ব্যক্তির ক্যামেরা',t:'তৃতীয় ব্যক্তির ক্যামেরা',dist:'দূরত্ব (জুম)',up:'উচ্চতা',side:'বাম / ডান সরানো',reset:'ডিফল্ট',close:'নিশ্চিত করুন',hint:'সরাসরি প্রিভিউ। C চাপলে (তৃতীয় ব্যক্তির দৃষ্টিকোণ) এটি কাজ করবে।'},
+    id:{btn:'Kamera orang ketiga',t:'Kamera orang ketiga',dist:'Jarak (zoom)',up:'Ketinggian',side:'Geser kiri / kanan',reset:'Bawaan',close:'Konfirmasi',hint:'Pratinjau langsung. Dipakai saat menekan C (orang ketiga).'},
+    hi:{btn:'तृतीय-पुरुष कैमरा',t:'तृतीय-पुरुष कैमरा',dist:'दूरी (ज़ूम)',up:'ऊँचाई',side:'बाएँ / दाएँ खिसकाव',reset:'डिफ़ॉल्ट',close:'पुष्टि करें',hint:'लाइव प्रीव्यू। C दबाने पर (तृतीय-पुरुष दृश्य) यही लागू होगा।'},
+    zh:{btn:'第三人称相机',t:'第三人称相机',dist:'距离（缩放）',up:'高度',side:'左右偏移',reset:'默认',close:'确认',hint:'实时预览。按 C 切换第三人称时生效。'},
+    fil:{btn:'Camera ng ikatlong tao',t:'Camera ng ikatlong tao',dist:'Layo (zoom)',up:'Taas',side:'Paglihis kaliwa / kanan',reset:'Default',close:'Kumpirmahin',hint:'Live na preview. Ginagamit kapag pinindot ang C (ikatlong tao).'},
+    uk:{btn:'Камера від третьої особи',t:'Камера від третьої особи',dist:'Відстань (зум)',up:'Висота',side:'Зсув ліворуч / праворуч',reset:'За замовчуванням',close:'Підтвердити',hint:'Перегляд наживо. Діє, коли натиснути C (від третьої особи).'},
+    ko:{btn:'3인칭 카메라',t:'3인칭 카메라',dist:'거리 (줌)',up:'높이',side:'좌우 이동',reset:'기본값',close:'확인',hint:'실시간 미리보기. C 키로 3인칭일 때 적용됩니다.'}
   };
   try{const sv=JSON.parse(localStorage.getItem(CAMKEY)||'null');if(sv)for(const k in CAMR)if(typeof sv[k]==='number')CFG[k]=Math.min(CAMR[k][1],Math.max(CAMR[k][0],sv[k]))}catch(e){}
   (function camUI(){
@@ -492,6 +501,7 @@ const TP=(function(){
     // đang chỉnh: bấm ra nền (ngoài khung) không được làm game chạy tiếp - chỉ nút Xác nhận mới đóng
     ov.addEventListener('click',e=>{if(pn.style.display==='block'&&!pn.contains(e.target)){e.stopPropagation();e.stopImmediatePropagation()}},true);
     go.before(btn);paint();
+    document.addEventListener('ba-lang',paint);   // đổi ngôn ngữ (bấm chip ở đầu bảng) -> nút + khung camera đổi chữ ngay
     document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement)close()});   // vào lại game -> tự đóng khung
   })();
 

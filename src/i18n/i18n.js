@@ -21,6 +21,7 @@ function applyLang(l){
   $('wn').textContent=t(cur);
   document.querySelectorAll('.lb').forEach(b=>b.classList.toggle('on',b.dataset.l===L));
   renderOv();
+  document.dispatchEvent(new CustomEvent('ba-lang',{detail:L}));   // các module nạp sau (engine/music.js, player/thirdperson.js) nghe sự kiện này để đổi chữ nút của mình
 }
 for(const [c,n] of LN){const b=document.createElement('button');b.className='lb';b.dataset.l=c;b.textContent=n;
   b.addEventListener('click',e=>{e.stopPropagation();manualLang=true;try{localStorage.setItem('ba_lang',c)}catch(x){}applyLang(c)});$('lg').appendChild(b)}
