@@ -29,6 +29,7 @@ function drawMap(){
   mc.drawImage(boxLayer(AH),0,0);
   mc.fillStyle='#ff3355';
   for(const b of bots)if(b.hp>0&&b.on&&(!b.ally||Math.abs(b.y-FY(curFl))<FHT[curFl])){mc.fillStyle=b.ally?'#3fdc7a':b.boss?'#ffd23f':'#ff3355';mc.beginPath();mc.arc(X(b.x),X(b.z),b.ally?7:b.boss?8:4,0,6.3);mc.fill()}
+  if(window.Portal)Portal.drawMap(mc,X);   // chấm cam = cổng không gian
   if(window.NET)NET.drawMap(mc,X);   // LAN: người chơi khác
   const px=X(P.x),pz=X(P.z),a=-Math.sin(yaw),c=-Math.cos(yaw);
   mc.beginPath();mc.moveTo(px+a*9,pz+c*9);mc.lineTo(px-a*4-c*5,pz-c*4+a*5);mc.lineTo(px-a*4+c*5,pz-c*4-a*5);mc.closePath();

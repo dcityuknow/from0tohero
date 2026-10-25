@@ -41,6 +41,7 @@
     // Kẻ địch: mô hình bot/boss, di chuyển, boss, bộ sinh quái, thoại boss, quản lý tầng
     'entities/bot-model.js','entities/boss-model.js','entities/boss2-model.js','entities/steering.js','entities/boss.js',
     'entities/spawner.js','entities/ai-talk.js','entities/boss-talk.js','entities/floor-manager.js',
+    'world/common/portal.js',   // cổng không gian thay cầu thang (cần floor-manager.js / level.js / spawner.js nạp trước)
     'entities/guide-bot.js',   // hướng dẫn viên chòi triển lãm (cần pavilion.js, ai-talk.js, boss-talk.js, i18n.js nạp trước)
     'entities/bot-throw.js',
     'entities/ally.js','entities/archer.js',

@@ -87,12 +87,7 @@ const FM=(function(){
     now+=dt;const c=curFl;need[c]=now;visStruct(c);
     chk-=dt;
     if(chk<=0){chk=.25;
-      if(c<NF-1&&bossDone[c]&&P.y>FY(c)-1&&P.y<FY(c+1)){   // thang LÊN (thang tầng c ở cx = ±(AF-2), chạy từ z = AF-4 lùi 18m; chỉ lên được khi đã hạ boss)
-        const A=AS(c),cx=(c%2?1:-1)*(A-2),zs=A-4;
-        if(Math.abs(P.x-cx)<9&&P.z>zs-STLf(c)-4&&P.z<zs+14)want(c+1)}
-      if(c>0&&P.y>FY(c)-1){   // lỗ thang XUỐNG ở sàn tầng này (là đỉnh thang của tầng c-1)
-        const f=c-1,A=AS(f),cx=(f%2?1:-1)*(A-2),zs=A-4;
-        if(Math.abs(P.x-cx)<9&&P.z>zs-STLf(f)-12&&P.z<zs-STLf(f)+12)want(f)}
+      if(c<NF-1&&bossDone[c])want(c+1)   // boss đã hạ -> cổng không gian sắp mở: nạp sẵn tầng kế để bước qua không bị khựng
     }
     ul-=dt;
     if(ul<=0){ul=1;for(const f of loaded())if(f!==c&&now-(need[f]||0)>KEEP)unload(f)}

@@ -34,30 +34,22 @@ const LAY=[null,
 const sbox=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);   // bố cục tầng 2-4 co giãn theo MAPK
 for(let f=1;f<NF;f++){
   const y=FY(f),[a,b,c,d]=FC[f],A=AF(f),Af=AS(f-1),s=(f-1)%2;
-  slabHole(y-SLAB,A+1,s?Af-4:-Af,s?Af:-Af+4,Af-4-STLf(f-1),Af-4,FLOOR_C);            // sàn khoét lỗ cho thang từ tầng dưới
+  {box(0,y-SLAB,0,2*(A+1),SLAB,2*(A+1),FLOOR_C);const sm=meshes[meshes.length-1];gridTop(sm,-(A+1),A+1,-(A+1),A+1);ceilWhite(sm)}   // sàn LIỀN (không còn lỗ thang): lên tầng bằng cổng không gian (portal.js)
   const WH=f<NF-1?FHT[f]-SLAB:FHT[f]-1;   // tường bao: tầng 2-3 cao tới đáy sàn tầng trên (không thò vào lòng sông tầng trên); tầng cao nhất không có trần nên giữ FH-1
   box(0,y,-(A+.5),2*A+3,WH,1,a);box(0,y,A+.5,2*A+3,WH,1,a);box(-(A+.5),y,0,1,WH,2*A+3,b);box(A+.5,y,0,1,WH,2*A+3,b);
   LAY[f](y,a,b,c,d,sbox);
 }
 // tầng cao nhất KHÔNG có trần: để hở ra bầu trời (world/sky.js dựng vòm trời + mây)
-for(let f=0;f<NF-1;f++){
-  const y=FY(f),FHf=FHT[f],STf=STLf(f),A=AS(f),s=f%2,sg=s?1:-1,cx=sg*(A-2),zs=A-4,col=FC[f];
-  const NS=Math.round(FHf/.5),SD=STf/NS;for(let i=0;i<NS;i++)box(cx,y,zs-SD*i-SD/2,4,(FHf/NS)*(i+1),SD,i%2?col[3]:col[2]);   // mỗi bậc cao .5m, cả thang dài STf (khớp lỗ sàn)
-  box(sg*(A-4.15),y,zs-STf/2,.3,FHf+2.2,STf,col[1]);                                      // tường trong + rào lỗ ở tầng trên
-  box(sg*(A+.15),y+FHf,zs-STf/2,.3,2.2,STf,col[1]);box(cx,y+FHf,zs+.1,4,2.2,.2,col[1]);
-  if(A<AF(f))box(sg*(A+.15),y,zs-STf/2,.3,FHf,STf,col[1]);   // tầng 2 rộng hơn tầng 3: thang nằm giữa sàn nên cần thêm tường phía ngoài (ở tầng khác đã có tường bao)   // rào ngoài + rào phía nam
-  box(cx,y,zs+.45,4,4.2,.3,0xff3355);
-  const g={open:false,e:boxes[boxes.length-1],m:meshes[meshes.length-1]};
-  g.m.material.transparent=true;g.m.material.opacity=.6;g.m.material.emissive=new THREE.Color(0x881122);gates[f]=g;
-}
-function openGate(f){const g=gates[f];if(!g||g.open)return;g.open=true;boxes.splice(boxes.indexOf(g.e),1);meshes.splice(meshes.indexOf(g.m),1);S.remove(g.m)}
+// (đã bỏ vòng dựng thang + cổng khóa đỏ: lên tầng bằng cổng không gian, xem world/common/portal.js)
+// openGate(f): giữ tên cũ vì boss.js / net.js / botsync.js gọi khi boss tầng f bị hạ -> báo cho portal.js mở cổng ở tầng f
+function openGate(f){if(window.Portal)Portal.ready(f)}
 // điểm spawn cho từng tầng: lấy mẫu lưới ở vùng giữa, bỏ điểm chạm vật cản
 const _sp=[];
 function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:Math.round(14*MAPK),c=[];
   for(let x=-R;x<=R;x+=3)for(let z=-(A-3);z<=A-3;z+=3)if(!hit({x,y:FY(f)+.02,z,r:.7,h:1.7}).length&&!(window.Nature&&Nature.isWater&&Nature.isWater(f,x,z,1.2))&&!(f===1&&window.Nature&&Nature.heightAt&&Nature.heightAt(f,x,z)>4.5))c.push([x,z]);   // tầng 2: không sinh quái trên sườn núi cao
   const k=Math.max(1,Math.floor(c.length/(f===1?30:14)));return _sp[f]=c.filter((_,i)=>i%k===0)}
 function resetLevel(){
-  for(const g of gates)if(g.open){g.open=false;boxes.push(g.e);meshes.push(g.m);S.add(g.m)}
+  if(window.Portal)Portal.reset();   // xóa mọi cổng không gian, chơi lại từ tầng 1
   bul.forEach(p=>S.remove(p.m));bul.length=0;fk.fill(0);bossDone.fill(false);bossAlive=false;curFl=0;
   if(window.FM)FM.reset();   // floors.js: dỡ các tầng 2-4, giữ tầng 1
   setupFloor();
