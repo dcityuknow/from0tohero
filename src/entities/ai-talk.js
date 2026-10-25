@@ -1,12 +1,10 @@
 // AI nói chuyện (Groq): bot thường + boss tự nghĩ câu thoại theo tình huống (máu, khoảng cách, súng đang cầm) và theo NGÔN NGỮ đang chọn.
-// KEY: đọc từ assets/data/groq-keys.txt (mỗi dòng 1 key, dòng bắt đầu bằng # bị bỏ qua) + AIT.keys (dán thẳng vào code nếu muốn).
-// Key nào bị giới hạn (429) thì nghỉ key đó rồi chuyển sang key kế tiếp; key sai (401/403) bị loại hẳn.
-// Hết sạch key khả dụng -> AITalk.line() trả null để boss-talk.js dùng câu thoại có sẵn (talking.txt); khi có key hồi lại sẽ tự dùng AI tiếp.
+// KEY: KHÔNG còn nằm trong game. Game gọi proxy Cloudflare Worker (AIT.url), key thật giữ trong secret GROQ_KEYS của Worker.
+// Worker tự chuyển key khi bị giới hạn (429). Hết sạch key / bị giới hạn -> Worker trả 429/503 -> game nghỉ AIT.limitWait giây.
+// Hết khả dụng -> AITalk.line() trả null để boss-talk.js dùng câu thoại có sẵn (talking.txt); khi hồi lại sẽ tự dùng AI tiếp.
 // Nạp TRƯỚC boss-talk.js (xem loader.js). Gõ AITalk.status() trong Console để xem tình trạng key.
 const AIT={
-  keysFile:'assets/data/groq-keys.txt',
-  keys:[],                                          // dán key trực tiếp: ['gsk_xxx','gsk_yyy']
-  url:'https://api.groq.com/openai/v1/chat/completions',
+  url:'https://privatekey.huy94dcity.workers.dev/',   // proxy Cloudflare Worker (giữ key Groq). Xem worker.js
   models:['openai/gpt-oss-20b','openai/gpt-oss-120b','llama-3.1-8b-instant'],   // thử lần lượt: model nào bị gỡ / không tồn tại thì tự qua model kế
   temp:0.8,
   infoRate:.25,    // tỉ lệ câu nói về Optimum (còn lại là phản ứng trận đánh): 0 = không bao giờ, 1 = luôn luôn
@@ -55,32 +53,21 @@ const AI_LANG={vi:'Vietnamese',en:'English',ru:'Russian',ng:'Nigerian Pidgin Eng
 const AI_WPN={pistol:'pistol',rifle:'assault rifle (AK)',sniper:'sniper rifle',grenade:'grenade'};
 
 const AITalk=(function(){
-  const K={list:[],ready:false,rr:0,mi:0,netT:0,busy:0,recent:[]};   // list: [{k,until,dead}] · rr: key đang dùng · mi: model đang dùng
-  const addKeys=a=>{for(let s of a){s=String(s).replace(/^["',\s]+|["',\s]+$/g,'');if(s&&s[0]!=='#'&&!K.list.some(e=>e.k===s))K.list.push({k:s,until:0,dead:false})}};
-  addKeys(AIT.keys);
-  fetch(AIT.keysFile,{cache:'no-store'}).then(r=>r.ok?r.text():'').then(x=>addKeys(x.replace(/^\uFEFF/,'').split(/\r?\n/))).catch(()=>{}).finally(()=>{K.ready=true});
+  const K={ready:true,mi:0,netT:0,limT:0,busy:0,recent:[]};   // mi: model đang dùng · limT: tới lúc này proxy đang bị giới hạn / hết key
+  const anyKey=()=>Date.now()>=K.limT;
 
-  // chọn key còn dùng được, ưu tiên giữ key hiện tại cho tới khi nó hết hạn mức
-  function pickKey(){const n=K.list.length,now=Date.now();
-    for(let i=0;i<n;i++){const j=(K.rr+i)%n,e=K.list[j];if(!e.dead&&e.until<=now){K.rr=j;return e}}
-    return null}
-  const anyKey=()=>K.list.some(e=>!e.dead&&e.until<=Date.now());
-
-  // gọi Groq: thử lần lượt các key / model; trả về chuỗi thô hoặc null
+  // gọi Groq QUA PROXY: thử lần lượt các model; trả về chuỗi thô hoặc null (key do Worker lo, game không thấy key)
   async function groq(sys,usr,effort){
-    for(let tries=0;tries<K.list.length*AIT.models.length+2;tries++){
-      const e=pickKey(),model=AIT.models[K.mi];if(!e||!model)return null;
-      const body={model,temperature:AIT.temp,max_completion_tokens:700,messages:[{role:'system',content:sys},{role:'user',content:usr}]};
-      if(model.includes('gpt-oss'))body.reasoning_effort=effort||'low';   // model suy luận: bot để thấp cho nhanh, boss dùng medium cho câu có nghĩa hơn
+    for(let tries=0;tries<AIT.models.length+1;tries++){
+      const model=AIT.models[K.mi];if(!model)return null;
+      const body={model,effort:effort||'low',messages:[{role:'system',content:sys},{role:'user',content:usr}]};   // model suy luận: bot để thấp cho nhanh, boss dùng medium
       const ac=new AbortController(),to=setTimeout(()=>ac.abort(),AIT.timeout);let r;
-      try{r=await fetch(AIT.url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+e.k},body:JSON.stringify(body)})}
+      try{r=await fetch(AIT.url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
       catch(x){K.netT=Date.now()+AIT.netWait*1000;return null}
       finally{clearTimeout(to)}
-      if(r.status===429){   // hết hạn mức: nghỉ key này (đọc retry-after nếu server cho phép đọc), chuyển key khác
-        const ra=parseFloat(r.headers.get('retry-after'));e.until=Date.now()+(isFinite(ra)&&ra>0?ra:AIT.limitWait)*1000;continue}
-      if(r.status===401||r.status===403){e.dead=true;continue}                 // key sai / bị thu hồi
+      if(r.status===429||r.status===503){K.limT=Date.now()+AIT.limitWait*1000;return null}   // mọi key đều hết hạn mức: nghỉ rồi dùng thoại có sẵn
       if(r.status===404||r.status===400){K.mi++;continue}                      // model không còn: qua model kế tiếp
-      if(!r.ok){e.until=Date.now()+10000;continue}                             // lỗi máy chủ: cho key nghỉ chút
+      if(!r.ok){K.limT=Date.now()+10000;return null}                           // lỗi khác: nghỉ chút
       try{const j=await r.json(),c=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(c)return c}catch(x){}
       return null;
     }
@@ -122,6 +109,6 @@ const AITalk=(function(){
     }catch(x){return null}
     finally{K.busy--}
   }
-  const status=()=>{const now=Date.now(),s={keys:K.list.length,usable:K.list.filter(e=>!e.dead&&e.until<=now).length,limited:K.list.filter(e=>!e.dead&&e.until>now).length,dead:K.list.filter(e=>e.dead).length,model:AIT.models[K.mi]||'(hết model)',netOff:Math.max(0,Math.round((K.netT-now)/1000))};console.log('[Block Arena] AI nói chuyện:',s);return s};
+  const status=()=>{const now=Date.now(),s={proxy:AIT.url,limitedFor:Math.max(0,Math.round((K.limT-now)/1000)),model:AIT.models[K.mi]||'(hết model)',netOff:Math.max(0,Math.round((K.netT-now)/1000))};console.log('[Block Arena] AI nói chuyện:',s);return s};
   return {line,status};
 })();
