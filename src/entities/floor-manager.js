@@ -34,6 +34,7 @@ function tickBoss(dt){
   let nf=flOf(P.y+.05);if(nf<curFl&&P.y>=FY(curFl)-SLAB)nf=curFl;   // lặn dưới đáy sông tầng trên (trong lòng tấm sàn dày SLAB) vẫn tính là tầng đó, chỉ xuống tầng dưới khi thật sự qua khỏi đáy sàn
   if(nf!==curFl){FM.enter(nf);curFl=nf;setupFloor()}   // FM.enter: bảo đảm tầng mới đã được dựng TRƯỚC khi sinh quái (fSpawns cần cây / sông của tầng đó)
   FM.tick(dt);
+  if(window.Portal)Portal.tick(dt);   // cổng không gian (world/common/portal.js)
   tickSpawn(dt);
   const bo=boss.on&&boss.hp>0;talkTick(dt,bo);botTalkTick(dt);bb.style.display='block';$('bbw').style.display=bo?'block':'none';
   $('bbn').textContent=bo?bname(boss.fl):bossDone[curFl]?t('floorclear',curFl+1):t('floor',curFl+1,fk[curFl],need(curFl));
@@ -48,7 +49,5 @@ function tickBoss(dt){
     if(gone||p.life<=0){if(!p.o)S.remove(p.m);bul.splice(i,1)}
     else if(!bulDraw(p))p.m.position.set(p.x,p.y,p.z)}
   for(const o of bulGrp.values()){o.im.count=o.n;o.im.instanceMatrix.needsUpdate=true}
-  lk-=dt;const g=gates[curFl];
-  if(g&&!g.open&&lk<=0&&Math.hypot(P.x-(curFl%2?1:-1)*(AS(curFl)-2),P.z-(AS(curFl)-3.55))<3){showMsg(t('locked',need(curFl)));lk=3}
 }
 setupFloor();
