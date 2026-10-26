@@ -35,7 +35,7 @@ function tickBoss(dt){
   if(nf!==curFl){FM.enter(nf);curFl=nf;setupFloor()}   // FM.enter: bảo đảm tầng mới đã được dựng TRƯỚC khi sinh quái (fSpawns cần cây / sông của tầng đó)
   FM.tick(dt);
   if(window.Portal)Portal.tick(dt);   // cổng không gian (world/common/portal.js)
-  tickSpawn(dt);
+  if(!(window.Apoc&&Apoc.active))tickSpawn(dt);   // đang xem tầng sụp đổ: không sinh quái mới
   const bo=boss.on&&boss.hp>0;talkTick(dt,bo);botTalkTick(dt);bb.style.display='block';$('bbw').style.display=bo?'block':'none';
   $('bbn').textContent=bo?bname(boss.fl):bossDone[curFl]?t('floorclear',curFl+1):t('floor',curFl+1,fk[curFl],need(curFl));
   if(bo)$('bbf').style.width=Math.max(0,boss.hp/boss.maxhp*100)+'%';
