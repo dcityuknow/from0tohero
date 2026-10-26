@@ -2,7 +2,7 @@
 // kệ trưng bày kính trong suốt có bảng điện tử (hologram) lơ lửng phía trên. Cửa vào: giữa mặt trước (+z) và giữa mặt phải (+x), có bậc thang.
 // Nạp SAU house.js, TRƯỚC nature.js: mở rộng window.HouseZone để cây / đá / sông tự né phòng.
 (function(){
-const PX=7*F1K,PZ=-19.5*F1K;               // tâm chòi (x,z) trên sàn tầng 1 (chỗ tường hồng cũ: bk(0,0,-13,...) * MAPK)
+const PX=0,PZ=-19.5*F1K;                   // tâm chòi (x,z) trên sàn tầng 1. PX=0: chòi nằm CHÍNH GIỮA 2 tượng (2 tượng đứng đối xứng ở x=±8*MAPK*F1K). Bản cũ PX=7*F1K nên chòi lệch phải.
 const FL=.875, RY=5.3;             // mặt sàn · chân mái = mức trần CAO NHẤT của trần lượn sóng (nâng cao để tranh to không chạm trần)
 const RAILY=RY-.65;                // mức dưới đáy trần thấp nhất: đèn ray (nếu bật SHOW_FIXTURES) treo từ đây
 const DZ=3.5, DDZ=DZ-1.75;          // phần sâu thêm mỗi bên cho hành lang rộng (bản cũ DZ=1.75; muốn rộng/hẹp hơn chỉ cần sửa số này). DDZ = phần nới thêm so với bản 1.75: tranh / tủ kính / ray đèn dời ra sát tường theo DDZ

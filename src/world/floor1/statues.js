@@ -6,7 +6,7 @@
 // Nạp SAU pavilion.js, TRƯỚC nature.js (xem loader.js). Chỉnh nhanh ở STA / Q bên dưới.
 (function(){
 const STA={
-  x:8*MAPK*F1K,z:6*MAPK*F1K,   // vị trí 2 bệ (dãn ra theo F1K)
+  x:8*MAPK*F1K,z:6*MAPK*F1K+3.5,   // vị trí 2 bệ (dãn ra theo F1K; +3.5 = lùi xa sông, vào phía thảm cỏ. Tăng số này để lùi xa hơn, giảm để gần sông hơn)
   face:Math.PI,        // hướng mặt tượng khi CHƯA biết sông (rad, quanh trục y): PI = quay về -z (sông nằm phía -z của 2 bệ)
   toRiver:true,        // true = khi sông dựng xong, tự xoay mặt tượng về phía điểm sông gần nhất
   faceOffset:0,        // lệch thêm sau khi quay về sông (rad). VD .3 = chếch sang một bên
@@ -437,5 +437,6 @@ function build(){
   fxStart();
 }
 build();
-window.Statues={build,LAMP};
+// kit + STA: statues2.js (2 tượng khổng lồ đối diện qua sông) dùng lại bệ, logo, bảng màu, thông số đèn và vị trí của 2 tượng này
+window.Statues={build,LAMP,STA,kit:{ring,pedestal,ST,STD,GD,D,LT,MOSS,c,Y}};
 })();

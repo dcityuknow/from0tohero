@@ -5,8 +5,14 @@
 // Nạp SAU statues.js, TRƯỚC nature.js (xem loader.js). Chỉnh nhanh ở TEA bên dưới.
 (function(){
 const TEA={
-  x:8*MAPK*F1K,z:-6*MAPK*F1K   // chỗ 2 khối xanh cũ, dãn ra theo F1K (x = ±, z = -)
+  x:8*MAPK*F1K,z:-6*MAPK*F1K,  // chỗ 2 khối xanh cũ, dãn ra theo F1K (x = ±, z = -)
+  shift:5.6                    // dời bàn trà SANG NGANG bấy nhiêu mét để nhường chỗ cho 2 tượng khổng lồ của statues2.js (đặt đối diện 2 tượng cũ qua sông, ngay phía -z của bàn trà). >0 = ra xa tâm bản đồ; tự đổi hướng vào trong nếu sát mép. 0 = không dời
 };
+// 2 tượng mới (statues2.js) đứng ở (±STA.x, -STA.z) cùng đèn pha 7 m phía trước -> bàn trà (rộng ±3.2 m) phải lệch khỏi cột x đó
+if(TEA.shift){
+  const lim=(typeof HALF0==='number'?HALF0:60)-4.5,bx=TEA.x;
+  TEA.x=bx+TEA.shift<=lim?bx+TEA.shift:bx-TEA.shift;
+}
 
 // ---------- BẢNG MÀU (giống house.js) ----------
 const STONE=[0x5a5a5a,0x6a6a6a,0x4c4c4c,0x777777,0x3e3e3e];

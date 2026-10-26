@@ -18,6 +18,7 @@ function keepOuts(f){
   if(f===0&&window.TeaKeeps)k.push(...window.TeaKeeps);   // 2 bộ bàn trà (world/teaset.js): cây / đá / sông / đầu cầu né ra
   if(f===0&&window.StairGroveKeep)k.push(window.StairGroveKeep);   // rừng cây cao che tường thang lên tầng 2 (world/stairgrove.js): cây / đá / sông / đầu cầu né ra
   if(f===0&&window.BathKeeps)k.push(...window.BathKeeps);   // 2 hồ tắm đá (world/bath.js): cây / đá / sông / đầu cầu né ra
+  if(f===0&&window.Statues2Keeps)k.push(...window.Statues2Keeps);   // 2 tượng khổng lồ mới (world/statues2.js): cây / đá / sông / đầu cầu né ra
   if(f<NF-1){const A=AS(f),cx=(f%2?1:-1)*(A-2);k.push({x0:cx-3.2,x1:cx+3.2,z0:A-STLf(f)-5,z1:A-.5})}
   if(f>0){const Af=AS(f-1),s=(f-1)%2,a=s?Af-4:-Af,b=s?Af:-Af+4;k.push({x0:a-2,x1:b+2,z0:Af-STLf(f-1)-6,z1:Af-2})}
   return k;
