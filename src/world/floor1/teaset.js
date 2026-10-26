@@ -5,7 +5,7 @@
 // Nạp SAU statues.js, TRƯỚC nature.js (xem loader.js). Chỉnh nhanh ở TEA bên dưới.
 (function(){
 const TEA={
-  x:8*MAPK,z:-6*MAPK   // đúng chỗ 2 khối xanh cũ (x = ±, z = -)
+  x:8*MAPK*F1K,z:-6*MAPK*F1K   // chỗ 2 khối xanh cũ, dãn ra theo F1K (x = ±, z = -)
 };
 
 // ---------- BẢNG MÀU (giống house.js) ----------

@@ -1,6 +1,9 @@
 // Bản đồ: sàn, tường, khối chắn
 // MAPK = hệ số phóng to bản đồ (1 = kích thước gốc, 1.5 = rộng gấp 1.5 lần mỗi chiều). CHỈ CẦN SỬA SỐ NÀY để đổi cỡ cả 4 tầng.
 const MAPK=1.5;
+// F1K = hệ số phóng to RIÊNG tầng 1 (chỉ tầng 1, các tầng 2-4 không đổi). 1 = như cũ, 1.5 = tầng 1 rộng gấp 1,5 lần mỗi chiều (nửa cạnh 30 -> 45m).
+// Cỡ sàn / tường bao dùng F1K ngay dưới; level.js (AF) và các công trình tầng 1 (nhà, chòi, tượng, bàn trà, hồ tắm) dùng F1K để dãn vị trí ra (cỡ công trình giữ nguyên).
+const F1K=1.5;
 // FH = chiều cao mỗi tầng (m) (đã tăng gấp đôi: 16 -> 32). Tăng lên thì trần cao hơn; chiều dài thang STL ở level.js tự dài theo (bậc luôn cao .5m); thang ở level.js tự chia lại số bậc; sương + mây nhỏ dưới trần ở sky.js tự theo (mỗi bậc cao .5m).
 const FH=32;   // chiều cao MẶC ĐỊNH của một tầng (tầng 2-4). Chiều cao từng tầng riêng: xem FHT bên dưới
 // FHT = chiều cao từng tầng (m). Tầng 1 thấp hơn (22.4 = 70% của 32), các tầng 2-4 giữ 32. Sửa số ở đây là xong: mọi file dùng FY(f) / FHT[f] / flOf(y)
@@ -17,7 +20,7 @@ function box(x,y,z,w,h,d,col){
   m.position.set(x,y+h/2,z);S.add(m);meshes.push(m);
   boxes.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+h,z0:z-d/2,z1:z+d/2});
 }
-const HALF0=Math.round(20*MAPK);   // nửa cạnh trong của tầng 1 (gốc = 20)
+const HALF0=Math.round(20*MAPK*F1K);   // nửa cạnh trong của tầng 1 (gốc = 20; nhân MAPK và F1K)
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF0+2,2*HALF0+2),new THREE.MeshLambertMaterial({color:0x8a8c96}));
 floor.rotation.x=-Math.PI/2;S.add(floor);meshes.push(floor);
 const grid=new THREE.GridHelper(2*HALF0+2,HALF0+1,0x6b6d78,0x6b6d78);grid.position.y=.02;S.add(grid);

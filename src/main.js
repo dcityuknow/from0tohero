@@ -50,8 +50,8 @@ function hurt(n){
 // Cách thêm vị trí: đứng đúng chỗ + hướng nhìn muốn, mở Console (F12) gõ  spawnPos()  -> nó in sẵn 1 dòng {x,y,z,yaw,pitch}, dán thêm vào mảng này.
 // y = độ cao CHÂN (P.y). Vị trí dưới nước: cứ để y như spawnPos() in ra, vật lý bơi (nature/swim.js) tự xử lý.
 const SPAWNS=[
-  {name:'new',x:1.88,y:4.75,z:16.65,yaw:1.794,pitch:0.08},
-  {name:'new',x:11.68,y:0.88,z:-20.38,yaw:-4.47,pitch:-0.015},
+  {name:'new',x:1.88,y:4.75,z:16.65+15.5*(F1K-1),yaw:1.794,pitch:0.08},
+  {name:'new',x:11.68+7*(F1K-1),y:0.88,z:-20.38-19.5*(F1K-1),yaw:-4.47,pitch:-0.015},
   {name:'new',x:19.93,y:1.93,z:2.02,yaw:-4.71,pitch:0.065},
   {name:'new',x:14.64,y:-3.2,z:0.47,yaw:1.423,pitch:-0.035},
 ];

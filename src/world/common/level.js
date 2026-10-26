@@ -1,7 +1,7 @@
 // Tòa nhà 4 tầng: mỗi tầng 1 map riêng, càng lên cao càng rộng (nửa cạnh trong gốc: 20/25/30/35, nhân với MAPK ở world.js).
 // Thang tầng chẵn ở TÂY, tầng lẻ ở ĐÔNG. Cổng khóa ở chân thang, mở khi hạ boss của tầng đó.
 // SLAB (độ dày sàn các tầng 2-4, m) được khai báo ở world.js. Dày để đào sông sâu (đáy sông sâu tối đa SLAB-.3)
-const NF=4,AF=f=>Math.round((20+5*(f===2?1:f))*MAPK*(f===1||f===2?2:1));   // tầng 2 và tầng 3 (f=1,2) cùng rộng 150 x 150m (nửa cạnh 75): thang lên tầng 3 nằm sát tường bao
+const NF=4,AF=f=>Math.round((20+5*(f===2?1:f))*MAPK*(f===1||f===2?2:1)*(f===0?F1K:1));   // tầng 2 và tầng 3 (f=1,2) cùng rộng 150 x 150m (nửa cạnh 75): thang lên tầng 3 nằm sát tường bao
 const STLf=f=>FHT[f]*1.125;   // chiều dài thang của tầng f (thang đi từ tầng f lên tầng f+1): tầng 1 = 25.2m, các tầng khác 36m
 //                       // chiều dài thang (m): bậc cao .5m, sâu .5625m như cũ -> FH=32 thì thang dài 36m
 const AS=f=>Math.min(AF(f),AF(f+1));      // nửa cạnh "neo thang" của tầng f: thang lên tầng f+1 phải rơi vào sàn tầng f+1 (tầng 4 nhỏ hơn tầng 3) nên lấy cạnh nhỏ hơn
@@ -45,7 +45,7 @@ for(let f=1;f<NF;f++){
 function openGate(f){if(window.Portal)Portal.ready(f)}
 // điểm spawn cho từng tầng: lấy mẫu lưới ở vùng giữa, bỏ điểm chạm vật cản
 const _sp=[];
-function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:Math.round(14*MAPK),c=[];
+function fSpawns(f){if(_sp[f])return _sp[f];const A=AF(f),R=f?A-11:Math.round(14*MAPK*F1K),c=[];
   for(let x=-R;x<=R;x+=3)for(let z=-(A-3);z<=A-3;z+=3)if(!hit({x,y:FY(f)+.02,z,r:.7,h:1.7}).length&&!(window.Nature&&Nature.isWater&&Nature.isWater(f,x,z,1.2))&&!(f===1&&window.Nature&&Nature.heightAt&&Nature.heightAt(f,x,z)>4.5))c.push([x,z]);   // tầng 2: không sinh quái trên sườn núi cao
   const k=Math.max(1,Math.floor(c.length/(f===1?30:14)));return _sp[f]=c.filter((_,i)=>i%k===0)}
 function resetLevel(){

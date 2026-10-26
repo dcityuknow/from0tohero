@@ -40,7 +40,9 @@ const CFG={
   underwater:true,         // lớp màu nước + sương mù + bọt khí khi đầu ngập dưới mặt nước
   // ---- Sông & bơi (MỚI) ----
   riverW:5,                // NỬA bề rộng sông (m): 5 = sông rộng ~10m (tầng cao hơn rộng hơn chút)
-  extraBridges:[{f:0,x:-9,z:1}],   // CẦU THÊM (ngoài các cầu tự chọn chỗ hẹp nhất): f = tầng (0 = tầng 1), (x,z) = điểm mong muốn trên sông. Game tự chọn chỗ gần điểm đó nhất mà 2 đầu cầu có đất trống (tối đa lệch 12m, cách cầu khác >= 8m). Thêm nhiều cầu = thêm nhiều {f,x,z}; bỏ cầu = xóa dòng. Lấy tọa độ: đứng chỗ muốn đặt, F12 -> Console gõ [P.x,P.z]
+  riverK0:1.6,             // nhân thêm bề rộng sông CHỈ Ở TẦNG 1 (1 = như cũ; 1.6 = nửa rộng 8m, sông rộng ~16m). Tăng lên nếu muốn sông rộng hơn nữa
+  extraBridges:[{f:0,x:-13.5,z:1.5}],
+  bridgeAdjust:[{f:0,removeBelow:-6,moveAbove:2,dq:5}],   // BỎ / DỊCH cầu của tầng f theo tọa độ q (sông chạy ngang thì q = x; nhìn về phía -z: trái = q nhỏ, phải = q lớn). removeBelow: cầu có q nhỏ hơn số này thì BỎ · moveAbove + dq: cầu có q lớn hơn moveAbove thì dịch ra xa thêm dq mét về phía q lớn. Muốn tắt: xóa dòng này. Lấy q của các cầu: F12 -> Console gõ Nature.bridges(0).map(b=>b.q)   // CẦU THÊM (ngoài các cầu tự chọn chỗ hẹp nhất): f = tầng (0 = tầng 1), (x,z) = điểm mong muốn trên sông. Game tự chọn chỗ gần điểm đó nhất mà 2 đầu cầu có đất trống (tối đa lệch 12m, cách cầu khác >= 8m). Thêm nhiều cầu = thêm nhiều {f,x,z}; bỏ cầu = xóa dòng. Lấy tọa độ: đứng chỗ muốn đặt, F12 -> Console gõ [P.x,P.z]
   riverBend:1,             // độ uốn lượn của dòng sông (0 = thẳng tắp, 1.5 = uốn nhiều)
   swimOn:1.25,             // nước sâu từ mức này (m) -> TỰ ĐỘNG chuyển sang chế độ bơi
   swimOff:.85,             // nước nông hơn mức này -> thôi bơi, lội bộ

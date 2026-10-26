@@ -6,8 +6,8 @@
 // Chỉnh nhanh: BATHS (vị trí, bỏ bớt hồ) · BATH_DEPTH (độ sâu hồ) · POOL / LOBE (hình dạng hồ) · STREAMS (các dòng thác).
 (function(){
 const BATHS=[
-  {x:15*MAPK, z:14*MAPK, sx:1},    // chỗ khối mint cũ bk(15,0,14,...); sx = hướng vách thác (+1 = về tường Đông)
-  {x:-15*MAPK,z:-14*MAPK,sx:-1}    // chỗ khối mint cũ bk(-15,0,-14,...); vách thác về tường Tây
+  {x:HALF0-7.5, z:14*MAPK*F1K, sx:1},    // chỗ khối mint cũ bk(15,0,14,...); sx = hướng vách thác (+1 = về tường Đông)
+  {x:-(HALF0-7.5),z:-14*MAPK*F1K,sx:-1}    // chỗ khối mint cũ bk(-15,0,-14,...); vách thác về tường Tây
 ];
 const BATH_DEPTH=1.0;                                  // độ sâu đáy hồ ở giữa (m dưới mặt sàn). Sông là 3.2 -> hồ nông hơn nhiều, lội được
 const POOL={cx:-1.3,a:4.4,b:3.4,p:2.6};                // bể chính (khung tọa độ cục bộ: +x = phía vách thác, -x = lối vào)

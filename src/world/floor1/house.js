@@ -4,7 +4,7 @@
 // Mái ngói đá phiến 2 tầng (mái dưới + mái trên cong góc), đèn lồng / đèn treo phát sáng vàng (có quầng sáng + vài PointLight).
 // Nạp SAU voxel.js, TRƯỚC nature.js để cây / đá / sông tự né nhà (xem keepOuts trong nature.js).
 (function(){
-const HX=0,HZ=15.5;                 // tâm nhà (x,z) trên sàn tầng 1
+const HX=0,HZ=15.5*F1K;                 // tâm nhà (x,z) trên sàn tầng 1
 // QUAY MẶT NHÀ VỀ PHÍA SÔNG: sông tầng 1 chạy ngang bản đồ ở phía -z của nhà, nên xoay cả căn nhà 180° quanh tâm (HX,HZ):
 // mặt tiền (hiên, bậc thang, biển hiệu logo) hướng -z (về sông), lưng nhà hướng +z. false = như cũ (mặt tiền +z).
 // Mọi toạ độ bên dưới vẫn viết theo hệ cục bộ cũ; chỉ lúc đặt mesh / va chạm / đèn / che khuất mới đảo dấu (biến sg).

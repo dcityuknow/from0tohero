@@ -79,7 +79,7 @@ function buildFloor(f){
   const inm=(x,z)=>Math.abs(x)<A-.5&&Math.abs(z)<A-.5;
   const blocked=(x,z)=>hitAny({x,y:y0+.02,z,r:.05,h:.5})||keep.some(q=>circleRect(x,z,.5,q))||(f>0&&!sup(x,z,1));
   const mkRiver=()=>{
-    const W=CFG.riverW*(1+.04*f),dmax=f>0?Math.min(Math.max(.2,CFG.depth),SLT-.3):Math.max(.2,CFG.depth),bend=CFG.riverBend;
+    const W=CFG.riverW*(f===0?CFG.riverK0||1:1)*(1+.04*f),dmax=f>0?Math.min(Math.max(.2,CFG.depth),SLT-.3):Math.max(.2,CFG.depth),bend=CFG.riverBend;
     let best=null,bs=1e9;
     for(let n=0;n<160&&bs>=1;n++){   // thử nhiều đường đi ngẫu nhiên, lấy đường ít đụng vật cản / vùng cấm nhất
       const th=(rand()<.5?0:Math.PI/2)+rand.range(-.2,.2),ux=Math.cos(th),uz=Math.sin(th),nx=-uz,nz=ux,c0=rand.range(-.5,.5)*A,
@@ -201,6 +201,20 @@ function buildFloor(f){
       }
       for(let w=wa-2;w<=wb+2;w+=2){const [x,z]=pt(q,w);placed.push({x,z,r:2.2});flat.push({x,z,r:3.4})}Fl.bridges.push({along,q,wa,wb});   // đăng ký cầu cho AI bot (steering.js) · cây / đá tránh đầu cầu, địa hình phẳng quanh cầu
     };
+    // CFG.bridgeAdjust (kit.js): bỏ / dịch cầu theo tọa độ q (dọc trục sông; sông chạy ngang thì q = x). Vùng cầu bị bỏ vẫn được giữ trống (placed / flat) để cây không đổi bố cục.
+    const adj=(CFG.bridgeAdjust||[]).find(a=>a.f===f)||null;
+    const reserve=c=>{for(let w=c.wa-2;w<=c.wb+2;w+=2){const [x,z]=pt(c.q,w);placed.push({x,z,r:2.2});flat.push({x,z,r:3.4})}};
+    const place=c=>{
+      if(adj&&typeof adj.removeBelow==='number'&&c.q<adj.removeBelow){reserve(c);return}   // BỎ cầu này
+      if(adj&&typeof adj.moveAbove==='number'&&adj.dq&&c.q>adj.moveAbove){   // DỊCH cầu này ra xa thêm adj.dq mét (về phía q lớn hơn)
+        const q0=c.q+adj.dq;let n2=null;
+        for(let dq=0;dq<=8&&!n2;dq+=.5)for(const s of dq?[1,-1]:[1]){
+          const q=q0+s*dq;if(Math.abs(q)>lim-5||bq.some(p=>p!==c.q&&Math.abs(p-q)<8))continue;
+          const p2=plan(q);if(p2){n2=p2;break}}
+        if(n2){reserve(c);build(n2);return}
+      }
+      build(c);
+    };
     for(let nb=rv.nb||(A>=30?2:1);nb>0;nb--){
       let best=null;
       for(let q=-lim+5;q<=lim-5;q+=1){
@@ -209,7 +223,7 @@ function buildFloor(f){
         c.s=c.sp+Math.abs(q)*.08+rand()*1.5;if(!best||c.s<best.s)best=c;
       }
       if(!best)break;
-      bq.push(best.q);build(best);
+      bq.push(best.q);place(best);
     }
     for(const h of CFG.extraBridges||[]){   // CẦU THÊM theo tọa độ (kit.js: extraBridges): chọn q gần điểm (x,z) nhất mà 2 đầu cầu có đất trống, cách cầu khác >= 8m; không dùng rand() nên không làm đổi bố cục cây / đá
       if(h.f!==f||typeof h.x!=='number'||typeof h.z!=='number')continue;
@@ -217,7 +231,7 @@ function buildFloor(f){
       for(let dq=0;dq<=12&&!best;dq+=.5)for(const s of dq?[-1,1]:[1]){
         const q=q0+s*dq;if(Math.abs(q)>lim-5||bq.some(p=>Math.abs(p-q)<8))continue;
         const c=plan(q);if(c){best=c;break}}
-      if(best){bq.push(best.q);build(best)}else console.warn('extraBridges: không đặt được cầu gần',h);
+      if(best){bq.push(best.q);place(best)}else console.warn('extraBridges: không đặt được cầu gần',h);
     }
    }}
 
