@@ -56,11 +56,16 @@ window.BOOT=(function(){
     // tiến mượt về mục tiêu; khi đã tải xong thì chạy nốt vòng với tốc độ cố định (~0.6s)
     if(fin)shown=Math.min(1,shown+dt*1.7);else shown+=(Math.min(target,.98)-shown)*Math.min(1,dt*5);
     paint(shown);
-    if(fin&&shown>=1){gone=true;paint(1);setTimeout(()=>{root.classList.add('out');setTimeout(()=>{root.remove();if(cb)cb()},520)},350);return}
+    if(fin&&shown>=1){gone=true;paint(1);setTimeout(()=>{root.classList.add('out');setTimeout(()=>{if(cb)cb()},520)},350);return}   // KHÔNG remove nữa: giữ lại (ẩn) để BOOT.again() dùng lại
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
-  return {set:p=>{if(p>target)target=p},done:f=>{cb=f;fin=true}};
+  // again(): hiện lại màn loading từ đầu (vd. phòng LAN chế độ hòa bình nạp sẵn 4 tầng sau khi bấm Bắt đầu). Dùng: BOOT.again(); BOOT.set(0..1); BOOT.done(callback)
+  function again(){
+    root.classList.remove('out');shown=0;target=0;fin=false;cb=null;last=performance.now();paint(0);
+    if(gone){gone=false;requestAnimationFrame(loop)}
+  }
+  return {set:p=>{if(p>target)target=p},done:f=>{cb=f;fin=true},again};
 })();
 </script>
 <div id="hud">
@@ -80,7 +85,6 @@ window.BOOT=(function(){
     <div id="lg"></div>
     <p id="sub">Bản test: bắn 4 bot đỏ trong đấu trường pastel.</p>
     <div id="ctrl"></div>
-    <p id="pk"></p><div id="wp"><button class="wb on" data-w="pistol">1 · Súng ngắn</button><button class="wb" data-w="rifle">2 · Súng dài</button><button class="wb" data-w="sniper">3 · Súng ngắm</button></div>
     <span id="go">Bấm để chơi</span>
   </div>
 </div>
