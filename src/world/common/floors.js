@@ -113,6 +113,8 @@ const FM=(function(){
   // mỗi khung (floor-manager.js gọi khi đang chơi): nạp trước tầng kế bên khi gần thang, dỡ tầng cũ khi hết cần
   function tick(dt){
     now+=dt;const c=curFl;need[c]=now;visStruct(c);
+    const apoc=!!(window.Apoc&&Apoc.active);   // FIX: cảnh tận thế kéo dài ~35s > KEEP(25s) và cổng đã đánh dấu exit nên tầng kế không còn được 'cần tới' -> bị DỠ ngay trước lúc dịch chuyển. Giữ tầng kế sống suốt cảnh.
+    if(apoc&&c<NF-1)need[c+1]=now;
     chk-=dt;
     if(chk<=0){chk=.25;
       // cổng không gian đã mở (boss hạ, hoặc phòng hòa bình mở sẵn) -> nạp sẵn tầng kế, NHƯNG chỉ khi người chơi đã lại GẦN cổng (PRE_NEAR mét),
@@ -125,7 +127,7 @@ const FM=(function(){
     }
     cullFar(c);
     ul-=dt;
-    if(ul<=0){ul=1;if(!keepAll)for(const f of loaded())if(f!==c&&now-(need[f]||0)>KEEP)unload(f)}
+    if(ul<=0){ul=1;if(!keepAll&&!apoc)for(const f of loaded())if(f!==c&&now-(need[f]||0)>KEEP)unload(f)}
   }
   // chơi lại: bỏ hết các tầng khác, chỉ giữ tầng 1
   function reset(){

@@ -198,6 +198,7 @@ const Portal=(function(){
   function enterPortal(p){
     if(busy)return;busy=true;
     used[p.f]=true;
+    try{if(window.FM&&FM.load&&p.f+1<NF&&!FM.has(p.f+1))FM.load(p.f+1)}catch(e){console.error('[Block Arena] nạp trước tầng kế lỗi',e)}   // FIX: dựng tầng kế TRƯỚC khi cảnh tận thế bắt đầu (apocalypse.js ẩn mọi vật tầng khác lúc bắt đầu)
     if(window.Apoc&&Apoc.canPlay()){
       p.exit=true;   // cổng vẫn còn đó nhưng không đi qua thêm lần nữa, minimap cũng thôi chỉ báo
       Apoc.start(p,()=>finishEnter(p));
@@ -205,14 +206,31 @@ const Portal=(function(){
     }
     finishEnter(p);
   }
+  // FIX: có MẶT ĐỠ thật dưới chân tại (x,z) của tầng f không? (khối sàn không bị khoét hồ, hoặc đáy hồ/sông nằm trong lòng tấm sàn)
+  // Nếu không có, người chơi rơi xuyên xuống y=0 (mặt đất vô hình mặc định của physics.js) = ngoài tường tầng 1 -> màn hình trắng xanh + HUD quay về "Tầng 1".
+  function supported(f,x,z){
+    const base=FY(f);
+    bxGather(x-.05,x+.05,z-.05,z+.05,_tb);
+    for(const b of _tb)if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&b.y1>=base-.05&&b.y1<=base+6&&!(b.hole&&b.hole(x,z)))return true;
+    const lg=lakeGround(x,z,base+1);
+    return lg!==null&&lg!==undefined&&lg>=base-SLAB-.01;
+  }
+  let land=null;   // theo dõi vài giây sau khi đáp xuống: nếu vẫn rơi xuyên sàn thì đưa người chơi về chỗ đứng được
+  function placeOn(nf,minD){
+    let s=randomSpot(nf,minD,PORTAL.radius*2.1+1.8);
+    for(let i=0;i<12&&!supported(nf,s[0],s[1]);i++)s=randomSpot(nf,minD,PORTAL.radius*2.1+1.8);
+    return s;
+  }
   function finishEnter(p){
     const f=p.f,nf=f+1;used[f]=true;
     kill(p);
     FM.enter(nf);   // bảo đảm tầng mới đã được dựng TRƯỚC khi chọn chỗ (fSpawns cần cây / sông / núi của tầng đó)
-    const s=randomSpot(nf,0,PORTAL.radius*2.1+1.8);   // s = [x,z,yBềMặt,kind]
+    if(typeof BXG!=='undefined')BXG.dirty();   // lưới va chạm dựng lại theo danh sách khối mới (tầng vừa nạp lại)
+    const s=placeOn(nf,0);   // s = [x,z,yBềMặt,kind]
     // đặt người chơi cách cổng mới ~1.6m về phía đang nhìn, cổng "ra" nằm ngay sau lưng
     const fx=-Math.sin(yaw),fz=-Math.cos(yaw);
     P.x=s[0];P.z=s[1];P.y=s[2]+.3;P.vy=0;P.fy=undefined;P.ground=false;slideT=0;
+    land={f:nf,x:s[0],z:s[1],y:s[2]+.3,t:0,tries:0};
     const px=P.x-fx*4.5,pz=P.z-fz*4.5;
     const yawN=Math.atan2(fx,fz);   // mặt cổng vuông góc hướng nhìn
     const q=make(nf,px,pz,yawN,s[2]);q.mode='closing';q.age=0;q.wet=(s[3]==='water');list.push(q);   // cổng ra: nở ra rồi co lại đóng trong 30 giây, không đi vào được
@@ -222,8 +240,26 @@ const Portal=(function(){
     if(window.snd)try{snd(180,.5,'sawtooth',.06)}catch(e){}
     busy=false;
   }
+  // lưới an toàn: trong 15 giây đầu ở tầng mới, nếu rơi xuyên xuống dưới đáy sàn tầng đó thì đặt lại lên chỗ đứng được (tối đa 4 lần)
+  function watchLanding(dt){
+    if(!land)return;
+    land.t+=dt;
+    if(land.t>15||land.tries>=4){land=null;return}
+    if(dead)return;
+    if(P.y<FY(land.f)-SLAB+.1){
+      land.tries++;
+      console.warn('[Block Arena] rơi xuyên sàn sau khi qua cổng -> đặt lại (lần '+land.tries+')');
+      FM.enter(land.f);
+      if(typeof BXG!=='undefined')BXG.dirty();
+      const s=placeOn(land.f,0);
+      P.x=s[0];P.z=s[1];P.y=s[2]+.3;P.vy=0;P.fy=undefined;P.ground=false;
+      land.x=P.x;land.z=P.z;land.y=P.y;
+      if(curFl!==land.f){curFl=land.f;if(typeof setupFloor==='function')setupFloor()}   // tickBoss có thể đã kéo curFl về tầng dưới
+    }
+  }
 
   function tick(dt){
+    watchLanding(dt);
     // tạo cổng mới cho tầng hiện tại nếu boss đã hạ
     const c=curFl;
     if(c<NF-1&&(ready_[c]||bossDone[c])&&!used[c]&&!list.some(p=>p.f===c&&!p.exit))spawnOn(c);
@@ -250,7 +286,7 @@ const Portal=(function(){
       mc.strokeStyle='#fff';mc.lineWidth=2;mc.stroke();
     }
   }
-  function reset(){for(const p of list.slice())kill(p);ready_.length=0;used.length=0;busy=false}
+  function reset(){land=null;for(const p of list.slice())kill(p);ready_.length=0;used.length=0;busy=false}
   return {ready,tick,reset,drawMap,list,spawnOn,enterPortal,field:(T,s)=>{const o={pos:new Float32Array(MAXB*3),col:new Float32Array(MAXB*3),posH:new Float32Array(MAXH*3),colH:new Float32Array(MAXH*3),n:0,nh:0};return field(T,s==null?1:s,PORTAL.radius*PORTAL.blue,o)}};
 })();
 window.Portal=Portal;
