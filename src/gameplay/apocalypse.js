@@ -470,7 +470,7 @@ const Apoc=(function(){
     if(q){st.mistL=mistInit(q);st.clouds=(q.cs||[]).map(m=>({m,s:m.scale.clone()}))}
     // ---- lấy mẫu + dựng khối voxel ----
     const lodMap=new Map();if(window.VLOD&&VLOD.list)for(const e of VLOD.list)if(e.gn)lodMap.set(e.m,e.gn);
-    const big=f>=1?1.8:1,cx=0,cz=0;
+    const big=f>=1?1.8:(f===0?F1K:1),cx=0,cz=0;
     const mk=(name,cfg,roots,capS,yEps,order,thick,ex,cellK,nopt)=>{
       const S0=collect(roots,cfg.cell*(cellK||1),capS,yEps,lodMap,nopt);
       const cells=bin(S0,cfg.cell*(cellK||1),Math.round((cfg.binCap||cfg.cap)*big),thick);
