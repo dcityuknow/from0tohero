@@ -7,11 +7,13 @@
 // Chỉnh nhanh: PORTAL (bán kính, thời gian đóng, khoảng cách tối thiểu so với người chơi).
 // ============================================================================
 const PORTAL={
-  radius:1.9,       // bán kính vòng cổng (m)
+  radius:2.2,       // bán kính gốc (m): tổng đường kính cổng (xanh + quầng đen) ~ 2.25 x radius, GIỮ NGUYÊN
+  blue:1.45,        // phần XANH rộng gấp chừng này lần so với gốc (quầng đen co lại tương ứng để tổng không đổi)
+  lift:.8,          // đáy phần xanh cách mặt đất chừng này (m): nhấc cổng lên để thấy trọn vẹn, không lún xuống đất
   close:30,         // giây: cổng ở tầng mới co lại và đóng hẳn
   openT:1.2,        // giây: cổng nở ra khi xuất hiện
   minDist:25,       // cổng xuất hiện cách người chơi ít nhất chừng này (m) nếu bản đồ còn chỗ
-  sparks:90,       // số tia lửa mỗi cổng
+  sparks:70,       // số tia lửa mỗi cổng
   color:0x3a8cff
 };
 const Portal=(function(){
@@ -20,113 +22,164 @@ const Portal=(function(){
   const used=[];            // used[f]=true: đã bước qua cổng tầng f (đóng, không tạo lại)
   let busy=false;
 
-  // ---- hình vẽ: xoáy xanh DÀY (nhiều lớp xếp theo chiều sâu), mép lượn sóng, quầng khói đen, mảnh vụn vuông ----
-  const HALO=1.5;     // tấm vẽ rộng gấp HALO lần bán kính cổng để chứa quầng đen
-  const LAYERS=8;     // số lớp xếp theo chiều sâu
-  const DEPTH=1.3;    // bề dày cổng (m) - các lớp rải đều trong khoảng này, cộng thêm độ uốn
-  const VERT=`
-    varying vec2 vUv;uniform float uT;uniform float uL;uniform float uR;
-    void main(){
-      vUv=uv;vec2 p=(uv-.5)*2.*${HALO.toFixed(2)};float r=length(p),an=atan(p.y,p.x),ph=uL*5.3;
-      // uốn lượn theo chiều sâu (trục z của cổng): sóng lan trên mặt + mép cuộn vào / ra, mỗi lớp lệch pha khác nhau
-      float w=sin(p.x*2.7+uT*1.3+ph)*sin(p.y*2.4-uT*1.1+ph*1.7)*.2
-             +sin(an*3.+uT*1.6+ph)*.2*smoothstep(.45,1.15,r)
-             +sin(an*7.-uT*2.1+ph*.6)*.07*smoothstep(.6,1.2,r)
-             -.16*(1.-min(r,1.))*(1.-min(r,1.));
-      vec3 pos=position;pos.z+=uR*w+(uL-.5)*${DEPTH.toFixed(2)};
-      // phình nhẹ theo bề ngang để các lớp ngoài rộng hơn lớp trong (khối cầu dẹt chứ không phải tấm phẳng)
-      float sc=1.+(.5-abs(uL-.5))*.08;pos.xy*=sc;
-      gl_Position=projectionMatrix*modelViewMatrix*vec4(pos,1.0);
-    }`;
-  const FRAG=`
-    varying vec2 vUv;uniform float uT;uniform float uA;uniform float uL;
-    float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-    float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
-      return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
-    float fbm(vec2 p){float v=0.,a=.5;for(int k=0;k<5;k++){v+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}
-    void main(){
-      vec2 p=(vUv-.5)*2.*${HALO.toFixed(2)};float r=length(p),an=atan(p.y,p.x);
-      float T=uT+uL*1.9;   // mỗi lớp lệch thời gian -> nhìn xuyên qua thấy chiều sâu
-      float edge=1.+(uL-.5)*.1+.07*sin(an*5.+T*1.7)+.05*sin(an*9.-T*2.4)+.03*sin(an*14.+T*3.3)+.05*(fbm(vec2(an*2.,T*.6))-.5);
-      float sw=(1.-clamp(r,0.,1.))*(2.4+uL*1.6)+T*.55;float cs=cos(sw),sn=sin(sw);
-      vec2 q=mat2(cs,-sn,sn,cs)*p;
-      float w=fbm(q*2.6+T*.25)*.65+fbm(q*5.+vec2(-T*.4,T*.3))*.35;
-      float swirl=fbm(vec2(an*1.5+sw*.8,r*3.-T*.8));
-      vec3 deep=vec3(.02,.08,.35),mid=vec3(.1,.45,1.),lite=vec3(.6,.9,1.);
-      vec3 c=mix(deep,mid,smoothstep(.2,.7,w));c=mix(c,lite,smoothstep(.55,.95,w*.6+swirl*.5)*.85);
-      c+=vec3(.15,.35,.8)*(1.-r)*.6;
-      float inside=1.-smoothstep(edge-.14,edge,r);
-      c+=lite*.7*smoothstep(edge-.25,edge-.03,r)*inside;
-      float sm=fbm(p*3.+vec2(T*.2,-T*.15));
-      float fr=(1.-smoothstep(edge,edge+.42+.22*sm,r))*(1.-inside);
-      float a=inside*.5+fr*(.2+.2*sm);                       // mỗi lớp chỉ mờ, 8 lớp chồng lên nhau mới đặc
-      vec3 col=mix(vec3(.0,.0,.04),c,inside);
-      gl_FragColor=vec4(col,a*uA*(1.-smoothstep(${(HALO*.86).toFixed(2)},${HALO.toFixed(2)},r)));
-    }`;
+  // ---- hình vẽ: cổng cấu tạo bằng VOXEL TRONG SUỐT (giống mặt nước trong game: khối mỏng, mờ, màu chuyển sắc, uốn lượn) ----
+  // Gồm LAYS tấm khối xếp theo chiều sâu, mỗi tấm uốn lượn lệch pha nhau (làm tròn theo lưới khối 0.2m nên sóng thành bậc voxel) + 1 lớp khói đen mờ bao quanh.
+  // Hai InstancedMesh (thân cổng + khói) mờ như mặt nước hồ (build.js: MeshLambertMaterial transparent, depthWrite=false). Tính lại 20 lần/giây.
+  const VS=.2,GC=25,GZ=9,MAXB=9000,MAXH=7000,HALO=2.25/PORTAL.blue,LAYS=5;   // HALO: bán kính tối đa tính theo R (cổng ~1R + quầng đen dày ~1.1R)
+  const STOPS=[[0,[.02,.08,.38]],[.35,[.08,.38,.95]],[.65,[.36,.74,1]],[1,[.9,.99,1]]];   // xanh thẫm -> xanh -> xanh nhạt -> trắng xanh (chuyển mượt, như bản shader)
+  const hh=(a,b,c)=>{const x=Math.sin(a*127.1+b*311.7+c*74.7)*43758.5453;return x-Math.floor(x)};
+  const ss=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
+  const vn=(x,y)=>{const ix=Math.floor(x),iy=Math.floor(y);let fx=x-ix,fy=y-iy;fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);
+    const a=hh(ix,iy,1),b=hh(ix+1,iy,1),c=hh(ix,iy+1,1),d=hh(ix+1,iy+1,1);return(a+(b-a)*fx)*(1-fy)+(c+(d-c)*fx)*fy};
+  const _c=[0,0,0];
+  function grad(v){v=Math.min(1,Math.max(0,v));for(let q=1;q<STOPS.length;q++)if(v<=STOPS[q][0]){const a=STOPS[q-1],b=STOPS[q],t=(v-a[0])/(b[0]-a[0]);for(let c=0;c<3;c++)_c[c]=a[1][c]+(b[1][c]-a[1][c])*t;return _c}
+    return STOPS[STOPS.length-1][1]}
+  const occ=new Int32Array(2*GZ+1);let stamp=0;   // occ: ô z nào của cột này đã có khối (tránh 2 tấm chồng cùng 1 ô)
+  // độ cong theo chiều sâu của tấm có pha ph: sóng lan trên mặt + mép cuộn vào ra + lõm nhẹ ở giữa
+  const wave=(px,py,an,r,rc,T,ph)=>Math.sin(px*2.7+T*1.3+ph)*Math.sin(py*2.4-T*1.1+ph*1.7)*.2+Math.sin(an*3+T*1.6+ph)*.2*ss(.45,1.15,r)+Math.sin(an*7-T*2.1+ph*.6)*.07*ss(.6,1.2,r)-.16*(1-rc)*(1-rc);
+  // out: {pos,col,n (thân), posH,colH,nh (khói)} · s (0..1) = mức nguyên vẹn (mở / đóng cổng thì khối rụng dần)
+  function field(T,s,R,o){
+    let n=0,nh=0;const B=o.pos,BC=o.col,H=o.posH,HC=o.colH;
+    for(let i=0;i<=2*GC;i++)for(let j=0;j<=2*GC;j++){
+      const x=(i-GC)*VS,y=(j-GC)*VS,px=x/R,py=y/R,r=Math.hypot(px,py);if(r>HALO)continue;
+      const an=Math.atan2(py,px),rc=Math.min(r,1);
+      const edge=1+.07*Math.sin(an*5+T*1.7)+.05*Math.sin(an*9-T*2.4)+.03*Math.sin(an*14+T*3.3);   // mép lượn sóng nhấp nhô
+      stamp++;
+      if(r<edge+.06){
+        // màu xoáy chuyển mượt: 3 nhánh xoắn vào tâm + nhiễu, sáng dần về tâm, viền sáng sát mép
+        const sw=(1-rc)*3.2+T*.55,cs=Math.cos(sw),sn=Math.sin(sw),qx=cs*px-sn*py,qy=sn*px+cs*py;
+        const v0=.5+.36*Math.sin(an*3-r*8+T*1.4)+(vn(qx*2.6+T*.25,qy*2.6+T*.25)-.5)*.55+(1-rc)*.25;
+        const rim=ss(edge-.16,edge-.02,r);
+        for(let l=0;l<LAYS;l++){
+          const el=edge+(l-(LAYS-1)/2)*.035;if(r>=el)continue;
+          const zc=R*wave(px,py,an,r,rc,T,l*1.1)+(l-(LAYS-1)/2)*.2,k=Math.round(zc/VS);
+          if(k<-GZ||k>GZ||occ[k+GZ]===stamp)continue;occ[k+GZ]=stamp;
+          if(hh(i,j,k+l*17)>s||n>=MAXB)continue;
+          const c=grad(Math.max(v0+(l-(LAYS-1)/2)*.07,rim*.8)),jt=((i+j+k)&1)?.94:1;   // so le tối nhẹ như mặt nước
+          B[n*3]=x;B[n*3+1]=y;B[n*3+2]=k*VS;BC[n*3]=c[0]*jt;BC[n*3+1]=c[1]*jt;BC[n*3+2]=c[2]*jt;n++;
+        }
+      }
+      if(r>edge-.02){
+        // quầng khói đen DÀY (gấp 3 bản trước): 3 tấm khối mờ, đặc ở sát mép rồi thưa dần ra ngoài, bồng bềnh theo thời gian
+        const d=r-edge,fw=(.12+.055*vn(px*2+T*.2,py*2-T*.15))*3;   // quầng đen mỏng lại (đơn vị theo R đã phóng to)if(d>fw)continue;
+        const keep=Math.pow(1-Math.max(0,d)/fw,.7),tq=Math.floor(T*2.5);
+        for(let l=0;l<3;l++){
+          const zc=R*wave(px,py,an,r,rc,T,l*2.3+.7)+(l-1)*.45,k=Math.round(zc/VS);
+          if(k<-GZ||k>GZ||hh(i,j,k+l*31)>s||nh>=MAXH)continue;
+          if(hh(i+tq,j+l,k+tq*3)>keep*.95)continue;
+          HC[nh*3]=.02;HC[nh*3+1]=.03;HC[nh*3+2]=.12;H[nh*3]=x;H[nh*3+1]=y;H[nh*3+2]=k*VS;nh++;
+        }
+      }
+    }
+    o.n=n;o.nh=nh;return o;
+  }
+  const _out={pos:new Float32Array(MAXB*3),col:new Float32Array(MAXB*3),posH:new Float32Array(MAXH*3),colH:new Float32Array(MAXH*3),n:0,nh:0};
+  // khối lập phương có độ sáng riêng từng mặt (nhân với màu từng khối) -> thấy rõ hình khối dù vật liệu không phụ thuộc ánh sáng
+  const FACE=[.84,.68,1,.52,.93,.76];   // +x, -x, +y(trên), -y(dưới), +z, -z
+  function voxGeo(sz){const g=new THREE.BoxGeometry(sz,sz,sz),c=new Float32Array(24*3);
+    for(let f=0;f<6;f++)for(let v=0;v<4;v++){const o=(f*4+v)*3;c[o]=c[o+1]=c[o+2]=FACE[f]}
+    g.setAttribute('color',new THREE.BufferAttribute(c,3));return g}
+  // InstancedMesh r128: setColorAt cấp bộ đệm màu theo .count LÚC GỌI -> phải gọi khi count còn đầy, rồi mới đặt count=0 (đặt trước thì bộ đệm rỗng, cả khối đen thui)
+  function instMesh(geo,N,opacity,order){
+    const m=new THREE.MeshBasicMaterial({fog:false,vertexColors:true,transparent:opacity<1,opacity,depthWrite:false});
+    const im=new THREE.InstancedMesh(geo,m,N);im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.renderOrder=order;
+    im.setColorAt(0,new THREE.Color());im.count=0;return im}
 
-  function make(f,x,z,yawN){
-    const R=PORTAL.radius,n=PORTAL.sparks,g=new THREE.Group();
-    const y0=FY(f)+((window.Nature&&Nature.heightAt&&Nature.heightAt(f,x,z))||0);
-    g.position.set(x,y0+R+.15,z);g.rotation.y=yawN;   // cổng đứng thẳng, mặt hướng theo yawN
-    const geo0=new THREE.PlaneGeometry(2*R*HALO,2*R*HALO,40,40),mats=[];
-    for(let k=0;k<LAYERS;k++){
-      const m=new THREE.ShaderMaterial({vertexShader:VERT,fragmentShader:FRAG,uniforms:{uT:{value:0},uA:{value:1},uL:{value:k/(LAYERS-1)},uR:{value:R}},transparent:true,depthWrite:false,side:THREE.DoubleSide});
-      const mesh=new THREE.Mesh(geo0,m);mesh.renderOrder=k;mesh.frustumCulled=false;g.add(mesh);mats.push(m);
+  function make(f,x,z,yawN,yy){
+    const R=PORTAL.radius,g=new THREE.Group();
+    const y0=(yy!=null)?yy:(FY(f)+((window.Nature&&Nature.heightAt&&Nature.heightAt(f,x,z))||0));   // yy: độ cao bề mặt tuyệt đối (đất / mặt nước / mặt cầu)
+    g.position.set(x,y0+R*PORTAL.blue+PORTAL.lift,z);g.rotation.y=yawN;   // cổng đứng thẳng, mặt hướng theo yawN
+    const bg=voxGeo(VS),im=instMesh(bg,MAXB,.5,3),hm=instMesh(bg,MAXH,.6,2);g.add(hm);g.add(im);
+    // mảnh vụn voxel nhỏ bay lơ lửng quanh và xuyên qua cổng
+    const NS=PORTAL.sparks,sg=voxGeo(.12),sm=new THREE.MeshBasicMaterial({fog:false,vertexColors:true});
+    const sp=new THREE.InstancedMesh(sg,sm,NS);sp.instanceMatrix.setUsage(THREE.DynamicDrawUsage);sp.frustumCulled=false;sp.renderOrder=4;
+    const pd=[],cc=new THREE.Color();
+    for(let i=0;i<NS;i++){
+      pd.push({a:Math.random()*6.283,r:R*(.25+Math.random()*1.15),dr:R*(.1+Math.random()*.45),w:(Math.random()-.5)*.5,z:(Math.random()-.5)*1.8,ph:Math.random(),sp:.12+Math.random()*.3});
+      const k=Math.random();cc.setRGB(.45+.5*k,.8+.2*k,1);sp.setColorAt(i,cc);
     }
-    // mảnh vụn vuông nhỏ bay lơ lửng quanh và xuyên qua cổng
-    const pos=new Float32Array(n*3),col=new Float32Array(n*3),pd=[];
-    for(let i=0;i<n;i++){
-      pd.push({a:Math.random()*6.283,r:R*(.25+Math.random()*1.15),dr:R*(.1+Math.random()*.45),w:(Math.random()-.5)*.5,z:(Math.random()-.5)*DEPTH*1.6,ph:Math.random(),sp:.12+Math.random()*.3});
-      const k=Math.random();col[i*3]=.45+.5*k;col[i*3+1]=.8+.2*k;col[i*3+2]=1;
-    }
-    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));
-    const pm=new THREE.PointsMaterial({size:.14,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
-    const pts=new THREE.Points(geo,pm);pts.frustumCulled=false;g.add(pts);
+    g.add(sp);
     const lt=new THREE.PointLight(PORTAL.color,2,16);g.add(lt);
     S.add(g);
-    return {f,x,z,y:y0,nx:Math.sin(yawN),nz:Math.cos(yawN),g,geo0,pts,pd,geo,pm,lt,mats,age:0,mode:'open',life:0,R,s:0}
+    return {f,x,z,y:y0,nx:Math.sin(yawN),nz:Math.cos(yawN),g,im,hm,bg,sp,sg,sm,pd,lt,acc:1,m4:new THREE.Matrix4(),cc,age:0,mode:'open',life:0,R,s:0,wet:false}
   }
+  function fill(im,n,pos,col,m,c){
+    for(let i=0;i<n;i++){m.makeTranslation(pos[i*3],pos[i*3+1],pos[i*3+2]);im.setMatrixAt(i,m);c.setRGB(col[i*3],col[i*3+1],col[i*3+2]);im.setColorAt(i,c)}
+    im.count=n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true}
   function animate(p,dt){
     p.age+=dt;
-    let s=Math.min(1,p.age/PORTAL.openT);s=s*s*(3-2*s);   // nở ra mượt
-    if(p.mode==='closing'){p.life+=dt;s*=Math.max(0,1-p.life/PORTAL.close)}   // co dần về 0 trong PORTAL.close giây
-    p.s=s;p.g.scale.setScalar(Math.max(.001,s));
-    for(const m of p.mats)m.uniforms.uT.value=p.age;
-    const a=p.geo.attributes.position.array;
-    for(let i=0;i<p.pd.length;i++){
-      const q=p.pd[i];q.a+=q.w*dt;
-      const o=(p.age*q.sp+q.ph)%1,r=q.r+o*q.dr;
-      a[i*3]=Math.cos(q.a)*r;a[i*3+1]=Math.sin(q.a)*r;a[i*3+2]=q.z+Math.sin(p.age*.8+q.ph*6)*.25;
+    let s=Math.min(1,p.age/PORTAL.openT);s=s*s*(3-2*s);   // nở ra mượt (khối hiện dần)
+    if(p.mode==='closing'){p.life+=dt;s*=Math.max(0,1-p.life/PORTAL.close)}   // khối rụng dần, cổng đóng sau PORTAL.close giây
+    p.s=s;p.g.scale.setScalar(.55+.45*s);
+    p.acc+=dt;
+    if(p.acc>=.05){   // 20 lần/giây: đủ mượt, kiểu hoạt ảnh voxel, nhẹ CPU
+      p.acc=0;field(p.age,s,p.R*PORTAL.blue,_out);
+      fill(p.im,_out.n,_out.pos,_out.col,p.m4,p.cc);fill(p.hm,_out.nh,_out.posH,_out.colH,p.m4,p.cc);
     }
-    p.geo.attributes.position.needsUpdate=true;
-    p.lt.intensity=(1.6+.5*Math.sin(p.age*5))*s;p.pm.opacity=Math.min(1,s*1.3);
+    const sp=p.sp,m=p.m4;
+    for(let i=0;i<p.pd.length;i++){
+      const q=p.pd[i];q.a+=q.w*dt;const o=(p.age*q.sp+q.ph)%1,r=q.r+o*q.dr,zz=q.z+Math.sin(p.age*.8+q.ph*6)*.25;
+      m.makeTranslation(Math.round(Math.cos(q.a)*r/.12)*.12,Math.round(Math.sin(q.a)*r/.12)*.12,Math.round(zz/.12)*.12);sp.setMatrixAt(i,m);   // bám lưới .12 cho đúng kiểu voxel
+    }
+    sp.count=Math.round(p.pd.length*Math.min(1,s*1.3));sp.instanceMatrix.needsUpdate=true;
+    p.lt.intensity=(1.6+.5*Math.sin(p.age*5))*s;
   }
   function kill(p){
     const i=list.indexOf(p);if(i>=0)list.splice(i,1);
-    S.remove(p.g);p.geo.dispose();p.pm.dispose();p.geo0.dispose();for(const m of p.mats)m.dispose();
+    S.remove(p.g);p.im.dispose&&p.im.dispose();p.hm.dispose&&p.hm.dispose();p.sp.dispose&&p.sp.dispose();
+    p.bg.dispose();p.sg.dispose();p.im.material.dispose();p.hm.material.dispose();p.sm.dispose();
   }
 
-  // ---- chọn vị trí ngẫu nhiên hợp lệ trên tầng f ----
-  // chỗ "thoáng": không vật cản trong bán kính rad (cao tới 4.4m: kể cả mái chòi / cành cây), không nước, không dốc, không ở trong / sát chòi triển lãm
-  function clearAt(f,x,z,rad){
-    const y=FY(f)+.05;
-    if(hit({x,y,z,r:rad,h:4.4}).length)return false;
-    const N=window.Nature;
-    if(N){
-      if(N.isWater&&N.isWater(f,x,z,rad))return false;
-      if(N.heightAt){const h0=N.heightAt(f,x,z)||0;if(Math.abs(h0)>1)return false;
-        for(const [dx,dz] of [[rad,0],[-rad,0],[0,rad],[0,-rad]])if(Math.abs((N.heightAt(f,x+dx,z+dz)||0)-h0)>1.2)return false}   // đất bằng, không sườn dốc
+  // ---- chọn vị trí ngẫu nhiên hợp lệ trên tầng f: ĐẤT BẰNG, MẶT NƯỚC, hoặc MẶT CẦU ----
+  const _tb=[];
+  // đỉnh khối cao nhất tại (x,z) nằm cao hơn sàn .3m tới 5m (mặt cầu); null nếu không có
+  function bridgeTop(f,x,z){
+    const base=FY(f);let best=null;
+    bxGather(x-.05,x+.05,z-.05,z+.05,_tb);
+    for(const b of _tb)if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&b.y1>base+.3&&b.y1<=base+5&&(best===null||b.y1>best))best=b.y1;
+    return best}
+  const RING4=r=>[[r,0],[-r,0],[0,r],[0,-r]];
+  // trả về {y,kind} (y = độ cao bề mặt tuyệt đối, kind = 'ground'|'water'|'bridge') hoặc null nếu không hợp lệ
+  function spotAt(f,x,z,rad){
+    const base=FY(f),N=window.Nature,wet=(px,pz,r)=>!!(N&&N.isWater&&N.isWater(f,px,pz,r));
+    if(f===0&&window.PavilionPeace)for(const [dx,dz] of [[0,0],[7,0],[-7,0],[0,7],[0,-7],[5,5],[-5,5],[5,-5],[-5,-5]])if(PavilionPeace(x+dx,base+.05,z+dz))return null;   // tránh khu chòi
+    if(wet(x,z,.3)){
+      // (a) CẦU: có khối cao hơn sàn nằm trên nước -> đứng trên mặt cầu, mặt cầu phải phẳng quanh đó
+      const top=bridgeTop(f,x,z);
+      if(top!==null){
+        const rr=Math.min(rad,1.3);
+        for(const [dx,dz] of RING4(rr)){const t=bridgeTop(f,x+dx,z+dz);if(t===null||Math.abs(t-top)>.15)return null}
+        if(hit({x,y:top+.05,z,r:Math.min(rad,1.2),h:4.4}).length)return null;
+        return {y:top,kind:'bridge'};
+      }
+      // (b) MẶT NƯỚC: cả vùng quanh đều là nước, không vật cản nhô lên
+      const rr=Math.min(rad,2.2);
+      for(const [dx,dz] of RING4(rr))if(!wet(x+dx,z+dz,.3))return null;
+      if(hit({x,y:base+.05,z,r:rad,h:4.4}).length)return null;
+      const wy=(N.waterLevel&&N.waterLevel(f,x,z));   // nếu nature.js có hàm độ cao mặt nước thì dùng, không thì lấy mặt sàn
+      return {y:(typeof wy==='number')?wy:base,kind:'water'};
     }
-    if(f===0&&window.PavilionPeace)for(const [dx,dz] of [[0,0],[7,0],[-7,0],[0,7],[0,-7],[5,5],[-5,5],[5,-5],[-5,-5]])if(PavilionPeace(x+dx,y,z+dz))return false;   // tránh hẳn khu chòi + vành đai 7m
-    return true}
+    // (c) ĐẤT: như cũ (không vật cản, không nước ven, đất bằng)
+    if(hit({x,y:base+.05,z,r:rad,h:4.4}).length)return null;
+    let h0=0;
+    if(N){
+      if(wet(x,z,rad))return null;
+      if(N.heightAt){h0=N.heightAt(f,x,z)||0;if(Math.abs(h0)>1)return null;
+        for(const [dx,dz] of RING4(rad))if(Math.abs((N.heightAt(f,x+dx,z+dz)||0)-h0)>1.2)return null}
+    }
+    return {y:base+h0,kind:'ground'};
+  }
+  // trả về [x,z,yBềMặt,kind]
   function randomSpot(f,minD,rad){
     const A=AF(f)-8,c=[];
-    for(let x=-A;x<=A;x+=3)for(let z=-A;z<=A;z+=3)c.push([x,z]);
+    for(let x=-A;x<=A;x+=3)for(let z=-A;z<=A;z+=3)c.push([x+(Math.random()-.5)*2,z+(Math.random()-.5)*2]);   // lệch nhẹ để không bỏ sót cầu hẹp
     for(let i=c.length-1;i>0;i--){const k=Math.floor(Math.random()*(i+1));[c[i],c[k]]=[c[k],c[i]]}   // xáo trộn
     for(const r of [rad,rad*.7,rad*.45]){   // không tìm được chỗ rộng thì hạ dần yêu cầu
       for(const d of(minD>0?[minD,0]:[0]))
-        for(const s of c)if((!d||Math.hypot(s[0]-P.x,s[1]-P.z)>=d)&&clearAt(f,s[0],s[1],r))return s}
-    const L=fSpawns(f);return L&&L.length?L[Math.floor(Math.random()*L.length)]:[0,0];
+        for(const s of c)if(!d||Math.hypot(s[0]-P.x,s[1]-P.z)>=d){const q=spotAt(f,s[0],s[1],r);if(q)return [s[0],s[1],q.y,q.kind]}
+    }
+    const L=fSpawns(f),s=L&&L.length?L[Math.floor(Math.random()*L.length)]:[0,0];
+    return [s[0],s[1],FY(f)+((window.Nature&&Nature.heightAt&&Nature.heightAt(f,s[0],s[1]))||0),'ground'];
   }
 
   // boss tầng f vừa hạ (level.js: openGate): đánh dấu, cổng tự dựng khi người chơi đang ở tầng f
@@ -134,8 +187,9 @@ const Portal=(function(){
 
   function spawnOn(f){
     if(list.some(p=>p.f===f&&p.mode==='open'))return;
-    const s=randomSpot(f,PORTAL.minDist,PORTAL.radius+1.2),yawN=Math.random()*Math.PI*2;
-    list.push(make(f,s[0],s[1],yawN));
+    const s=randomSpot(f,PORTAL.minDist,PORTAL.radius*2.1),yawN=Math.random()*Math.PI*2;
+    const p=make(f,s[0],s[1],yawN,s[2]);p.wet=(s[3]==='water');
+    list.push(p);
     if(typeof showMsg==='function'&&typeof t==='function')showMsg(t('portalopen'));
   }
 
@@ -145,13 +199,13 @@ const Portal=(function(){
     const f=p.f,nf=f+1;used[f]=true;
     kill(p);
     FM.enter(nf);   // bảo đảm tầng mới đã được dựng TRƯỚC khi chọn chỗ (fSpawns cần cây / sông / núi của tầng đó)
-    const s=randomSpot(nf,0,PORTAL.radius+2.6),h=(window.Nature&&Nature.heightAt&&Nature.heightAt(nf,s[0],s[1]))||0;
+    const s=randomSpot(nf,0,PORTAL.radius*2.1+1.8);   // s = [x,z,yBềMặt,kind]
     // đặt người chơi cách cổng mới ~1.6m về phía đang nhìn, cổng "ra" nằm ngay sau lưng
     const fx=-Math.sin(yaw),fz=-Math.cos(yaw);
-    P.x=s[0];P.z=s[1];P.y=FY(nf)+h+.3;P.vy=0;P.fy=undefined;P.ground=false;slideT=0;
-    const px=P.x-fx*1.8,pz=P.z-fz*1.8;
+    P.x=s[0];P.z=s[1];P.y=s[2]+.3;P.vy=0;P.fy=undefined;P.ground=false;slideT=0;
+    const px=P.x-fx*4.5,pz=P.z-fz*4.5;
     const yawN=Math.atan2(fx,fz);   // mặt cổng vuông góc hướng nhìn
-    const q=make(nf,px,pz,yawN);q.mode='closing';q.age=0;list.push(q);   // cổng ra: nở ra rồi co lại đóng trong 30 giây, không đi vào được
+    const q=make(nf,px,pz,yawN,s[2]);q.mode='closing';q.age=0;q.wet=(s[3]==='water');list.push(q);   // cổng ra: nở ra rồi co lại đóng trong 30 giây, không đi vào được
     q.exit=true;
     // đồng minh đi theo ngay (không còn thang để đi bộ)
     if(typeof allies!=='undefined')for(const a of allies)a.gap=26;
@@ -173,7 +227,7 @@ const Portal=(function(){
       if(!p.exit&&p.f===c&&p.s>.85&&!dead){
         const dx=P.x-p.x,dz=P.z-p.z,dn=dx*p.nx+dz*p.nz,dl=Math.abs(-dx*p.nz+dz*p.nx);
         const dy=(P.y+P.h*.5)-(p.g.position.y);
-        if(Math.abs(dn)<.9&&dl<p.R*.75&&Math.abs(dy)<p.R){enterPortal(p);return}
+        if(Math.abs(dn)<.9&&dl<p.R*1.3&&Math.abs(dy)<p.R*PORTAL.blue+(p.wet?2.6:0)){enterPortal(p);return}
       }
     }
     // vẽ chỉ báo cổng lên minimap
@@ -187,6 +241,6 @@ const Portal=(function(){
     }
   }
   function reset(){for(const p of list.slice())kill(p);ready_.length=0;used.length=0;busy=false}
-  return {ready,tick,reset,drawMap,list,spawnOn,enterPortal};
+  return {ready,tick,reset,drawMap,list,spawnOn,enterPortal,field:(T,s)=>{const o={pos:new Float32Array(MAXB*3),col:new Float32Array(MAXB*3),posH:new Float32Array(MAXH*3),colH:new Float32Array(MAXH*3),n:0,nh:0};return field(T,s==null?1:s,PORTAL.radius*PORTAL.blue,o)}};
 })();
 window.Portal=Portal;
