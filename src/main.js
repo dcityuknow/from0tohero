@@ -98,7 +98,7 @@ function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(hurtT>0){hurtT-=dt;if(hurtT<=0)$('hurt').style.opacity=0}
   hurtTiltT*=Math.exp(-dt/HURT_TILT_TAU);hurtTilt+=(hurtTiltT-hurtTilt)*Math.min(1,dt*18);   // nghiêng nhanh khi trúng, trả về từ từ
-  if(playing){
+  if(playing&&!(window.Apoc&&Apoc.active)){   // cảnh tận thế (apocalypse.js): đóng băng người chơi + quái, chỉ camera chạy
     cd-=dt;slideCd-=dt;gcd-=dt;tickThrow(dt);tickG(dt);tickRocks(dt);tickPickups(dt);
     if(rel>0){rel-=dt;if(rel<=0){const n=Math.min(W[cur].mag-ammos[cur],reserve[cur]);ammos[cur]+=n;reserve[cur]-=n}}
     // move
@@ -162,15 +162,15 @@ function frame(now){
     animVM(dt);
   }
   if(window.NET)NET.tick(dt);   // LAN: gửi / nhận trạng thái người chơi (net/net.js), chạy cả khi tạm dừng
-  tickBoss(dt);if(playing)Archer.tick(dt);tickParts(dt);mapT-=dt;if(mapT<=0){mapT=.08;drawMap()}if(!playing)scoped=false;
+  tickBoss(dt);if(playing&&!(window.Apoc&&Apoc.active))Archer.tick(dt);tickParts(dt);mapT-=dt;if(mapT<=0){mapT=.08;drawMap()}if(!playing)scoped=false;
   const want=scoped&&cur==='sniper'&&rel<=0;   // want: người chơi đang muốn ngắm · sc: ống ngắm đã áp sát mắt -> chuyển sang cảnh qua kính
   adsT=want?Math.min(1,adsT+dt/ADS_TIME):Math.max(0,adsT-dt/(ADS_TIME*.7));if(rel>0||dead)adsT=0;
-  const sc=want&&adsT>=1;document.body.classList.toggle('sc',sc);document.body.classList.toggle('ads',adsT>.02);vm.visible=!dead;   // luôn vẽ súng, kể cả khi ngắm: thân ống ngắm bằng voxel bao quanh mặt kính tròn
-  const tf=75;if(Math.abs(C.fov-tf)>.1){C.fov+=(tf-C.fov)*Math.min(1,dt*16);C.updateProjectionMatrix()}
+  const sc=want&&adsT>=1;document.body.classList.toggle('sc',sc);document.body.classList.toggle('ads',adsT>.02);vm.visible=!dead&&!(window.Apoc&&Apoc.active);   // luôn vẽ súng, kể cả khi ngắm: thân ống ngắm bằng voxel bao quanh mặt kính tròn
+  const tf=(window.Apoc&&Apoc.active)?Apoc.fov():75;if(Math.abs(C.fov-tf)>.1){C.fov+=(tf-C.fov)*Math.min(1,dt*16);C.updateProjectionMatrix()}
   if(reviveT>0)reviveT-=dt;
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
-  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));if(window.TP)TP.apply(dt);applyShake(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);VLOD.tick();
+  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));if(window.TP)TP.apply(dt);applyShake(dt);if(window.Apoc&&Apoc.active)Apoc.update(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);VLOD.tick();
   {const gr=cur==='grenade';   // chỉ ghi vào DOM khi giá trị thật sự đổi (tránh dựng lại chữ / layout mỗi khung)
     if(P.hp!==H.hp){H.hp=P.hp;H.eHp.style.width=P.hp+'%'}
     const am=gr?gren:rel>0?'…':ammos[cur],mg=gr?GMAX:reserve[cur];

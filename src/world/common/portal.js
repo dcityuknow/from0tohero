@@ -194,8 +194,18 @@ const Portal=(function(){
   }
 
   // bước qua cổng p (ở tầng f): sang vị trí ngẫu nhiên của tầng f+1
+  // bước qua cổng: nếu bật cảnh tận thế (gameplay/apocalypse.js) thì camera kéo lên xem tầng cũ sụp đổ, XONG mới dịch chuyển (finishEnter); không thì dịch chuyển ngay như cũ
   function enterPortal(p){
     if(busy)return;busy=true;
+    used[p.f]=true;
+    if(window.Apoc&&Apoc.canPlay()){
+      p.exit=true;   // cổng vẫn còn đó nhưng không đi qua thêm lần nữa, minimap cũng thôi chỉ báo
+      Apoc.start(p,()=>finishEnter(p));
+      return;
+    }
+    finishEnter(p);
+  }
+  function finishEnter(p){
     const f=p.f,nf=f+1;used[f]=true;
     kill(p);
     FM.enter(nf);   // bảo đảm tầng mới đã được dựng TRƯỚC khi chọn chỗ (fSpawns cần cây / sông / núi của tầng đó)

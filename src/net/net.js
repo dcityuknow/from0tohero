@@ -115,7 +115,7 @@ window.NET=(function(){
     if(hub){try{hub.close()}catch(e){}hub=null}
     const t=tx;tx=null;if(t&&t.close)try{t.close()}catch(e){}
     const p=peer;peer=null;if(p)setTimeout(()=>{try{p.destroy()}catch(e){}},400);   // trễ chút để gói "closed" kịp tới mọi người
-    cleanup();st.err='';st.connecting=false;st.code='';
+    cleanup();st.err='';st.connecting=false;st.code='';if(window.FM&&FM.setKeepAll)FM.setKeepAll(false);
     if(!silent)emit('status');
   }
   function cleanup(){
@@ -184,7 +184,22 @@ window.NET=(function(){
   }
 
   // trận bắt đầu (chủ phòng bấm Bắt đầu, hoặc vào phòng muộn): đặt điểm xuất hiện được chia sẵn, tắt bot nếu phòng yêu cầu, bất tử 3 giây
+  // PHÒNG HÒA BÌNH: người chơi đi thăm cả 4 tầng tự do (đã mở hết cổng) -> khi bấm Bắt đầu, hiện màn loading (vòng logo) để nạp sẵn CẢ 4 TẦNG, xong mới vào game.
+  // Các chế độ khác giữ nguyên cách cũ (tới gần cổng mới nạp tầng kế). Không có BOOT.again / FM.loadAll (bản cũ) thì vào thẳng như trước.
+  function preloadFloors(cb){
+    const FMo=window.FM,B=window.BOOT;
+    if(!FMo||!FMo.loadAll||(FMo.loaded&&FMo.loaded().length>=NF)){if(FMo&&FMo.setKeepAll)FMo.setKeepAll(true);cb();return}
+    const bo=!!(B&&B.again);
+    if(bo)B.again();
+    const fin=()=>{if(bo)B.done(cb);else cb()};
+    FMo.loadAll(p=>{if(bo)B.set(Math.min(.97,p))}).then(fin,fin);
+  }
   function begin(spawnIdx,dur){
+    if(st.started||st.loading)return;
+    if(st.cfg&&st.cfg.peace){st.loading=true;preloadFloors(()=>{st.loading=false;if(st.on)begin2(spawnIdx,dur)});return}
+    begin2(spawnIdx,dur);
+  }
+  function begin2(spawnIdx,dur){
     if(st.started)return;
     st.started=true;st.round++;st.result=null;st.endAt=performance.now()+(dur||st.cfg.dur||300)*1000;
     st.assign=spawnIdx==null?null:spawnIdx;applyCfg();
@@ -204,7 +219,8 @@ window.NET=(function(){
   // hết 5 phút (hub gửi 'end'): dừng game, dọn quái + người chơi khác, giữ bảng điểm cuối để màn sảnh chờ hiện kết quả
   function endGame(m){
     if(!st.started)return;
-    st.started=false;st.result={list:m.list||[],mode:m.mode,round:m.round|0};
+    st.started=false;if(window.FM&&FM.setKeepAll)FM.setKeepAll(false);   // hết trận: các tầng xa lại được dỡ bình thường
+    st.result={list:m.list||[],mode:m.mode,round:m.round|0};
     for(const p of st.result.list)entry(p);
     NetAvatar.removeAll();for(const e of roster.values())e.av=null;
     stopBots();if(window.BotSync)BotSync.reset();
