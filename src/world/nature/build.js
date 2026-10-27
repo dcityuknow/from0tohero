@@ -229,9 +229,9 @@ function buildFloor(f){
       if(h.f!==f||typeof h.x!=='number'||typeof h.z!=='number')continue;
       const q0=along?h.x:h.z;let best=null;
       for(let dq=0;dq<=12&&!best;dq+=.5)for(const s of dq?[-1,1]:[1]){
-        const q=q0+s*dq;if(Math.abs(q)>lim-5||bq.some(p=>Math.abs(p-q)<8))continue;
+        const q=q0+s*dq;if(Math.abs(q)>lim-5||Fl.bridges.some(b=>Math.abs(b.q-q)<8))continue;   // cách cầu ĐÃ DỰNG >= 8m (không tính cầu đã bị bridgeAdjust bỏ)
         const c=plan(q);if(c){best=c;break}}
-      if(best){bq.push(best.q);place(best)}else console.warn('extraBridges: không đặt được cầu gần',h);
+      if(best){bq.push(best.q);build(best)}else console.warn('extraBridges: không đặt được cầu gần',h);   // dựng thẳng bằng build(), KHÔNG qua place(): cầu thêm do bạn đặt tay nên không bị bridgeAdjust bỏ / dịch
     }
    }}
 
