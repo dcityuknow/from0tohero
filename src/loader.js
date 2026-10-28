@@ -29,6 +29,8 @@
     'world/floor1/hills.js',        // đồi núi voxel thay 2 tường xanh x=±HALF0 (cần world.js, voxel.js; nature/ không cần vùng cấm vì núi nằm ngoài sân)
     'world/floor1/statues2.js',     // 2 tượng khổng lồ (Hiệp sĩ + Phi hành gia) đối diện 2 tượng cũ qua sông (cần statues/teaset/bath/stairgrove nạp trước, nature/ nạp sau)
     'world/floor2/greatwall.js',   // Vạn Lý Trường Thành tầng 2 (dựng lười qua floors.js)
+    // Vành núi bao 4 phía tầng 2/3/4 (dựng lười qua floors.js, khóa 'hills'+f). hills-core.js = thuật toán dùng chung (cần world.js, level.js, voxel.js); mỗi tầng 1 tệp cấu hình riêng
+    'world/common/hills-core.js','world/floor2/hills2.js','world/floor3/hills3.js','world/floor4/hills4.js',
     // nature/: thiên nhiên dùng chung mọi tầng. THỨ TỰ quan trọng (file sau dùng thứ file trước định nghĩa qua NatureKit)
     'world/nature/kit.js',
     'world/nature/placement.js',

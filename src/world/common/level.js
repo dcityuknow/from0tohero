@@ -36,7 +36,9 @@ for(let f=1;f<NF;f++){
   const y=FY(f),[a,b,c,d]=FC[f],A=AF(f),Af=AS(f-1),s=(f-1)%2;
   {box(0,y-SLAB,0,2*(A+1),SLAB,2*(A+1),FLOOR_C);const sm=meshes[meshes.length-1];gridTop(sm,-(A+1),A+1,-(A+1),A+1);ceilWhite(sm)}   // sàn LIỀN (không còn lỗ thang): lên tầng bằng cổng không gian (portal.js)
   const WH=f<NF-1?FHT[f]-SLAB:FHT[f]-1;   // tường bao: tầng 2-3 cao tới đáy sàn tầng trên (không thò vào lòng sông tầng trên); tầng cao nhất không có trần nên giữ FH-1
-  box(0,y,-(A+.5),2*A+3,WH,1,a);box(0,y,A+.5,2*A+3,WH,1,a);box(-(A+.5),y,0,1,WH,2*A+3,b);box(A+.5,y,0,1,WH,2*A+3,b);
+  // 4 tường bao tầng 2-4 đã đổi thành VÀNH NÚI voxel (world/common/hills-core.js + world/floorN/hillsN.js): chỉ giữ va chạm vô hình, mesh do núi thay (cfg.on=false -> hills-core dựng lại tường phẳng)
+  const wb=(x,z,w,d)=>boxes.push({x0:x-w/2,x1:x+w/2,y0:y,y1:y+WH,z0:z-d/2,z1:z+d/2});
+  wb(0,-(A+.5),2*A+3,1);wb(0,A+.5,2*A+3,1);wb(-(A+.5),0,1,2*A+3);wb(A+.5,0,1,2*A+3);
   LAY[f](y,a,b,c,d,sbox);
 }
 // tầng cao nhất KHÔNG có trần: để hở ra bầu trời (world/sky.js dựng vòm trời + mây)

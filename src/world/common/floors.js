@@ -47,7 +47,7 @@ const FM=(function(){
   function cullFar(c){
     const L=loaded();if(c===cullFl&&L.length===cullN)return;cullFl=c;cullN=L.length;
     for(const f of L){
-      const far=Math.abs(f-c)>1,keys=['N'+f];if(f===0)keys.push('set0');if(f===1)keys.push('wall');
+      const far=Math.abs(f-c)>1,keys=['N'+f];if(f===0)keys.push('set0');if(f===1)keys.push('wall');if(f>=1)keys.push('hills'+f);
       for(const k of keys)for(const o of objsOf(k)){
         if(far){if(!hid.has(o)){hid.set(o,o.visible);o.visible=false}}
         else if(hid.has(o)){o.visible=hid.get(o);hid.delete(o)}
@@ -59,11 +59,13 @@ const FM=(function(){
     if(f<0||f>=NF||!window.Nature)return;
     need[f]=now;
     if(f===1&&rec.wall===undefined&&window.GreatWall)cap('wall',GreatWall.build);   // Vạn Lý Trường Thành tầng 2 (world/greatwall.js)
+    if(f>=1&&window.FloorHills&&FloorHills[f]&&rec['hills'+f]===undefined)cap('hills'+f,FloorHills[f].build);   // vành núi bao 4 phía tầng 2-4 (world/common/hills-core.js + world/floorN/hillsN.js)
     if(f===0&&!set0On&&rec.set0===undefined&&!snap.set0)buildSet0();
     if(!has(f)){Nature.load(f)}
   }
   function unload(f){
     if(f===1&&rec.wall)drop('wall');
+    if(f>=1&&rec['hills'+f])drop('hills'+f);
     if(has(f))Nature.unload(f);
     if(f===0&&set0On)dropSet0();
   }

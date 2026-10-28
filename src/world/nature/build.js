@@ -164,24 +164,28 @@ function buildFloor(f){
       d.cyl(x,wy+.03,z,r,.03,rand.pick(T.pad),V(.075),'y');if(rand()<.4)dc(x,wy+.07,z,.09,.07,.09,rand()<.5?0xff9fbf:0xffffff)}
   }
 
-  const flat=[];   // vùng phải phẳng (đầu cầu)
+  const flat=[],bFoot=[];   // vùng phải phẳng (đầu cầu) · bFoot: vùng chiếm của MỌI cầu đã dựng (mọi suối) để cầu của suối khác không chồng lên nhau (tầng 2 có suối nhánh đổ vào suối chính)
   // 1c) Cầu vòm gỗ bắc ngang sông (lưng cầu cong lên, lan can gỗ 2 bên). Tầng 4 sông đóng băng nên không cần cầu.
   //     Cầu chạy vuông góc (theo trục x hoặc z) với dòng sông, chọn chỗ hẹp nhất mà 2 đầu cầu có đất trống.
   for(const rv of Fl.lakes.filter(l=>!l.pool)){
    if(rv&&!rv.ice){
     const along=Math.abs(rv.ux)>Math.abs(rv.uz),pt=(q,w)=>along?[q,w]:[w,q],wat=(q,w)=>{const [x,z]=pt(q,w);return rv.rho(x,z)<1},
-      okLand=(q,w)=>{const [x,z]=pt(q,w);return Math.abs(x)<lim-.3&&Math.abs(z)<lim-.3&&!keep.some(k=>circleRect(x,z,1.9,k))&&!hitAny({x,y:y0+.02,z,r:.5,h:.5})&&(f===0||sup(x,z,.6))},
-      HW=1.25,OFF=[-1.4,0,1.4],bq=[];
+      otherWet=(x,z)=>Fl.lakes.some(l=>l!==rv&&!l.pool&&l.rho(x,z)<1.02),   // lòng suối KHÁC: đầu cầu không được đặt xuống đó
+      okLand=(q,w)=>{const [x,z]=pt(q,w);return Math.abs(x)<lim-.3&&Math.abs(z)<lim-.3&&!otherWet(x,z)&&!keep.some(k=>circleRect(x,z,1.9,k))&&!hitAny({x,y:y0+.02,z,r:.5,h:.5})&&(f===0||sup(x,z,.6))},
+      HW=1.25,OFF=[-1.4,0,1.4],bq=[],
+      foot=(q,wa,wb,G)=>along?{x0:q-HW-1.4-G,x1:q+HW+1.4+G,z0:wa-G,z1:wb+G}:{x0:wa-G,x1:wb+G,z0:q-HW-1.4-G,z1:q+HW+1.4+G};   // hình chữ nhật mà cầu chiếm (cộng lề G)
     const plan=q=>{
       let w1=1e9,w2=-1e9;
       for(const o of OFF)for(let w=-lim;w<=lim;w+=.25)if(wat(q+o,w)){if(w<w1)w1=w;if(w>w2)w2=w}
       if(w2<w1||w2-w1>rv.rz*4.2)return null;
       const wa=w1-2.6,wb=w2+2.6;if(wa<-lim+.6||wb>lim-.6)return null;
       for(const o of OFF)for(let w=wa;w<=wb;w+=.5)if(!wat(q+o,w)&&!okLand(q+o,w))return null;
+      const fp=foot(q,wa,wb,3);if(bFoot.some(b=>b.rv!==rv&&fp.x0<b.x1&&fp.x1>b.x0&&fp.z0<b.z1&&fp.z1>b.z0))return null;   // chồng lên cầu của suối khác
       return {q,wa,wb,sp:w2-w1};
     };
     const build=c=>{
-      const {q,wa,wb}=c,Lt=wb-wa,N=Math.max(8,Math.round(Lt/.6)),sl=Lt/N,Hh=Math.max(1.2,Math.min(1.9,Lt*.12)),   // Hh: độ cao lưng cầu
+      const {q,wa,wb}=c;bFoot.push(Object.assign({rv},foot(q,wa,wb,0)));
+      const Lt=wb-wa,N=Math.max(8,Math.round(Lt/.6)),sl=Lt/N,Hh=Math.max(1.2,Math.min(1.9,Lt*.12)),   // Hh: độ cao lưng cầu
         top=i=>y0+.14+Hh*Math.sin(Math.PI*(i+.5)/N),                                                          // mặt cầu: cung sin, bước lên mỗi tấm chỉ ~0.2m
         cb=(qq,ww,yy,dq,dw,dy,hex)=>{const [x,z]=pt(qq,ww);if(along)dc(x,yy,z,dq,dy,dw,hex);else dc(x,yy,z,dw,dy,dq,hex)},
         bx=(q0,q1,w0,w1,ya,yb)=>boxes.push(along?{x0:q0,x1:q1,z0:w0,z1:w1,y0:ya,y1:yb}:{x0:w0,x1:w1,z0:q0,z1:q1,y0:ya,y1:yb});

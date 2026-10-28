@@ -95,6 +95,7 @@ const SKYFOG={
   layers2:[[.05,.98],[.4,.95],[.8,.9],[1.3,.84],[1.9,.76],[2.6,.67],[3.4,.57],[4.3,.47],[5.4,.36],[6.8,.24]],   // tầng 2 (núi cao ~21m, trần cách sàn 29.6m): nhiều lớp hơn, dày hơn để che hẳn trần
   f2K:.85,           // tầng 2: nhân độ đặc các lớp sương với số này (trước đây .3 nên lộ trần)
   tile:30,           // 1 ô họa tiết sương rộng bao nhiêu mét
+  ext:95,            // lớp sương kéo rộng ra NGOÀI mép sàn bấy nhiêu m (mỗi phía) để phủ kín vành núi (núi sâu tới 34m) + khoảng trời phía sau đỉnh núi; trước đây = 0 nên nhìn qua đỉnh núi thấy nền tím. Tăng nếu vẫn thấy hở ở góc xa
   speed:.6,          // tốc độ trôi của các lớp (m/s; mỗi lớp nhân hệ số riêng, xen kẽ chiều)
   clouds:9,          // số mây nhỏ lơ lửng mỗi tầng
   cMin:1,cMax:2.2,   // cỡ mây nhỏ (m; đám mây rộng khoảng 4 lần số này)
@@ -148,7 +149,7 @@ function buildSky(){
   // tầng 1..NF-1: mỗi tầng 1 nhóm (sương nhiều lớp + mây nhỏ), chỉ hiện khi người chơi đang ở tầng đó
   const FT=fogTexture(),cmat=cloudMats(true),fl=[];
   for(let f=0;f<NF;f++){
-    const A=AF(f),yc=FY(f+1)-SLAB,sz=2*A+2,g=new THREE.Group(),lay=[],cs=[];
+    const A=AF(f),yc=FY(f+1)-SLAB,sz=2*(A+SKYFOG.ext)+2,g=new THREE.Group(),lay=[],cs=[];
     (f===1?SKYFOG.layers2:SKYFOG.layers).forEach(([dy,op],i)=>{
       const t=FT.clone();t.needsUpdate=true;t.repeat.set(sz/SKYFOG.tile,sz/SKYFOG.tile);t.offset.set(Math.random(),Math.random());
       const m=new THREE.Mesh(new THREE.PlaneGeometry(sz,sz),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:f===NF-1?op*SKYFOG.topK:f===1?op*SKYFOG.f2K:op,depthWrite:false,side:THREE.DoubleSide,fog:false}));
