@@ -26,6 +26,7 @@
     'world/floor1/teaset.js',
     'world/floor1/bath.js',
     'world/floor1/stairgrove.js',   // rừng cây cao + hàng bụi che tường thang lên tầng 2
+    'world/floor1/hills.js',        // đồi núi voxel thay 2 tường xanh x=±HALF0 (cần world.js, voxel.js; nature/ không cần vùng cấm vì núi nằm ngoài sân)
     'world/floor1/statues2.js',     // 2 tượng khổng lồ (Hiệp sĩ + Phi hành gia) đối diện 2 tượng cũ qua sông (cần statues/teaset/bath/stairgrove nạp trước, nature/ nạp sau)
     'world/floor2/greatwall.js',   // Vạn Lý Trường Thành tầng 2 (dựng lười qua floors.js)
     // nature/: thiên nhiên dùng chung mọi tầng. THỨ TỰ quan trọng (file sau dùng thứ file trước định nghĩa qua NatureKit)
