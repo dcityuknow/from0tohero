@@ -19,6 +19,7 @@ const CFG={
   scaleExp:1.8,            // số lượng vật thể tăng theo (diện tích tầng)^scaleExp; 2 = mật độ không đổi khi map to ra, nhỏ hơn = thưa hơn (nhẹ máy)
   litter:140,              // lá / cánh hoa rơi vãi trên mặt đất (chi tiết nhỏ, rất nhẹ)
   waves:true,              // mặt hồ nhấp nhô
+  flow:1,                  // SÔNG CHẢY: tốc độ sóng trôi xuôi dòng (1 = mặc định, 2 = nhanh gấp đôi, 0 = tắt, chỉ dập dềnh tại chỗ như cũ)
   splash:true,             // tóe nước khi lội
   critters:true,           // bướm bay
   fishJump:true,           // thỉnh thoảng cá nhảy vòng cung lên khỏi mặt nước rồi lặn xuống (1-3 con một lượt)

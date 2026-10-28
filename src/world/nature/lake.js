@@ -18,14 +18,29 @@ function lakeH(l,x,z){   // ĐỘ SÂU đáy hồ (m dưới mặt sàn) tại (
 const wdep=(l,x,z)=>Math.max(0,lakeH(l,x,z)-CFG.level);
 
 function waveLake(l,t,px,pz){   // px,pz (tùy chọn): chỉ cập nhật ô trong bán kính 60m quanh người chơi (sông dài nhiều ô)
-  const s=l.g*.995,cull=px!==undefined;
+  const s=l.g*.995,cull=px!==undefined,fl=CFG.flow===undefined?1:CFG.flow,ic=l.mesh.instanceColor;
+  // SÔNG CHẢY: sóng trôi xuôi dòng (theo q.u = tọa độ dọc sông) + đỉnh sóng sáng hơn, có bọt trắng -> mắt thấy nước di chuyển, không chỉ dập dềnh tại chỗ.
+  // Màu gốc của từng ô (cát -> xanh đậm theo độ sâu, do build.js đặt) được chép lại 1 lần rồi nhân sáng / tối theo sóng. Hồ tắm (l.pool) và băng giữ kiểu cũ.
+  const flow=fl>0&&!l.ice&&!l.pool&&!!ic;
+  if(flow&&!l.base)l.base=Float32Array.from(ic.array);
+  const base=flow?l.base:null,ca=flow?ic.array:null,T=t*fl;
   for(let i=0;i<l.tiles.length;i++){const q=l.tiles[i];
     if(l.ice){_p.set(q.x,l.y+q.h0/2,q.z);_s.set(s,q.h0,s)}
     else{if(cull){const dx=q.x-px,dz=q.z-pz;if(dx*dx+dz*dz>3600)continue}
-      const w=.018*(Math.sin(q.u*1.1-t*2.1)+Math.sin(q.v*1.5+t*1.2)+Math.sin((q.u+q.v)*.7-t*1.3)*.6)*Math.min(1,q.h0*2.5);   // sóng chạy xuôi dòng
+      let w;
+      if(base){
+        const a=Math.sin(q.u*1.7-T*2.6+.9*Math.sin(q.v*.45)),   // sóng chính: đỉnh cách nhau ~3.7m, trôi ~1.5m/s xuôi dòng, hơi uốn theo ngang sông
+          b=Math.sin(q.u*3.1-T*3.8+q.v*.9),                      // gợn mịn chạy chéo, nhanh hơn
+          c=Math.sin(q.u*.8-T*1.4+q.v*.3),                       // sóng cồn dài, chậm
+          pat=(a*.5+b*.3+c*.4)/1.2,dep=Math.min(1,q.h0*2.5),
+          k=1+.16*pat,m=Math.max(0,pat-.5)*.9*dep,o=i*3;          // k: sáng / tối theo sóng · m: độ trắng của bọt ở đỉnh sóng
+        w=.032*pat*dep+.006*Math.sin(q.v*1.5+t*1.2);
+        ca[o]=Math.min(1,base[o]*k)*(1-m)+m;ca[o+1]=Math.min(1,base[o+1]*k)*(1-m)+m;ca[o+2]=Math.min(1,base[o+2]*k)*(1-m)+m;
+      }else w=.018*(Math.sin(q.u*1.1-t*2.1)+Math.sin(q.v*1.5+t*1.2)+Math.sin((q.u+q.v)*.7-t*1.3)*.6)*Math.min(1,q.h0*2.5);
       _p.set(q.x,l.y-CFG.level+w-.03,q.z);_s.set(s,.06,s)}   // mặt nước mỏng, nằm THẤP hơn sàn
     _m.compose(_p,_q,_s);l.mesh.setMatrixAt(i,_m)}
   l.mesh.instanceMatrix.needsUpdate=true;
+  if(flow)ic.needsUpdate=true;
 }
 
 // ---- Đào hồ: dựng hình học tùy biến (lát sàn có lỗ, đáy hồ bậc thang, thành hồ) ----
