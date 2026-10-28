@@ -95,6 +95,7 @@ const H={hp:-1,am:null,mg:null,gn:null,eHp:$('hp'),eAm:$('am'),eMg:$('mg'),eGn:$
 let last=performance.now(),mapT=0;   // mapT: đếm ngược để vẽ minimap ~12 lần/giây thay vì mỗi khung
 function frame(now){
   requestAnimationFrame(frame);fpsTick(now);
+  if(window.Rift&&Rift.inside){last=now;return}   // đang tham quan Optimum World (gameplay/rift.js): đóng băng toàn bộ game này
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(hurtT>0){hurtT-=dt;if(hurtT<=0)$('hurt').style.opacity=0}
   hurtTiltT*=Math.exp(-dt/HURT_TILT_TAU);hurtTilt+=(hurtTiltT-hurtTilt)*Math.min(1,dt*18);   // nghiêng nhanh khi trúng, trả về từ từ
