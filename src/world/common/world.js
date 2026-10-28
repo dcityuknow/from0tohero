@@ -26,7 +26,10 @@ floor.rotation.x=-Math.PI/2;S.add(floor);meshes.push(floor);
 const grid=new THREE.GridHelper(2*HALF0+2,HALF0+1,0x6b6d78,0x6b6d78);grid.position.y=.02;S.add(grid);
 const PK=0xff9fbf,BL=0x9ccfff,MT=0xbff0d4,YL=0xffe8a3;
 const WH0=FHT[0]-SLAB;   // tường bao tầng 1 cao tới đúng đáy sàn tầng 2
-box(0,0,-(HALF0+.5),2*HALF0+3,WH0,1,PK);box(0,0,HALF0+.5,2*HALF0+3,WH0,1,PK);box(-(HALF0+.5),0,0,1,WH0,2*HALF0+3,BL);box(HALF0+.5,0,0,1,WH0,2*HALF0+3,BL);
+// CẢ 4 tường (Bắc/Nam hồng, Tây/Đông xanh) đã đổi thành ĐỒI NÚI voxel (xem world/floor1/hills.js): ở đây KHÔNG dựng mesh nữa, chỉ giữ va chạm vô hình để người chơi / bot không đi xuyên ra ngoài.
+// (muốn trả lại tường phẳng: đặt Hills.cfg.on=false trong hills.js)
+for(const sx of[-1,1])boxes.push({x0:sx*(HALF0+.5)-.5,x1:sx*(HALF0+.5)+.5,y0:0,y1:WH0,z0:-(HALF0+1.5),z1:HALF0+1.5});
+for(const sz of[-1,1])boxes.push({x0:-(HALF0+1.5),x1:HALF0+1.5,y0:0,y1:WH0,z0:sz*(HALF0+.5)-.5,z1:sz*(HALF0+.5)+.5});   // 2 tường Bắc / Nam (trước là khối hồng) cũng thành núi
 // khối chắn: bố cục gốc, nhân MAPK theo chiều ngang (vị trí + kích thước), giữ nguyên chiều cao
 const bk=(x,y,z,w,h,d,c)=>box(x*MAPK,y,z*MAPK,w*MAPK,h,d*MAPK,c);
 // (2 khối xanh bk(±8,0,-6,2,3.5,2,BL) đã đổi thành 2 bộ bàn trà kiểu Nhật: xem world/teaset.js)

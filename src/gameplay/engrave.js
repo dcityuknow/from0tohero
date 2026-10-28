@@ -12,7 +12,8 @@
 const CFG={
   db:'https://from0tohero-default-rtdb.asia-southeast1.firebasedatabase.app',  
   path:'engravings',
-  reach:8,        // tầm nhìn tối đa tới tường (m)
+  reach:8,        // tầm nhìn tối đa tới tường (m) - các tầng 2-4
+  reachHill:14,   // tầng 1: tầm ngắm tối đa tới sườn núi (m)
   hM:1.7,         // chiều cao bảng tên (m), gồm cả dòng chữ nhỏ
   pxH:146,        // chiều cao ảnh chữ (px) -> độ nét
   maxPx:768,      // bề rộng ảnh chữ tối đa (px): tên quá dài thì thu nhỏ chữ
@@ -178,7 +179,16 @@ const plate=(name,w,h,sub)=>{
 const wallH=f=>f<NF-1?FHT[f]-SLAB:FHT[f]-1,ROT=[0,Math.PI,Math.PI/2,-Math.PI/2],OFF=.03;
 const LX=[[1,0,0],[-1,0,0],[0,0,-1],[0,0,1]],NRM=[[0,0,1],[0,0,-1],[1,0,0],[-1,0,0]];
 function wpos(f,s,u,v){const A=AF(f),y=FY(f)+v;return s===0?[u,y,-A+OFF]:s===1?[-u,y,A-OFF]:s===2?[-A+OFF,y,-u]:[A-OFF,y,u]}
-const place=(m,f,s,u,v)=>{const p=wpos(f,s,u,v);m.position.set(p[0],p[1],p[2]);m.rotation.y=ROT[s]};
+// CẢ 4 tường của tầng 1 là ĐỒI NÚI (world/floor1/hills.js): bảng tên bám theo sườn núi (lùi ra sau + nghiêng theo dốc); chỗ không có núi sau bảng thì ẩn bảng.
+function wsurf(f,s,u,v,w,h){
+  const p=wpos(f,s,u,v);let tilt=0,ok=true;
+  if(f===0&&window.Hills&&Hills.fit){
+    const r=Hills.fit(s,u,v,w||1,h||1);
+    if(r){const g=r.g;if(s===0)p[2]-=g;else if(s===1)p[2]+=g;else if(s===2)p[0]-=g;else p[0]+=g;tilt=r.tilt}else ok=false;
+  }
+  return{p,tilt,ok};
+}
+const place=(m,f,s,u,v,w,h)=>{const r=wsurf(f,s,u,v,w,h);m.position.set(r.p[0],r.p[1],r.p[2]);m.rotation.order='YXZ';m.rotation.y=ROT[s];m.rotation.x=-r.tilt;m.visible=r.ok};
 
 // các bảng của tầng đang đứng: chỉ dựng bảng ở gần (CFG.RB), giữ tới CFG.RK; rời tầng / bảng xa thì giải phóng GPU. Khóa bảng = nội dung (không đổi khi id local -> id Firebase)
 const grp=new THREE.Group();S.add(grp);
@@ -198,7 +208,7 @@ function maintain(dt){
   }
   for(let n=0;n<CFG.perFrame&&bq.length;n++){
     const [,e,k]=bq.pop();if(plates.has(k))continue;
-    const m=plate(e.name,e.w,e.h,honor(e.l,e.f));place(m,e.f,e.s,e.u,e.v);grp.add(m);plates.set(k,{m})}
+    const m=plate(e.name,e.w,e.h,honor(e.l,e.f));place(m,e.f,e.s,e.u,e.v,e.w,e.h);grp.add(m);plates.set(k,{m})}
 }
 // khung xem trước (chữ của bạn + nền xanh/đỏ)
 const pv=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
@@ -212,7 +222,18 @@ const _d=new THREE.Vector3();
 function aimInfo(){
   const f=curFl,A=AF(f),y0=FY(f),H=wallH(f),o=C.position;C.getWorldDirection(_d);
   let bs=-1,bt=1e9,bu=0,bv=0;
-  for(let s=0;s<4;s++){
+  // tầng 1 là núi: dò tia ngắm trúng SƯỜN NÚI thật, rồi quy về (tường gần nhất, vị trí dọc tường, độ cao) -> bảng nằm đúng chỗ đang ngắm
+  const hill=f===0&&window.Hills&&Hills.cfg&&Hills.cfg.on&&Hills.ray;
+  if(hill){
+    const q=Hills.ray(o.x,o.y,o.z,_d.x,_d.y,_d.z,CFG.reachHill);
+    if(q){
+      const ex=Math.abs(q.x)-A,ez=Math.abs(q.z)-A;let s,al;
+      if(ex>=ez){s=q.x<0?2:3;al=s===2?-q.z:q.z}else{s=q.z<0?0:1;al=s===0?q.x:-q.x}
+      const hy=q.y-y0;
+      if(Math.abs(al)<=A&&hy>=.8&&hy<=H-.8){bs=s;bt=q.t;bu=al;bv=hy}   // góc núi (ngoài đầu tường) thì không khắc
+    }
+  }
+  for(let s=0;s<4&&!hill;s++){
     const ax=s<2?_d.z:_d.x,pos=s<2?o.z:o.x,pl=(s===0||s===2)?-A:A;
     if((s===0||s===2)?ax>=-1e-4:ax<=1e-4)continue;
     const t=(pl-pos)/ax;if(!(t>0&&t<=CFG.reach&&t<bt))continue;
@@ -223,6 +244,7 @@ function aimInfo(){
   if(bs<0)return null;
   const nm=myPlate(),w=nm.w,h=CFG.hM,u=+clamp(bu,-A+w/2+.3,A-w/2-.3).toFixed(2),v=+clamp(bv,h/2+.7,H-h/2-.7).toFixed(2);
   if(!clear(o,f,bs,u,v,w,h))return null;
+  if(f===0&&window.Hills&&Hills.fit&&!Hills.fit(bs,u,v,w,h))return null;   // sau chỗ ngắm không có núi (trên sống núi)
   return {s:bs,u,v,w,h,nm,ok:free(f,bs,u,v,w,h)};
 }
 // bảng có thật sự nhìn thấy được không: không bị khối nào (cây, nhà, tượng, tường thành...) chắn trước mặt bảng, và đường nhìn từ mắt tới bảng không bị chắn
@@ -252,7 +274,7 @@ function showBox(ok){
 
 // ---------- khắc ----------
 function chips(f,s,u,v,w,h){
-  const p=wpos(f,s,u,v),n=NRM[s],lx=LX[s];
+  const p=wsurf(f,s,u,v,w,h).p,n=NRM[s],lx=LX[s];
   for(let i=0;i<18;i++){
     const m=new THREE.Mesh(UG,M(i%2?0xd8d4cc:0x9a96a0)),z=.03+Math.random()*.04,al=(Math.random()-.5)*w*.8;
     m.scale.set(z,z,z);m.position.set(p[0]+lx[0]*al,p[1]+(Math.random()-.5)*h*.8,p[2]+lx[2]*al);
@@ -284,7 +306,7 @@ function loop(){
   if(!a){pv.visible=false;box.style.display='none';return}
   const sub=honor(HT[L]?L:'en',curFl),key=a.nm.name+'|'+sub;
   if(pvKey!==key){if(pv.material.map)pv.material.map.dispose();pv.material.map=mkTex(a.nm.name,a.w,a.h,sub);pv.material.needsUpdate=true;pvKey=key}
-  pv.scale.set(a.w,a.h,1);place(pv,curFl,a.s,a.u,a.v);pvb.material.color.set(a.ok?0x44ff77:0xff4455);pv.visible=true;
+  pv.scale.set(a.w,a.h,1);place(pv,curFl,a.s,a.u,a.v,a.w,a.h);pvb.material.color.set(a.ok?0x44ff77:0xff4455);pv.visible=true;
   showBox(a.ok);
 }
 requestAnimationFrame(loop);

@@ -2,6 +2,7 @@
 // - Lòng hồ là 1 "hồ" thật của nature.js (window.BathPools -> nature.js đào sàn, dựng đáy, mặt nước, lội nước + tiếng bì bõm), nông hơn sông: sâu tối đa BATH_DEPTH.
 // - Quanh hồ: nền lát đá, viền đá tảng tự nhiên (rải theo đúng đường bờ), vài tảng đá nhô lên giữa nước, 2 cột đèn.
 // - Vách đá = bản đồ độ cao có nhiễu (đồi đá nhấp nhô), 3 dòng suối chảy theo các bậc rồi đổ xuống hồ.
+// Thác nước: phần chảy từ SƯỜN NÚI xuống vách đá do world/floor1/hills.js dựng (qua window.BathWater); ở đây là các bậc thác cuối + hồ.
 // Nạp SAU teaset.js, TRƯỚC nature.js (xem loader.js): cây / đá / sông né hồ qua window.BathKeeps; nature.js đọc window.BathPools.
 // Chỉnh nhanh: BATHS (vị trí, bỏ bớt hồ) · BATH_DEPTH (độ sâu hồ) · POOL / LOBE (hình dạng hồ) · STREAMS (các dòng thác).
 (function(){
@@ -43,6 +44,7 @@ window.BathPools=BATHS.map(b=>{
   const L=(x,z)=>[b.sx*(x-b.x),b.sx*(z-b.z)],W=(lx,lz)=>[b.x+b.sx*lx,b.z+b.sx*lz],cw=W(POOL.cx,0);
   return {
     cx:cw[0],cz:cw[1],ux:b.sx,uz:0,rx:POOL.a,rz:POOL.b,dmax:BATH_DEPTH,pool:true,
+    base:{x:b.x,z:b.z,sx:b.sx},                            // hills.js dùng để khoét máng suối trên sườn núi sau hồ
     rho:(x,z)=>{const [lx,lz]=L(x,z);return rhoL(lx,lz)},
     loc:(x,z)=>L(x,z),
     at:(a,p)=>{const t=edgeT(a,p);return W(POOL.cx+Math.cos(a)*t,Math.sin(a)*t)},
@@ -233,6 +235,16 @@ function tickSpray(dt){
     for(const e of sp.em){e.acc+=e.rate*dt;while(e.acc>=1){e.acc-=1;spawn(sp,e)}}
   }
 }
+// hills.js (núi) gắn thêm suối chảy từ sườn núi xuống vách đá của hồ: dùng chung chất liệu nước + hạt bọt, gắn vào đúng nhóm của hồ (tọa độ cục bộ giống ở đây)
+window.BathWater={
+  flowMat,fallMat,foamMat,quad:quadMesh,streams:STREAMS,
+  topY:Math.max(.25,Math.round((base0((NX-.5)*CS)-.15)/CS)*CS)+.03,   // mặt nước ở bậc cao nhất của vách đá (chỗ suối núi đổ xuống)
+  attach(bx,bz,meshes,em){
+    for(let i=sprays.length-1;i>=0;i--){const sp=sprays[i];
+      if(sp.b.x===bx&&sp.b.z===bz&&sp.g.parent){for(const m of meshes)sp.g.add(m);for(const e of em)sp.em.push(e);return true}}
+    return false;
+  }
+};
 function build(){BATHS.forEach(buildBath)}
 build();
 window.Bath={build,rebuild:build};

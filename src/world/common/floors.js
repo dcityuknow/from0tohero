@@ -39,7 +39,7 @@ const FM=(function(){
   }
 
   // ---- bộ đồ trang trí của tầng 1 (nhà, chòi, tượng, bàn trà): dựng lại bằng chính các hàm build() của chúng ----
-  function buildSet0(){cap('set0',()=>{House.rebuild();Pavilion.rebuild();Statues.build();TeaSets.build();Bath.build();StairGrove.build()});set0On=true}
+  function buildSet0(){cap('set0',()=>{House.rebuild();Pavilion.rebuild();Statues.build();TeaSets.build();Bath.build();StairGrove.build();if(window.Statues2)Statues2.build();if(window.Hills)Hills.build()});set0On=true}
   function dropSet0(){drop('set0');set0On=false;if(window.OccSrc)delete window.OccSrc.house}
 
   // ---- ẩn các tầng ở XA (cách tầng đang chơi >= 2 tầng): đã nạp nhưng không vẽ -> không tốn GPU. Lưu trạng thái visible gốc để trả lại đúng khi tầng đó lại gần. ----
