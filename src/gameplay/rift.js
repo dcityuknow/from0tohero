@@ -18,6 +18,7 @@
 
   const T=(vi,en)=>(typeof L!=='undefined'&&L==='vi')?vi:en;
   const msg=s=>{try{if(typeof showMsg==='function')showMsg(s)}catch(e){}};
+  const charKey=()=>{try{return (window.PROFILE&&PROFILE.char)||(window.CharPick&&CharPick.current&&CharPick.current())||'vn'}catch(e){return 'vn'}};   // cùng cách chọn như player/thirdperson.js
   const busy=()=>!!(window.Apoc&&Apoc.active)||!!(window.NET&&NET.on);   // đang cảnh tận thế / đang chơi LAN thì không mở
 
   let obj=null,dieAt=0,coolUntil=0,gy=0,ov=null;
@@ -71,7 +72,7 @@
     ov=document.createElement('div');
     ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#000';
     const fr=document.createElement('iframe');
-    fr.src=RIFT.url;fr.allow='autoplay; fullscreen';
+    fr.src=RIFT.url+'&char='+encodeURIComponent(charKey());fr.allow='autoplay; fullscreen';   // gắn nhân vật đang chọn vào link sang game 1
     fr.style.cssText='width:100%;height:100%;border:0;display:block';
     fr.onload=()=>{try{fr.focus()}catch(e){}};
     const bt=document.createElement('button');
