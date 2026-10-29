@@ -9,7 +9,7 @@ const BN=(function(){
     maxLen:24,      // cắt tên dài hơn số ký tự này
     range:40,       // chỉ hiện tên khi bot cách camera trong khoảng này (m)
     h:.42,          // chiều cao khung tên (m, trong thế giới) - tăng nếu thấy chữ nhỏ
-    y:2.45,         // độ cao khung tên so với chân bot
+    y:2.27,         // độ cao khung tên so với chân bot (ăng-ten bot cao ~2.13 -> tên nằm sát ngay trên đầu; tăng số này nếu muốn cao hơn)
     shuffle:false   // true = xáo thứ tự tên mỗi lần reset; false = theo đúng thứ tự trong tệp
   };
   let list=[],order=[],used=0,loaded=false;
@@ -44,8 +44,18 @@ const BN=(function(){
     const g=T.g,txt='@'+name;g.clearRect(0,0,W,H);
     g.font='700 34px "Segoe UI","Noto Sans",Arial,sans-serif';
     let w=g.measureText(txt).width;const k=w>W-44?(W-44)/w:1;w*=k;
-    const pw=w+30;g.fillStyle='rgba(0,0,0,.58)';rr(g,(W-pw)/2,6,pw,H-12,14);g.fill();
-    g.save();g.translate(W/2,H/2+1);g.scale(k,1);g.textAlign='center';g.textBaseline='middle';g.fillStyle='#fff';g.fillText(txt,0,0);g.restore();
+    // KHÔNG nền. Chữ nâu sáng ánh kim bóng: viền nâu đậm + dải màu dọc kiểu kim loại (sáng -> "đường chân trời" tối -> phản chiếu sáng)
+    g.save();g.translate(W/2,H/2+1);g.scale(k,1);g.textAlign='center';g.textBaseline='middle';
+    g.lineJoin='round';g.lineWidth=6;
+    g.shadowColor='rgba(0,0,0,.65)';g.shadowBlur=5;g.shadowOffsetY=2;
+    g.strokeStyle='rgba(48,26,12,.92)';g.strokeText(txt,0,0);   // viền + bóng đổ giúp chữ rõ trên mọi nền
+    g.shadowColor='transparent';g.shadowBlur=0;g.shadowOffsetY=0;
+    const gr=g.createLinearGradient(0,-18,0,18);
+    gr.addColorStop(0,'#fff3dc');gr.addColorStop(.3,'#e9bd8c');gr.addColorStop(.5,'#c08a58');
+    gr.addColorStop(.52,'#8d5830');gr.addColorStop(.78,'#c99762');gr.addColorStop(1,'#f3d3a6');
+    g.fillStyle=gr;g.fillText(txt,0,0);
+    g.lineWidth=1;g.strokeStyle='rgba(255,236,200,.45)';g.strokeText(txt,0,0);   // viền sáng mảnh: bóng loáng ở mép chữ
+    g.restore();
     T.tex.needsUpdate=true;
   }
   // gọi từ spawnBot: gán tên mới cho bot (keep=true: bot tự đặt lại vị trí, giữ nguyên tên cũ)
