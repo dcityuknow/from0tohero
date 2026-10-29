@@ -43,6 +43,7 @@
     'world/nature/build.js',
     'world/nature/runtime.js',
     // Kẻ địch: mô hình bot/boss, di chuyển, boss, bộ sinh quái, thoại boss, quản lý tầng
+    'entities/botnames.js',   // tên @... trên đầu bot + hạn mức số bot theo số tên (đọc assets/data/botnames.txt) - phải nạp TRƯỚC bot-model.js
     'entities/bot-model.js','entities/boss-model.js','entities/boss2-model.js','entities/steering.js','entities/boss.js',
     'entities/spawner.js','entities/ai-talk.js','entities/boss-talk.js','entities/floor-manager.js',
     'world/common/portal.js',   // cổng không gian thay cầu thang (cần floor-manager.js / level.js / spawner.js nạp trước)

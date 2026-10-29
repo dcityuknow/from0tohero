@@ -65,7 +65,7 @@ function spawnRandom(){
   yaw=s.yaw||0;pitch=s.pitch||0;
 }
 window.spawnPos=()=>{const f=n=>+n.toFixed(2),r=n=>+n.toFixed(3),o="{name:'new',x:"+f(P.x)+",y:"+f(P.y)+",z:"+f(P.z)+",yaw:"+r(yaw)+",pitch:"+r(pitch)+"},";console.log(o);return o};
-function restart(){hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();spawnRandom();P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();clearParts();clearHoles();clearBul();resetLevel();if(window.NET)NET.onRespawn()}
+function restart(){if(window.BN)BN.reset();hurtTilt=hurtTiltT=0;lives=0;reviveT=0;updLives();spawnRandom();P.hp=100;ammos={pistol:12,rifle:30,sniper:5};reserve={...RES0};gren=3;gcd=0;throwT=0;holding=false;autoP=false;rel=0;kills=0;for(const p of pickups)S.remove(p.g);pickups.length=0;for(const g of grenades)S.remove(g.m);grenades.length=0;clearRocks();clearAllies();if(window.Engrave)Engrave.reset();$('k').textContent=0;dead=false;bots.forEach(b=>{if(!b.arch)spawnBot(b)});Archer.reset();clearParts();clearHoles();clearBul();resetLevel();if(window.NET)NET.onRespawn()}
 // ---- Đồng hồ FPS ở góc trái dưới màn hình: xanh = mượt, vàng = trung bình, đỏ = giật lag. Chỉnh ngưỡng ở FPSC ----
 const FPSC={good:50,mid:30,every:.5};   // >= good: xanh · >= mid: vàng · thấp hơn: đỏ · every: giây giữa 2 lần cập nhật số
 const fpsEl=document.createElement('div');fpsEl.id='fps';fpsEl.className='pill';
@@ -134,7 +134,7 @@ function frame(now){
     for(const b of(BR?NOB:bots)){
       if(b.ally||b.arch)continue;      // đồng minh do ally.js điều khiển · lính cung trên tường thành do archer.js điều khiển
       if(!b.on){b.g.visible=false;continue}
-      if(b.hp>0&&(b.y<FY(curFl)-4||b.y>FY(curFl)+(curFl===1?44:12))){spawnBot(b);continue}   // +12 (tầng 2: +44): bot được phép leo lên núi / mặt tường thành
+      if(b.hp>0&&(b.y<FY(curFl)-4||b.y>FY(curFl)+(curFl===1?44:12))){spawnBot(b,true);continue}   // +12 (tầng 2: +44): bot được phép leo lên núi / mặt tường thành
       if(b.hp<=0)continue;      // bot chết được tái sử dụng bởi bộ sinh quái (tickSpawn)
       const TG=BH?BotSync.pick(b):null,T0=TG||P,dx=T0.x-b.x,dz=T0.z-b.z,d=Math.hypot(dx,dz);let mv=0,dt=dt0;   // TG: người chơi từ xa gần nhất (null = người chơi trên máy này)
       // AI LOD: bot ở xa (sương đã che gần hết) chỉ chạy AI + va chạm 1/3 (xa > 100m: 1/6) số khung, bù lại bằng bước thời gian dài hơn -> cùng tốc độ di chuyển, nhẹ CPU, hình ảnh không đổi
@@ -171,7 +171,7 @@ function frame(now){
   if(reviveT>0)reviveT-=dt;
   if(dead)deadT=Math.min(1,deadT+dt*1.5);else deadT=0;
   const de=deadT*deadT*(3-2*deadT);   // ngã: mắt tụt xuống sát đất, đầu chúi xuống, góc nhìn nghiêng gần 90 độ
-  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));if(window.TP)TP.apply(dt);applyShake(dt);if(window.Apoc&&Apoc.active)Apoc.update(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();OC.tick(dt);VLOD.tick();
+  C.position.set(P.x+Math.cos(yaw)*.5*de,P.y+eye+(.3-eye)*de,P.z-Math.sin(yaw)*.5*de);C.rotation.set(pitch*(1-de)-.25*de,yaw,-1.5*de-hurtTilt*(1-de));if(window.TP)TP.apply(dt);applyShake(dt);if(window.Apoc&&Apoc.active)Apoc.update(dt);C.updateMatrixWorld();tickSky(dt);listen();placeBubble();if(window.BN)BN.tick();OC.tick(dt);VLOD.tick();
   {const gr=cur==='grenade';   // chỉ ghi vào DOM khi giá trị thật sự đổi (tránh dựng lại chữ / layout mỗi khung)
     if(P.hp!==H.hp){H.hp=P.hp;H.eHp.style.width=P.hp+'%'}
     const am=gr?gren:rel>0?'…':ammos[cur],mg=gr?GMAX:reserve[cur];
