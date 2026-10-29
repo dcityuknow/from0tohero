@@ -2,6 +2,7 @@
 // SỐ BOT = SỐ TÊN: mỗi tầng chỉ sinh tối đa đúng bằng số tên trong tệp (mỗi tên dùng 1 lần). Sang tầng khác / chơi lại -> BN.reset() (setupFloor, restart).
 // Thêm / bớt dòng trong tệp rồi tải lại trang -> số bot đổi theo. Không đọc được tệp (vd mở bằng file://) -> game chạy như cũ, không tên, không giới hạn.
 // Nạp TRƯỚC bot-model.js (spawnBot gọi BN.assign). Chỉnh nhanh ở CFG.
+// SỬA LỖI: các module khác kiểm tra bằng window.BN, nhưng "const BN" ở cấp cao nhất KHÔNG nằm trên window -> luôn undefined -> tên không bao giờ hiện. Đã gán window.BN = api bên dưới.
 const BN=(function(){
   const CFG={
     file:'assets/data/botnames.txt',
@@ -65,14 +66,16 @@ const BN=(function(){
       T.spr.visible=ok;
     }
   }
+  const api={CFG,assign,reset,tick,
+    active:()=>loaded&&order.length>0,
+    total:()=>list.length,
+    left:()=>loaded?Math.max(0,order.length-used):Infinity};
+  window.BN=api;   // QUAN TRỌNG: để bot-model.js / spawner.js / main.js thấy được qua window.BN
   fetch(CFG.file,{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject(r.status)).then(x=>{
     const l=parse(x);if(!l.length)return;
     list=l;loaded=true;reset();
     try{if(typeof setupFloor==='function')setupFloor()}catch(e){}   // tên tải xong sau khi game dựng tầng: dựng lại để bot có tên + đúng số lượng
     console.log('[Block Arena] '+l.length+' tên bot từ '+CFG.file);
   }).catch(e=>console.warn('[Block Arena] không đọc được '+CFG.file+' (dùng npm start / máy chủ web, không mở file://) -> bot không có tên'));
-  return {CFG,assign,reset,tick,
-    active:()=>loaded&&order.length>0,
-    total:()=>list.length,
-    left:()=>loaded?Math.max(0,order.length-used):Infinity};
+  return api;
 })();
