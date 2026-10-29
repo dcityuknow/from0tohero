@@ -9,6 +9,8 @@
 //  - Bước qua cổng -> sang Optimum World. Bên đó cũng có 1 cổng; bước qua cổng đó (hoặc bấm "Quay lại") -> về lại đây,
 //    đứng ngay trước cổng. Có thể đi qua đi lại giữa 2 thế giới bao nhiêu lần tuỳ ý.
 //  - Hình cổng: vành voxel xanh + vòng xoáy tia lửa cam ở giữa + cửa sổ nhìn thấy cảnh Optimum World (ảnh chụp nhúng sẵn).
+//  - Game kia được TẢI SẴN (ẩn) khi cổng xuất hiện và giữ lại: bước vào là có ngay (không load, không đen màn hình);
+//    khi ở game bạn thì game kia tự dừng vẽ + tắt âm thanh.
 //  - Game kia báo "đã bước qua cổng" bằng postMessage({type:'optimum-rift-back'}) (xem js/visit-portal.js bên optimum-world).
 // Lệnh thử: Rift.spawn() mở cổng ngay · Rift.leave() về từ game kia · Rift.close() xoá cổng · Rift.inside (đang ở game kia?)
 // ============================================================================
@@ -16,6 +18,7 @@
   const RIFT={
     chance:.05,        // 5% mỗi lần tung xúc xắc (chỉ tung khi chưa có cổng)
     every:30000,       // ms giữa 2 lần tung (30 giây)
+    preload:true,      // tải sẵn Optimum World (ẩn) ngay khi cổng xuất hiện -> bước vào là có ngay, không phải chờ load / đen màn hình
     backGap:4.5,       // m: về lại đứng cách cổng chừng này (phía mình đã đi vào)
     // Game 1 (Optimum World) đã deploy trên GitHub Pages. ?visit=1 = chế độ tham quan (js/visit-mode.js bên game 1)
     url:'https://dcityuknow.github.io/optimum-world/?visit=1',
@@ -234,7 +237,10 @@
   const charKey=()=>{try{return (window.PROFILE&&PROFILE.char)||(window.CharPick&&CharPick.current&&CharPick.current())||'vn'}catch(e){return 'vn'}};   // cùng cách chọn như player/thirdperson.js
   const busy=()=>!!(window.Apoc&&Apoc.active)||!!(window.NET&&NET.on);   // đang cảnh tận thế / đang chơi LAN thì ẩn cổng, không cho đi
 
-  let obj=null,gy=0,ov=null,fr=null,armed=true,side=1;
+  let obj=null,gy=0,armed=true,side=1;
+  let ov=null,fr=null,card=null,frChar='',frReady=false;   // iframe game kia: tạo 1 lần, giữ lại, chỉ ẩn / hiện
+  const ORIGIN=(()=>{try{return new URL(RIFT.url).origin}catch(e){return '*'}})();
+  const post=m=>{try{if(fr&&fr.contentWindow)fr.contentWindow.postMessage(m,ORIGIN)}catch(e){}};
   const R_={inside:false};
   window.Rift=R_;
 
@@ -254,34 +260,50 @@
       obj=G.build(x,y,z,Math.atan2(P.x-x,P.z-z));        // mặt cổng quay về phía người chơi
       obj.f=(typeof curFl!=='undefined')?curFl:null;      // cổng thuộc tầng nào (game có nhiều tầng)
       armed=true;
+      if(RIFT.preload)setTimeout(()=>{if(obj&&!fr)ensureFrame()},1500);   // trễ chút cho khỏi giật đúng lúc cổng hiện
       msg(T('Một lỗ hổng không gian vừa xuất hiện!','A space rift has appeared!'));
       return true;
     }
     return false;
   };
-  R_.close=function(){if(obj){G.dispose(obj);obj=null}};
+  R_.close=function(){if(obj){G.dispose(obj);obj=null}killFrame()};
 
-  function enter(){
-    R_.inside=true;
-    for(const k in keys)keys[k]=false;                    // nhả hết phím, tránh kẹt phím khi quay lại
-    try{md=false;holding=false;autoP=false;scoped=false}catch(e){}
-    if(document.exitPointerLock)document.exitPointerLock();
+  // ---- iframe game kia: dựng 1 lần (ẩn bằng visibility, vẫn đủ kích thước nên game kia dựng + vẽ đúng cỡ), sau đó chỉ ẩn / hiện ----
+  function killFrame(){if(ov)ov.remove();ov=fr=card=null;frReady=false}
+  function ensureFrame(){
+    if(fr&&frChar===charKey())return;                       // đã có sẵn (cùng nhân vật) -> dùng lại
+    killFrame();frChar=charKey();
     ov=document.createElement('div');
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#000';
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#000;visibility:hidden';
     fr=document.createElement('iframe');
-    fr.src=RIFT.url+'&char='+encodeURIComponent(charKey());fr.allow='autoplay; fullscreen';   // gắn nhân vật đang chọn vào link sang game 1
+    fr.src=RIFT.url+'&char='+encodeURIComponent(frChar);fr.allow='autoplay; fullscreen';   // gắn nhân vật đang chọn vào link sang game 1
     fr.style.cssText='width:100%;height:100%;border:0;display:block';
-    fr.onload=()=>{try{fr.focus()}catch(e){}};
+    // màn hình chờ (chỉ hiện nếu bước vào trước khi game kia tải xong)
+    card=document.createElement('div');
+    card.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 45%,#1a0d44,#07031a);color:#d5ccff;font:600 18px system-ui,sans-serif;pointer-events:none';
+    card.innerHTML='<style>@keyframes riftspin{to{transform:rotate(360deg)}}</style><div style="width:54px;height:54px;border-radius:50%;border:5px solid rgba(255,150,50,.25);border-top-color:#ff9a2a;animation:riftspin 1s linear infinite"></div><div>'+T('Đang mở cổng sang Optimum World…','Opening the portal to Optimum World…')+'</div>';
     const bt=document.createElement('button');
     bt.textContent='⮌ '+T('Quay lại Block Arena','Back to Block Arena');
     bt.style.cssText='position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;padding:10px 16px;border:0;border-radius:10px;background:#7c4dff;color:#fff;font:600 16px system-ui,sans-serif;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5)';
     bt.onclick=leave;
-    ov.append(fr,bt);document.body.appendChild(ov);
+    ov.append(fr,card,bt);document.body.appendChild(ov);
+  }
+
+  function enter(){
+    ensureFrame();
+    R_.inside=true;
+    for(const k in keys)keys[k]=false;                    // nhả hết phím, tránh kẹt phím khi quay lại
+    try{md=false;holding=false;autoP=false;scoped=false}catch(e){}
+    if(document.exitPointerLock)document.exitPointerLock();
+    ov.style.visibility='visible';card.style.display=frReady?'none':'flex';
+    post({type:'rift-resume'});                           // game kia chạy lại + bật âm thanh
+    try{fr.focus()}catch(e){}
   }
 
   function leave(){
     if(!R_.inside)return;
-    if(ov){ov.remove();ov=null}fr=null;                   // gỡ iframe -> game 1 tắt hẳn (cả âm thanh)
+    if(ov)ov.style.visibility='hidden';                   // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay
+    post({type:'rift-pause'});                            // game kia dừng vẽ + tắt âm thanh (đỡ tốn máy, đỡ ồn)
     R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
     if(obj){
       // đặt người chơi trước cổng, ở phía mình đã đi vào, quay mặt về cổng
@@ -296,9 +318,12 @@
   }
   R_.leave=leave;
 
-  // game kia báo "người chơi vừa bước qua cổng bên đó" -> về lại đây
+  // tin nhắn từ game kia: 'optimum-ready' (đã dựng xong) · 'optimum-rift-back' (người chơi vừa bước qua cổng bên đó)
   addEventListener('message',e=>{
-    if(R_.inside&&fr&&e.source===fr.contentWindow&&e.data&&e.data.type==='optimum-rift-back')leave();
+    if(!fr||e.source!==fr.contentWindow||!e.data)return;
+    const t=e.data.type;
+    if(t==='optimum-ready'){frReady=true;if(card)card.style.display='none';post({type:R_.inside?'rift-resume':'rift-pause'})}
+    else if(t==='optimum-rift-back'&&R_.inside)leave();
   });
 
   // tung xúc xắc: chỉ khi chưa có cổng
