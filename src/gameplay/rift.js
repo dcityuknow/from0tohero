@@ -11,6 +11,7 @@
 //  - Hình cổng: vành voxel xanh + vòng xoáy tia lửa cam ở giữa + cửa sổ nhìn thấy cảnh Optimum World (ảnh chụp nhúng sẵn).
 //  - Game kia được TẢI SẴN (ẩn) khi cổng xuất hiện và giữ lại: bước vào là có ngay (không load, không đen màn hình);
 //    khi ở game bạn thì game kia tự dừng vẽ + tắt âm thanh.
+//  - Qua cổng xong, cổng luôn nằm SAU LƯNG nhân vật (quay mặt ra xa cổng): cứ đi tới là rời xa, không bị lọt ngược vào cổng.
 //  - Game kia báo "đã bước qua cổng" bằng postMessage({type:'optimum-rift-back'}) (xem js/visit-portal.js bên optimum-world).
 // Lệnh thử: Rift.spawn() mở cổng ngay · Rift.leave() về từ game kia · Rift.close() xoá cổng · Rift.inside (đang ở game kia?)
 // ============================================================================
@@ -329,12 +330,13 @@
     post({type:'rift-pause'});                            // game kia dừng vẽ + tắt âm thanh (đỡ tốn máy, đỡ ồn)
     R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
     if(obj){
-      // đặt người chơi trước cổng, ở phía mình đã đi vào, quay mặt về cổng
-      const x=obj.x+obj.nx*side*RIFT.backGap,z=obj.z+obj.nz*side*RIFT.backGap,y=groundAt(x,z);
+      // đi xuyên qua cổng: ra ở PHÍA BÊN KIA, quay mặt ra xa cổng (cổng nằm sau lưng) -> cứ đi tới là rời xa cổng, không lọt lại
+      let sd=-side,x=obj.x+obj.nx*sd*RIFT.backGap,z=obj.z+obj.nz*sd*RIFT.backGap,y=groundAt(x,z);
+      if(Math.abs(y-gy)>3){sd=side;x=obj.x+obj.nx*sd*RIFT.backGap;z=obj.z+obj.nz*sd*RIFT.backGap;y=groundAt(x,z)}   // bên kia là vách / hố: ra phía cũ
       if(Math.abs(y-gy)<=3){
         P.x=x;P.z=z;P.y=y;
         try{P.vy=0;P.fy=undefined;P.ground=false}catch(e){}
-        try{yaw=Math.atan2(obj.x-x,obj.z-z)+Math.PI}catch(e){}   // hướng nhìn = (-sin yaw,-cos yaw) -> về phía cổng
+        try{yaw=Math.atan2(-obj.nx*sd,-obj.nz*sd)}catch(e){}   // hướng nhìn = (-sin yaw,-cos yaw) = ra xa cổng
       }
     }
     try{cv.requestPointerLock()}catch(e){}                // bấm nút / bước qua cổng là thao tác người dùng nên khoá chuột lại được
