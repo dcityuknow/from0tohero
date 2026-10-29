@@ -10,7 +10,7 @@ const BN=(function(){
     range:40,       // chỉ hiện tên khi bot cách camera trong khoảng này (m)
     h:.42,          // chiều cao khung tên (m, trong thế giới) - tăng nếu thấy chữ nhỏ
     y:2.27,         // độ cao khung tên so với chân bot (ăng-ten bot cao ~2.13 -> tên nằm sát ngay trên đầu; tăng số này nếu muốn cao hơn)
-    shuffle:false   // true = xáo thứ tự tên mỗi lần reset; false = theo đúng thứ tự trong tệp
+    shuffle:true    // true = xáo ngẫu nhiên thứ tự tên mỗi lần reset (mỗi tên chỉ dùng 1 lần); false = theo đúng thứ tự trong tệp
   };
   let list=[],order=[],used=0,loaded=false;
   const W=512,H=64,_d=new THREE.Vector3();
@@ -62,7 +62,8 @@ const BN=(function(){
   function assign(b,keep){
     if(!loaded||!order.length||b.boss||b.arch)return;
     if(keep&&b.nm)return;
-    const name=list[order[used%order.length]];used++;
+    if(used>=order.length){b.nm=null;return}   // hết danh sách: không lặp lại tên cũ, bot này không có tên
+    const name=list[order[used]];used++;
     b.nm=name;draw(tagOf(b),name);
   }
   // mỗi khung (main.js): chỉ hiện tên bot còn sống, đang hoạt động, trong tầm nhìn
@@ -71,7 +72,7 @@ const BN=(function(){
     const cp=C.position,r2=CFG.range*CFG.range;
     for(const b of bots){
       const T=b.nmT;if(!T)continue;
-      let ok=b.on&&b.hp>0&&b.g.visible&&!b.boss&&!b.arch;
+      let ok=!!b.nm&&b.on&&b.hp>0&&b.g.visible&&!b.boss&&!b.arch;
       if(ok){const dx=b.x-cp.x,dy=b.y-cp.y,dz=b.z-cp.z;ok=dx*dx+dy*dy+dz*dz<r2}
       T.spr.visible=ok;
     }
