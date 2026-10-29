@@ -2,7 +2,8 @@
 // số bot thường theo tầng: 4 / 7 / 10 (hồi sinh nhanh hơn ở tầng cao, xem items.js)
 function setupFloor(){
   if(window.NET&&NET.botsRemote&&NET.botsRemote()){if(window.BotSync)BotSync.clear();return}   // LAN: máy khách không tự sinh quái, chỉ vẽ quái của chủ phòng (net/botsync.js)
-  const nb=bots.filter(b=>!b.boss&&!b.arch),want=window.NET&&NET.noBots()?0:4+2*curFl;   // LAN: phòng tắt bot -> không có quái
+  if(window.BN)BN.reset();   // botnames.js: sang tầng mới / dựng lại tầng -> hạn mức tên (= số bot của tầng) đầy lại
+  const base=window.NET&&NET.noBots()?0:4+2*curFl,nb=bots.filter(b=>!b.boss&&!b.arch),want=window.BN&&BN.active()?Math.min(base,BN.left()):base;   // LAN: phòng tắt bot -> không có quái
 
   while(nb.length<want)nb.push(mkBot());
   nb.forEach((b,i)=>{b.on=i<want;if(b.on)spawnBot(b)});
@@ -17,6 +18,7 @@ function tickSpawn(dt){
   let alive=0,free=null;
   for(const b of bots){if(b.boss||b.arch)continue;if(b.on&&b.hp>0)alive++;else if(!free)free=b}
   if(alive>=MAXBOT)return;
+  if(window.BN&&BN.active()&&BN.left()<=0)return;   // hết tên = hết bot của tầng này (botnames.js)
   if(!free)free=mkBot();
   free.on=true;spawnBot(free);
 }
