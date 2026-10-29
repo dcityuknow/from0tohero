@@ -238,7 +238,7 @@
   const busy=()=>!!(window.Apoc&&Apoc.active)||!!(window.NET&&NET.on);   // đang cảnh tận thế / đang chơi LAN thì ẩn cổng, không cho đi
 
   let obj=null,gy=0,armed=true,side=1;
-  let ov=null,fr=null,card=null,frChar='',frReady=false;   // iframe game kia: tạo 1 lần, giữ lại, chỉ ẩn / hiện
+  let ov=null,fr=null,card=null,frChar='',frReady=false,bootOn=false,bootTimer=0,bootTO=0;   // iframe game kia: tạo 1 lần, giữ lại, chỉ ẩn / hiện
   const ORIGIN=(()=>{try{return new URL(RIFT.url).origin}catch(e){return '*'}})();
   const post=m=>{try{if(fr&&fr.contentWindow)fr.contentWindow.postMessage(m,ORIGIN)}catch(e){}};
   const R_={inside:false};
@@ -295,13 +295,36 @@
     for(const k in keys)keys[k]=false;                    // nhả hết phím, tránh kẹt phím khi quay lại
     try{md=false;holding=false;autoP=false;scoped=false}catch(e){}
     if(document.exitPointerLock)document.exitPointerLock();
-    ov.style.visibility='visible';card.style.display=frReady?'none':'flex';
+    if(frReady)showOv();                                  // đã tải sẵn: hiện ngay
+    else if(bootStart()){}                                // chưa xong: dùng màn hình LOADING của chính game này (vòng xoáy + vầng sáng)
+    else{showOv();card.style.display='flex'}              // không có BOOT: dùng màn chờ dự phòng
+  }
+  function showOv(){
+    if(!ov)return;
+    ov.style.visibility='visible';if(card)card.style.display='none';
     post({type:'rift-resume'});                           // game kia chạy lại + bật âm thanh
     try{fr.focus()}catch(e){}
+  }
+  // ---- màn hình LOADING của game (#boot trong index.html, điều khiển bởi window.BOOT): đưa lên trên lớp iframe trong lúc chờ ----
+  function bootStart(){
+    const b=document.getElementById('boot');
+    if(!window.BOOT||!b||!BOOT.again)return false;
+    bootOn=true;b.style.zIndex='100000';BOOT.again();
+    let pr=0;bootTimer=setInterval(()=>{pr+=(.9-pr)*.06;BOOT.set(pr)},200);   // tiến độ giả lập chạy dần tới ~90%
+    bootTO=setTimeout(bootFinish,25000);                    // chờ quá 25 giây thì vẫn mở ra (game kia có thể tự báo lỗi)
+    return true;
+  }
+  function bootFinish(){
+    if(!bootOn)return;
+    bootOn=false;clearInterval(bootTimer);clearTimeout(bootTO);
+    const b=document.getElementById('boot');
+    showOv();                                             // iframe hiện ngay bên dưới, màn loading mờ dần để lộ ra game kia
+    BOOT.done(()=>{if(b)b.style.zIndex=''});              // chạy nốt vòng sáng rồi mở
   }
 
   function leave(){
     if(!R_.inside)return;
+    if(bootOn){bootOn=false;clearInterval(bootTimer);clearTimeout(bootTO);const b=document.getElementById('boot');BOOT.done(()=>{if(b)b.style.zIndex=''})}   // đang chờ loading mà bấm về: đóng màn loading
     if(ov)ov.style.visibility='hidden';                   // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay
     post({type:'rift-pause'});                            // game kia dừng vẽ + tắt âm thanh (đỡ tốn máy, đỡ ồn)
     R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
@@ -322,7 +345,7 @@
   addEventListener('message',e=>{
     if(!fr||e.source!==fr.contentWindow||!e.data)return;
     const t=e.data.type;
-    if(t==='optimum-ready'){frReady=true;if(card)card.style.display='none';post({type:R_.inside?'rift-resume':'rift-pause'})}
+    if(t==='optimum-ready'){frReady=true;if(card)card.style.display='none';if(R_.inside){if(bootOn)bootFinish();else showOv()}else post({type:'rift-pause'})}
     else if(t==='optimum-rift-back'&&R_.inside)leave();
   });
 
