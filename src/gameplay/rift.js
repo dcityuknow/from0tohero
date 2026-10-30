@@ -290,7 +290,8 @@
     if(fr&&frChar===charKey())return;                       // đã có sẵn (cùng nhân vật) -> dùng lại
     killFrame();frChar=charKey();
     ov=document.createElement('div');
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#000;visibility:hidden';
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#000;opacity:.01;pointer-events:none';
+    ov.inert=true;   // KHÔNG dùng visibility:hidden: Chrome coi iframe ẩn là không hiển thị -> dừng requestAnimationFrame, game kia không bao giờ vẽ / báo ready
     fr=document.createElement('iframe');
     fr.src=RIFT.url+'&char='+encodeURIComponent(frChar);fr.allow='autoplay; fullscreen';   // gắn nhân vật đang chọn vào link sang game 1
     fr.style.cssText='width:100%;height:100%;border:0;display:block';
@@ -317,7 +318,7 @@
   }
   function showOv(){
     if(!ov)return;
-    ov.inert=false;ov.style.visibility='visible';if(card)card.style.display='none';
+    ov.inert=false;ov.style.opacity='1';ov.style.pointerEvents='auto';if(card)card.style.display='none';
     post({type:'rift-resume'});                           // game kia chạy lại + bật âm thanh
     if(frReady&&pend.length){pend.forEach(post);pend=[]}   // gửi các bot đã chạy qua cổng trong lúc game kia còn đang tải
     try{fr.focus()}catch(e){}
@@ -328,7 +329,7 @@
     if(!window.BOOT||!b||!BOOT.again)return false;
     bootOn=true;b.style.zIndex='100000';BOOT.again();
     let pr=0;bootTimer=setInterval(()=>{pr+=(.9-pr)*.06;BOOT.set(pr)},200);   // tiến độ giả lập chạy dần tới ~90%
-    bootTO=setTimeout(bootFinish,25000);                    // chờ quá 25 giây thì vẫn mở ra (game kia có thể tự báo lỗi)
+    bootTO=setTimeout(bootFinish,10000);                    // chờ quá 25 giây thì vẫn mở ra (game kia có thể tự báo lỗi)
     return true;
   }
   function bootFinish(){
@@ -342,7 +343,7 @@
   function leave(){
     if(!R_.inside)return;
     if(bootOn){bootOn=false;clearInterval(bootTimer);clearTimeout(bootTO);const b=document.getElementById('boot');BOOT.done(()=>{if(b)b.style.zIndex=''})}   // đang chờ loading mà bấm về: đóng màn loading
-    if(ov){ov.style.visibility='hidden';ov.inert=true}    // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay. inert: iframe ẩn không nhận tiêu điểm / chuột / phím
+    if(ov){ov.style.opacity='.01';ov.style.pointerEvents='none';ov.inert=true}    // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay. inert: iframe ẩn không nhận tiêu điểm / chuột / phím
     post({type:'rift-pause'});                            // game kia dừng vẽ + tắt âm thanh (đỡ tốn máy, đỡ ồn)
     R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
     if(obj){
