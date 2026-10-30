@@ -249,6 +249,14 @@
   const R_={inside:false};
   window.Rift=R_;
 
+  // Nhả khóa chuột để sang game kia -> ui.js coi là "Tạm dừng" và dừng cả game (bot đứng yên, hiện bảng Tạm dừng). Hoàn tác như portrait-info.js đã làm:
+  // game này PHẢI luôn chạy tiếp (bot vẫn chạy tới cổng) và khi về không bị kẹt ở màn hình Tạm dừng.
+  const keepPlaying=()=>{
+    if(!R_.inside&&!R_.keep)return;
+    try{if(typeof dead!=='undefined'&&dead)return;playing=true;const o=document.getElementById('ov');if(o)o.style.display='none'}catch(e){}
+  };
+  document.addEventListener('pointerlockchange',()=>{keepPlaying();setTimeout(keepPlaying,0);setTimeout(keepPlaying,80)});   // setTimeout: phòng khi handler của ui.js chạy SAU handler này
+
   // Đang ở game kia thì người chơi KHÔNG bị mất máu: game này vẫn chạy ngầm, bot đang chạy tới chỗ cổng nơi nhân vật đứng
   try{if(typeof hurt==='function'&&!hurt.__rift){const h0=hurt,w=function(){if(R_.inside)return;return h0.apply(this,arguments)};w.__rift=1;window.hurt=w}}catch(e){}
 
@@ -348,7 +356,14 @@
         try{yaw=Math.atan2(-obj.nx*sd,-obj.nz*sd)}catch(e){}   // hướng nhìn = (-sin yaw,-cos yaw) = ra xa cổng
       }
     }
-    try{cv.requestPointerLock()}catch(e){}                // bấm nút / bước qua cổng là thao tác người dùng nên khoá chuột lại được
+    R_.keep=true;setTimeout(()=>{R_.keep=false},1500);keepPlaying();   // 1,5 giây sau khi về: vẫn chặn Tạm dừng do việc nhả / khóa chuột
+    try{const pr=cv.requestPointerLock();if(pr&&pr.catch)pr.catch(()=>{})}catch(e){}   // bước qua cổng / bấm nút là thao tác người dùng nên thường khoá chuột lại được
+    setTimeout(()=>{   // không khóa được: bấm vào màn hình là chơi tiếp (game vẫn đang chạy, không bị Tạm dừng)
+      if(document.pointerLockElement!==cv){
+        msg(T('Bấm vào màn hình để điều khiển chuột','Click the screen to take mouse control'));
+        document.addEventListener('mousedown',()=>{try{cv.requestPointerLock()}catch(e){}},{once:true,capture:true});
+      }
+    },400);
   }
   R_.leave=leave;
 
