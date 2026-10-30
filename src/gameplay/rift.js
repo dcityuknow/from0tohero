@@ -11,6 +11,8 @@
 //  - Hình cổng: vành voxel xanh + vòng xoáy tia lửa cam ở giữa + cửa sổ nhìn thấy cảnh Optimum World (ảnh chụp nhúng sẵn).
 //  - Game kia được TẢI SẴN (ẩn) khi cổng xuất hiện và giữ lại: bước vào là có ngay (không load, không đen màn hình);
 //    khi ở game bạn thì game kia tự dừng vẽ + tắt âm thanh.
+//  - BOT chạy theo qua cổng: bot thường ở Block Arena chạy tới cổng là chui qua và đuổi theo bạn bên Optimum; bot bên đó cũng chạy theo bạn về.
+//    Trong lúc ở game kia, nhân vật này không bị mất máu (game vẫn chạy ngầm).
 //  - Qua cổng xong, cổng luôn nằm SAU LƯNG nhân vật (quay mặt ra xa cổng): cứ đi tới là rời xa, không bị lọt ngược vào cổng.
 //  - Game kia báo "đã bước qua cổng" bằng postMessage({type:'optimum-rift-back'}) (xem js/visit-portal.js bên optimum-world).
 // Lệnh thử: Rift.spawn() mở cổng ngay · Rift.leave() về từ game kia · Rift.close() xoá cổng · Rift.inside (đang ở game kia?)
@@ -20,6 +22,8 @@
     chance:.05,        // 5% mỗi lần tung xúc xắc (chỉ tung khi chưa có cổng)
     every:30000,       // ms giữa 2 lần tung (30 giây)
     preload:true,      // tải sẵn Optimum World (ẩn) ngay khi cổng xuất hiện -> bước vào là có ngay, không phải chờ load / đen màn hình
+    follow:true,       // bot Block Arena chạy theo qua cổng (và bot bên Optimum chạy theo về)
+    followMax:16,      // tối đa số bot chạy qua cổng mỗi lần bạn sang game kia
     backGap:4.5,       // m: về lại đứng cách cổng chừng này (phía mình đã đi vào)
     // Game 1 (Optimum World) đã deploy trên GitHub Pages. ?visit=1 = chế độ tham quan (js/visit-mode.js bên game 1)
     url:'https://dcityuknow.github.io/optimum-world/?visit=1',
@@ -238,12 +242,15 @@
   const charKey=()=>{try{return (window.PROFILE&&PROFILE.char)||(window.CharPick&&CharPick.current&&CharPick.current())||'vn'}catch(e){return 'vn'}};   // cùng cách chọn như player/thirdperson.js
   const busy=()=>!!(window.Apoc&&Apoc.active)||!!(window.NET&&NET.on);   // đang cảnh tận thế / đang chơi LAN thì ẩn cổng, không cho đi
 
-  let obj=null,gy=0,armed=true,side=1;
+  let obj=null,gy=0,armed=true,side=1,arrSide=1,crossed=0,pend=[];   // pend: bot đã qua cổng nhưng game kia chưa tải xong -> chờ gửi
   let ov=null,fr=null,card=null,frChar='',frReady=false,bootOn=false,bootTimer=0,bootTO=0;   // iframe game kia: tạo 1 lần, giữ lại, chỉ ẩn / hiện
   const ORIGIN=(()=>{try{return new URL(RIFT.url).origin}catch(e){return '*'}})();
   const post=m=>{try{if(fr&&fr.contentWindow)fr.contentWindow.postMessage(m,ORIGIN)}catch(e){}};
   const R_={inside:false};
   window.Rift=R_;
+
+  // Đang ở game kia thì người chơi KHÔNG bị mất máu: game này vẫn chạy ngầm, bot đang chạy tới chỗ cổng nơi nhân vật đứng
+  try{if(typeof hurt==='function'&&!hurt.__rift){const h0=hurt,w=function(){if(R_.inside)return;return h0.apply(this,arguments)};w.__rift=1;window.hurt=w}}catch(e){}
 
   function groundAt(x,z){
     let v=P.y;
@@ -292,7 +299,7 @@
 
   function enter(){
     ensureFrame();
-    R_.inside=true;
+    R_.inside=true;crossed=0;
     for(const k in keys)keys[k]=false;                    // nhả hết phím, tránh kẹt phím khi quay lại
     try{md=false;holding=false;autoP=false;scoped=false}catch(e){}
     if(document.exitPointerLock)document.exitPointerLock();
@@ -304,6 +311,7 @@
     if(!ov)return;
     ov.style.visibility='visible';if(card)card.style.display='none';
     post({type:'rift-resume'});                           // game kia chạy lại + bật âm thanh
+    if(frReady&&pend.length){pend.forEach(post);pend=[]}   // gửi các bot đã chạy qua cổng trong lúc game kia còn đang tải
     try{fr.focus()}catch(e){}
   }
   // ---- màn hình LOADING của game (#boot trong index.html, điều khiển bởi window.BOOT): đưa lên trên lớp iframe trong lúc chờ ----
@@ -331,8 +339,9 @@
     R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
     if(obj){
       // đi xuyên qua cổng: ra ở PHÍA BÊN KIA, quay mặt ra xa cổng (cổng nằm sau lưng) -> cứ đi tới là rời xa cổng, không lọt lại
-      let sd=-side,x=obj.x+obj.nx*sd*RIFT.backGap,z=obj.z+obj.nz*sd*RIFT.backGap,y=groundAt(x,z);
-      if(Math.abs(y-gy)>3){sd=side;x=obj.x+obj.nx*sd*RIFT.backGap;z=obj.z+obj.nz*sd*RIFT.backGap;y=groundAt(x,z)}   // bên kia là vách / hố: ra phía cũ
+      let sd=-side;arrSide=sd;
+      let x=obj.x+obj.nx*sd*RIFT.backGap,z=obj.z+obj.nz*sd*RIFT.backGap,y=groundAt(x,z);
+      if(Math.abs(y-gy)>3){sd=side;arrSide=sd;x=obj.x+obj.nx*sd*RIFT.backGap;z=obj.z+obj.nz*sd*RIFT.backGap;y=groundAt(x,z)}   // bên kia là vách / hố: ra phía cũ
       if(Math.abs(y-gy)<=3){
         P.x=x;P.z=z;P.y=y;
         try{P.vy=0;P.fy=undefined;P.ground=false}catch(e){}
@@ -343,12 +352,50 @@
   }
   R_.leave=leave;
 
+  // ---- BOT CHẠY THEO QUA CỔNG ----
+  // Block Arena -> game kia: bot thường chạy tới chỗ nhân vật đứng (đúng chỗ cổng) thì "chui qua cổng": biến mất ở đây (không tính hạ gục, không rơi đồ),
+  // xuất hiện bên kia và đuổi theo bạn. Tối đa RIFT.followMax bot mỗi lần. Boss / lính cung / đồng minh không đi.
+  function sendBot(b){
+    const m={type:'rift-bot',hp:b.hp,maxhp:b.maxhp};
+    if(frReady&&R_.inside)post(m);else pend.push(m);
+  }
+  function crossBots(){
+    if(!RIFT.follow||typeof bots==='undefined'||crossed>=RIFT.followMax)return;
+    for(const b of bots){
+      if(!b.on||b.hp<=0||b.boss||b.arch||b.ally||!b.g.visible)continue;
+      if(Math.hypot(b.x-P.x,b.z-P.z)<2.4&&Math.abs(b.y-P.y)<2.5){
+        const info={hp:b.hp,maxhp:b.maxhp||100};            // lấy máu TRƯỚC khi đánh dấu bot đã rời đi
+        b.hp=0;b.g.visible=false;b.respawn=3/(1+.7*(typeof curFl==='number'?curFl:0));   // như bot chết, nhưng không tính điểm / rơi đồ
+        sendBot(info);
+        if(++crossed===1)msg(T('Bot đang đuổi theo qua cổng!','Bots are following you through the rift!'));
+        if(crossed>=RIFT.followMax)break;
+      }
+    }
+  }
+  // game kia -> Block Arena: bot chạy theo bạn về, xuất hiện ở cổng (phía bạn vừa ra) rồi đuổi tiếp
+  function spawnFollower(x){
+    if(!obj||typeof mkBot!=='function'||typeof bots==='undefined'||typeof spawnBot!=='function')return;
+    if(obj.f!==null&&typeof curFl!=='undefined'&&curFl!==obj.f)return;
+    let alive=0,free=null;
+    for(const b of bots){if(b.boss||b.arch||b.ally)continue;if(b.on&&b.hp>0)alive++;else if(!free)free=b}
+    if(alive>=48)return;                                  // = MAXBOT trong spawner.js
+    if(!free)free=mkBot();
+    free.on=true;spawnBot(free);
+    const lat=(Math.random()-.5)*G.RB*RIFT.size*1.2;
+    free.x=obj.x+obj.nx*arrSide*1.2+obj.nz*lat;free.z=obj.z+obj.nz*arrSide*1.2-obj.nx*lat;free.y=gy;
+    free.hp=Math.max(20,Math.min(free.maxhp||100,+x.hp||100));free.vy=0;free.fy=undefined;
+    free.g.position.set(free.x,free.y,free.z);
+  }
+
   // tin nhắn từ game kia: 'optimum-ready' (đã dựng xong) · 'optimum-rift-back' (người chơi vừa bước qua cổng bên đó)
   addEventListener('message',e=>{
     if(!fr||e.source!==fr.contentWindow||!e.data)return;
     const t=e.data.type;
     if(t==='optimum-ready'){frReady=true;if(card)card.style.display='none';if(R_.inside){if(bootOn)bootFinish();else showOv()}else post({type:'rift-pause'})}
-    else if(t==='optimum-rift-back'&&R_.inside)leave();
+    else if(t==='optimum-rift-back'&&R_.inside){
+      leave();
+      if(RIFT.follow&&Array.isArray(e.data.bots))e.data.bots.slice(0,RIFT.followMax).forEach(x=>setTimeout(()=>spawnFollower(x),Math.max(0,+x.delay||0)*1000));   // bot bên kia chạy theo về, tới nơi lần lượt
+    }
   });
 
   // tung xúc xắc: chỉ khi chưa có cổng
@@ -367,6 +414,7 @@
     obj.g.visible=here&&!busy();
     if(!obj.g.visible)return;
     G.animate(obj,dt,Infinity,C.position);
+    if(R_.inside)crossBots();                              // đang ở game kia: bot tới chỗ cổng thì chui qua
     const dx=P.x-obj.x,dz=P.z-obj.z;
     if(!armed){if(Math.hypot(dx,dz)>RIFT.backGap-1)armed=true;return}      // vừa về: chờ bước ra khỏi cổng
     // bước qua cổng: cắt mặt phẳng cổng trong bán kính, đứng trên cùng mặt đất
