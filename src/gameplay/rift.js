@@ -317,7 +317,7 @@
   }
   function showOv(){
     if(!ov)return;
-    ov.style.visibility='visible';if(card)card.style.display='none';
+    ov.inert=false;ov.style.visibility='visible';if(card)card.style.display='none';
     post({type:'rift-resume'});                           // game kia chạy lại + bật âm thanh
     if(frReady&&pend.length){pend.forEach(post);pend=[]}   // gửi các bot đã chạy qua cổng trong lúc game kia còn đang tải
     try{fr.focus()}catch(e){}
@@ -342,7 +342,7 @@
   function leave(){
     if(!R_.inside)return;
     if(bootOn){bootOn=false;clearInterval(bootTimer);clearTimeout(bootTO);const b=document.getElementById('boot');BOOT.done(()=>{if(b)b.style.zIndex=''})}   // đang chờ loading mà bấm về: đóng màn loading
-    if(ov)ov.style.visibility='hidden';                   // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay
+    if(ov){ov.style.visibility='hidden';ov.inert=true}    // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay. inert: iframe ẩn không nhận tiêu điểm / chuột / phím
     post({type:'rift-pause'});                            // game kia dừng vẽ + tắt âm thanh (đỡ tốn máy, đỡ ồn)
     R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
     if(obj){
@@ -357,13 +357,21 @@
       }
     }
     R_.keep=true;setTimeout(()=>{R_.keep=false},1500);keepPlaying();   // 1,5 giây sau khi về: vẫn chặn Tạm dừng do việc nhả / khóa chuột
-    try{const pr=cv.requestPointerLock();if(pr&&pr.catch)pr.catch(()=>{})}catch(e){}   // bước qua cổng / bấm nút là thao tác người dùng nên thường khoá chuột lại được
-    setTimeout(()=>{   // không khóa được: bấm vào màn hình là chơi tiếp (game vẫn đang chạy, không bị Tạm dừng)
-      if(document.pointerLockElement!==cv){
-        msg(T('Bấm vào màn hình để điều khiển chuột','Click the screen to take mouse control'));
-        document.addEventListener('mousedown',()=>{try{cv.requestPointerLock()}catch(e){}},{once:true,capture:true});
-      }
-    },400);
+    // ---- lấy lại điều khiển từ iframe: nếu không, khóa chuột + tiêu điểm bàn phím vẫn nằm ở game kia (chuột không xoay, bấm bắn là bắn bên đó) ----
+    try{if(fr)fr.blur()}catch(e){}
+    try{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()}catch(e){}
+    try{window.focus()}catch(e){}
+    try{document.exitPointerLock()}catch(e){}
+    let tries=0;
+    const tryLock=()=>{                                   // game kia nhả khóa chuột hơi trễ (sau tin nhắn 'rift-pause') -> thử lại tới khi khóa được
+      if(R_.inside||document.pointerLockElement===cv)return;
+      try{const pr=cv.requestPointerLock();if(pr&&pr.catch)pr.catch(()=>{})}catch(e){}
+      if(++tries<24)setTimeout(tryLock,150);
+      else if(document.pointerLockElement!==cv)msg(T('Bấm vào màn hình để điều khiển chuột','Click the screen to take mouse control'));
+    };
+    tryLock();
+    const onDown=()=>{try{cv.requestPointerLock()}catch(e){}};   // chưa khóa được thì cú bấm chuột đầu tiên sẽ khóa (game vẫn chạy, không Tạm dừng)
+    document.addEventListener('mousedown',onDown,true);setTimeout(()=>document.removeEventListener('mousedown',onDown,true),8000);
   }
   R_.leave=leave;
 
