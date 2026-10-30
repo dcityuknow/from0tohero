@@ -23,7 +23,7 @@
     every:30000,       // ms giữa 2 lần tung (30 giây)
     preload:true,      // tải sẵn Optimum World (ẩn) ngay khi cổng xuất hiện -> bước vào là có ngay, không phải chờ load / đen màn hình
     follow:true,       // bot Block Arena chạy theo qua cổng (và bot bên Optimum chạy theo về)
-    followMax:16,      // tối đa số bot chạy qua cổng mỗi lần bạn sang game kia
+    followMax:40,      // tối đa số bot chạy qua cổng mỗi lần bạn sang game kia
     backGap:4.5,       // m: về lại đứng cách cổng chừng này (phía mình đã đi vào)
     // Game 1 (Optimum World) đã deploy trên GitHub Pages. ?visit=1 = chế độ tham quan (js/visit-mode.js bên game 1)
     url:'https://dcityuknow.github.io/optimum-world/?visit=1',
@@ -387,7 +387,7 @@
     if(!RIFT.follow||typeof bots==='undefined'||crossed>=RIFT.followMax)return;
     for(const b of bots){
       if(!b.on||b.hp<=0||b.boss||b.arch||b.ally||!b.g.visible)continue;
-      if(Math.hypot(b.x-P.x,b.z-P.z)<2.4&&Math.abs(b.y-P.y)<2.5){
+      if(Math.hypot(b.x-P.x,b.z-P.z)<4&&Math.abs(b.y-P.y)<2.5){
         const info={hp:b.hp,maxhp:b.maxhp||100,nm:b.nm||null};            // lấy máu TRƯỚC khi đánh dấu bot đã rời đi
         b.hp=0;b.g.visible=false;b.respawn=3/(1+.7*(typeof curFl==='number'?curFl:0));   // như bot chết, nhưng không tính điểm / rơi đồ
         sendBot(info);
@@ -430,10 +430,26 @@
     if(Math.random()<RIFT.chance)R_.spawn();
   },RIFT.every);
 
+  // Bạn đang ở thế giới kia: MỌI bot thường (kể cả bot ở xa) đều lao THẲNG tới cổng (chỗ bạn đứng lúc bước qua) rồi chui qua theo.
+  // Cách làm: ép chiến thuật của bot về kiểu "lao thẳng" (style 0, không bọc sườn / rình / né ngang), đường đi + cầu vẫn do AI gốc lo. Về lại thì trả chiến thuật cũ.
+  function wrapBrain(){
+    try{
+      if(typeof botBrain!=='function'||botBrain.__rift)return;
+      const b0=botBrain,w=function(b,dt,dx,dz,d){
+        if(b.ai){
+          if(R_.inside&&RIFT.follow&&!b.boss&&!b.arch&&!b.ally){if(b.ai._st===undefined)b.ai._st=b.ai.style;b.ai.style=0}
+          else if(b.ai._st!==undefined){b.ai.style=b.ai._st;b.ai._st=undefined}
+        }
+        return b0.apply(this,arguments);
+      };
+      w.__rift=1;window.botBrain=w;
+    }catch(e){}
+  }
   // hoạt ảnh + kiểm tra bước vào (vòng lặp riêng, không phải sửa main.js)
   let t0=performance.now();
   (function loop(now){
     requestAnimationFrame(loop);
+    wrapBrain();
     const dt=Math.min(.05,(now-t0)/1000);t0=now;
     if(!obj)return;
     const here=(obj.f===null||typeof curFl==='undefined'||curFl===obj.f);   // chỉ hiện ở tầng của nó
