@@ -380,7 +380,7 @@
   // Block Arena -> game kia: bot thường chạy tới chỗ nhân vật đứng (đúng chỗ cổng) thì "chui qua cổng": biến mất ở đây (không tính hạ gục, không rơi đồ),
   // xuất hiện bên kia và đuổi theo bạn. Tối đa RIFT.followMax bot mỗi lần. Boss / lính cung / đồng minh không đi.
   function sendBot(b){
-    const m={type:'rift-bot',hp:b.hp,maxhp:b.maxhp};
+    const m={type:'rift-bot',hp:b.hp,maxhp:b.maxhp,nm:b.nm||null};
     if(frReady&&R_.inside)post(m);else pend.push(m);
   }
   function crossBots(){
@@ -388,7 +388,7 @@
     for(const b of bots){
       if(!b.on||b.hp<=0||b.boss||b.arch||b.ally||!b.g.visible)continue;
       if(Math.hypot(b.x-P.x,b.z-P.z)<2.4&&Math.abs(b.y-P.y)<2.5){
-        const info={hp:b.hp,maxhp:b.maxhp||100};            // lấy máu TRƯỚC khi đánh dấu bot đã rời đi
+        const info={hp:b.hp,maxhp:b.maxhp||100,nm:b.nm||null};            // lấy máu TRƯỚC khi đánh dấu bot đã rời đi
         b.hp=0;b.g.visible=false;b.respawn=3/(1+.7*(typeof curFl==='number'?curFl:0));   // như bot chết, nhưng không tính điểm / rơi đồ
         sendBot(info);
         if(++crossed===1)msg(T('Bot đang đuổi theo qua cổng!','Bots are following you through the rift!'));
@@ -405,6 +405,7 @@
     if(alive>=48)return;                                  // = MAXBOT trong spawner.js
     if(!free)free=mkBot();
     free.on=true;spawnBot(free);
+    try{if(x.nm&&window.BN&&BN.setName)BN.setName(free,x.nm)}catch(e){}   // giữ nguyên tên bot đã chạy qua cổng
     const lat=(Math.random()-.5)*G.RB*RIFT.size*1.2;
     free.x=obj.x+obj.nx*arrSide*1.2+obj.nz*lat;free.z=obj.z+obj.nz*arrSide*1.2-obj.nx*lat;free.y=gy;
     free.hp=Math.max(20,Math.min(free.maxhp||100,+x.hp||100));free.vy=0;free.fy=undefined;
