@@ -319,7 +319,7 @@
   function showOv(){
     if(!ov)return;
     ov.inert=false;ov.style.opacity='1';ov.style.pointerEvents='auto';if(card)card.style.display='none';
-    post({type:'rift-resume'});                           // game kia chạy lại + bật âm thanh
+    post({type:'rift-resume',w:(typeof cur==='string'?cur:null)});   // gửi kèm súng đang cầm sang game kia                           // game kia chạy lại + bật âm thanh
     if(frReady&&pend.length){pend.forEach(post);pend=[]}   // gửi các bot đã chạy qua cổng trong lúc game kia còn đang tải
     try{fr.focus()}catch(e){}
   }
@@ -419,6 +419,7 @@
     if(t==='optimum-ready'){frReady=true;if(card)card.style.display='none';if(R_.inside){if(bootOn)bootFinish();else showOv()}else post({type:'rift-pause'})}
     else if(t==='optimum-rift-back'&&R_.inside){
       leave();
+      try{const w=e.data.w;if(typeof w==='string'&&typeof W!=='undefined'&&W[w]&&typeof pick==='function'&&w!==cur)pick(w)}catch(err){}   // game kia đang cầm súng gì thì về đây cầm đúng súng đó
       if(RIFT.follow&&Array.isArray(e.data.bots))e.data.bots.slice(0,RIFT.followMax).forEach(x=>setTimeout(()=>spawnFollower(x),Math.max(0,+x.delay||0)*1000));   // bot bên kia chạy theo về, tới nơi lần lượt
     }
   });
