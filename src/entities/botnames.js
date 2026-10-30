@@ -77,7 +77,8 @@ const BN=(function(){
       T.spr.visible=ok;
     }
   }
-  const api={CFG,assign,reset,tick,
+  function setName(b,name){if(!loaded||!name||b.boss||b.arch)return;b.nm=String(name);draw(tagOf(b),b.nm)}   // rift.js: bot chạy về từ thế giới khác giữ nguyên tên
+  const api={CFG,assign,reset,tick,setName,
     active:()=>loaded&&order.length>0,
     total:()=>list.length,
     left:()=>loaded?Math.max(0,order.length-used):Infinity};
