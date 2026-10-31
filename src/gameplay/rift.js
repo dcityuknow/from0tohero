@@ -309,6 +309,7 @@
   function enter(){
     ensureFrame();
     R_.inside=true;crossed=0;
+    scheduleAll();
     for(const k in keys)keys[k]=false;                    // nhả hết phím, tránh kẹt phím khi quay lại
     try{md=false;holding=false;autoP=false;scoped=false}catch(e){}
     if(document.exitPointerLock)document.exitPointerLock();
@@ -345,7 +346,7 @@
     if(bootOn){bootOn=false;clearInterval(bootTimer);clearTimeout(bootTO);const b=document.getElementById('boot');BOOT.done(()=>{if(b)b.style.zIndex=''})}   // đang chờ loading mà bấm về: đóng màn loading
     if(ov){ov.style.opacity='.01';ov.style.pointerEvents='none';ov.inert=true}    // chỉ ẩn, KHÔNG gỡ iframe: lần sau bước vào là có ngay. inert: iframe ẩn không nhận tiêu điểm / chuột / phím
     post({type:'rift-pause'});                            // game kia dừng vẽ + tắt âm thanh (đỡ tốn máy, đỡ ồn)
-    R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
+    epoch++;R_.inside=false;armed=false;                          // armed=false: phải bước ra xa cổng rồi mới đi vào lại được
     if(obj){
       // đi xuyên qua cổng: ra ở PHÍA BÊN KIA, quay mặt ra xa cổng (cổng nằm sau lưng) -> cứ đi tới là rời xa cổng, không lọt lại
       let sd=-side;arrSide=sd;
@@ -383,15 +384,32 @@
     const m={type:'rift-bot',hp:b.hp,maxhp:b.maxhp,nm:b.nm||null};
     if(frReady&&R_.inside)post(m);else pend.push(m);
   }
+  function crossOne(b){
+    const info={hp:b.hp,maxhp:b.maxhp||100,nm:b.nm||null};            // lấy máu TRƯỚC khi đánh dấu bot đã rời đi
+    b.hp=0;b.g.visible=false;b.respawn=3/(1+.7*(typeof curFl==='number'?curFl:0));   // như bot chết, nhưng không tính điểm / rơi đồ
+    sendBot(info);
+    if(++crossed===1)msg(T('Bot đang đuổi theo qua cổng!','Bots are following you through the rift!'));
+  }
+  // Vừa bước vào cổng: LÊN LỊCH cho mọi bot thường đang sống trên tầng (gần hay xa) chui qua cổng sau khoảng (quãng đường / tốc độ chạy) giây.
+  // Không còn phụ thuộc việc bot có thật sự chạy tới sát người hay không (bot hay dừng lại ném đá, vòng cầu, kẹt vật cản...).
+  // Bot nào tự chạy tới sát trước thì chui qua trước (crossBots), đến giờ mà chưa qua thì tự chui.
+  let epoch=0;
+  function scheduleAll(){
+    if(!RIFT.follow||typeof bots==='undefined')return;
+    const ep=++epoch,L=[];
+    for(const b of bots){if(!b.on||b.hp<=0||b.boss||b.arch||b.ally)continue;L.push({b,d:Math.hypot(b.x-P.x,b.z-P.z)})}
+    L.sort((p,q)=>p.d-q.d);
+    L.slice(0,RIFT.followMax).forEach(o=>{
+      const dl=Math.min(12,Math.max(.4,o.d/5)+Math.random()*.6);
+      setTimeout(()=>{if(ep!==epoch||!R_.inside)return;const b=o.b;if(b.hp<=0||!b.on||b.boss||b.arch||b.ally||crossed>=RIFT.followMax)return;crossOne(b)},dl*1000);
+    });
+  }
   function crossBots(){
     if(!RIFT.follow||typeof bots==='undefined'||crossed>=RIFT.followMax)return;
     for(const b of bots){
       if(!b.on||b.hp<=0||b.boss||b.arch||b.ally||!b.g.visible)continue;
       if(Math.hypot(b.x-P.x,b.z-P.z)<4&&Math.abs(b.y-P.y)<2.5){
-        const info={hp:b.hp,maxhp:b.maxhp||100,nm:b.nm||null};            // lấy máu TRƯỚC khi đánh dấu bot đã rời đi
-        b.hp=0;b.g.visible=false;b.respawn=3/(1+.7*(typeof curFl==='number'?curFl:0));   // như bot chết, nhưng không tính điểm / rơi đồ
-        sendBot(info);
-        if(++crossed===1)msg(T('Bot đang đuổi theo qua cổng!','Bots are following you through the rift!'));
+        crossOne(b);
         if(crossed>=RIFT.followMax)break;
       }
     }
