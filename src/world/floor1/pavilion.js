@@ -660,7 +660,7 @@ function build(hx,hz){
   }
 
   {const em=EM.mesh();em.material=LIGHTBASIC;em.position.set(hx,0,hz);S.add(em);prevTrack.push(em)}   // lưới đèn trần + LED (không vào meshes: không cản đạn)
-  for(const m of v.meshLOD()){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
+  for(const m of(window.meshAtlas?meshAtlas(v,{log:true}):v.meshLOD())){m.position.set(hx,0,hz);S.add(m);meshes.push(m)}   // meshAtlas (house.js): gộp mặt cùng phẳng + atlas màu   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
   window.PavilionFruit={x:hx+TBL.x,z:hz+TBL.z,hw:TBL.hw+.12,hd:TBL.hd+.12,y0:FL,y1:TBL.top+.5,top:TBL.top,pieces:PIECES,bottle:TBOT};   // fruit-eat.js đọc: vùng nhìn trúng bàn + danh sách từng quả trên bàn {type,x,y,z,mesh,t} (rebuild tự cập nhật)
   window.PavilionGuide={cx:hx,cz:hz,FL,HX,HZ,easels:GUIDE_EASELS,cases:CASES.map(c=>({x:hx+c.x,z:hz+c.z}))};   // guide-bot.js đọc mỗi khung hình (rebuild tự cập nhật)
   // ban đêm: 6 đèn lồng dưới hiên + đèn đá cạnh bậc thang sáng lên (daycycle.js); 2 đèn giữa có thêm PointLight

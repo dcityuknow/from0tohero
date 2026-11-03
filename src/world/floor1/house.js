@@ -292,7 +292,7 @@ function paintCells(nu,nv,ts,colorAt){
 // nhưng 1 tấm ghế dài hay mặt bàn chỉ còn vài tam giác thay vì hàng nghìn. An toàn: gặp điều kiện lạ (vgap<1, ?cull=0, atlas quá lớn...) thì quay về v.meshLOD() như cũ.
 // Dùng được cho mọi VB tĩnh (tượng, bể tắm, chòi...): window.meshAtlas(vb) trả về mảng mesh giống meshLOD.
 function meshAtlas(v,opt){
-  opt=opt||{};
+  opt=opt||{};const T0=performance.now();
   const nC=(v.k/24)|0,cc=v.cc;
   if(!VTIGHT||!VCULL||v.keep||!cc||cc.length!==nC*6||nC<2)return v.meshLOD();
   const info=v.faceKeep();if(!info)return v.meshLOD();
@@ -329,7 +329,8 @@ function meshAtlas(v,opt){
     }
   }
   // 3) xếp vào atlas (mỗi hình chữ nhật có viền 1 texel nhân đôi mép để lọc không rỉ màu sang hình bên cạnh)
-  const AW=2048,order=rects.slice().sort((a,b)=>b.ht-a.ht);let px=0,py=0,rowH=0;
+  let TT=0,MXW=0;for(const r of rects){TT+=(r.wd+2)*(r.ht+2);if(r.wd+2>MXW)MXW=r.wd+2}
+  const AW=Math.max(MXW,Math.min(2048,1<<Math.ceil(Math.log2(Math.max(16,Math.sqrt(TT)*1.3))))),order=rects.slice().sort((a,b)=>b.ht-a.ht);let px=0,py=0,rowH=0;   // atlas rộng vừa đủ (công trình nhỏ không tốn bộ nhớ thừa)
   for(const r of order){const rw=r.wd+2,rh=r.ht+2;if(px+rw>AW){px=0;py+=rowH;rowH=0}r.x=px;r.y=py;px+=rw;if(rh>rowH)rowH=rh}
   const AH=py+rowH;
   if(AH>4096){console.warn('[meshAtlas] atlas quá lớn ('+AW+'x'+AH+'), dùng meshLOD');return v.meshLOD()}
@@ -364,7 +365,7 @@ function meshAtlas(v,opt){
     const m=new THREE.Mesh(geo,mat);m.frustumCulled=true;out.push(m);
   }
   v.p=v.n=v.c=v.i=v.cc=null;   // giải phóng bộ nhớ CPU như meshLOD
-  if(opt.log)console.log('[meshAtlas] '+nC+' khối · '+rects.length+' tứ giác · atlas '+AW+'x'+AH+' · '+out.length+' mesh');
+  if(opt.log)console.log('[meshAtlas] '+nC+' khối · '+rects.length+' tứ giác · atlas '+AW+'x'+AH+' · '+out.length+' mesh · '+(performance.now()-T0).toFixed(0)+' ms');
   return out;
 }
 window.meshAtlas=meshAtlas;

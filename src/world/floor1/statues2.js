@@ -9,6 +9,7 @@
 // Nạp SAU statues.js, teaset.js, bath.js, stairgrove.js (cần các vùng cấm của chúng), TRƯỚC nature.js (xem loader.js).
 // nature/placement.js đọc window.Statues2Keeps để cây / đá / sông / đầu cầu né ra.
 (function(){
+const ML=vb=>window.meshAtlas?meshAtlas(vb):ML(vb);   // meshAtlas (house.js): gộp mặt cùng phẳng + atlas màu; không có thì dùng meshLOD như cũ
 const SK=window.Statues;
 if(!SK||!SK.kit||!SK.STA){console.warn('[statues2] thiếu window.Statues.kit / STA: hãy dùng statues.js bản mới (dòng cuối xuất kit + STA).');return}
 const {ring,pedestal,ST,STD,GD,D,LT,MOSS,c,Y}=SK.kit;
@@ -245,14 +246,14 @@ function lampFX(st){
     const bv=new VB();
     bv.box(0,.2,0,.9,.4,.9,ST,c(.1),true);          // bệ đá nhỏ
     bv.box(0,.62,0,.16,.45,.16,D,.03);              // trụ
-    for(const m of bv.meshLOD()){add(m);lp.base.push(m)}
+    for(const m of ML(bv)){add(m);lp.base.push(m)}
     boxes.push(lp.box);
     const gp=lp.gp=new THREE.Group();S.add(gp);
     const hv=new VB();
     hv.box(0,0,0,.7,.45,.5,GD[2],.03);
     hv.box(0,0,.26,.7,.45,.04,D,.03);
     hv.box(0,.27,-.02,.74,.05,.56,D,.03);
-    for(const m of hv.meshLOD())gp.add(m);
+    for(const m of ML(hv))gp.add(m);
     const lens=noRay(new THREE.Mesh(lensGeo,lensMat));lens.position.z=.285;gp.add(lens);
     for(const [g,mat] of[[gOut,mOut],[gIn,mIn]]){const b=noRay(new THREE.Mesh(g,mat));b.renderOrder=2;gp.add(b);lp.beams.push(b)}
     const sp=lp.sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex(),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,fog:false}));
@@ -275,9 +276,9 @@ function build(){
   for(const [sx,mk,bw,zb,zf,hh] of[[-1,statueC,1.2,.8,.95,3.6],[1,statueD,1.8,1.18,1.18,3.95]]){
     const x=sx*POS.x,z=POS.z,k=STB.k,st={sx,x,z,psi:STB.face,meshes:[],lamps:[]};
     const P=STB.ped;
-    for(const pm of pedestalW().meshLOD()){pm.position.set(x,0,z);add(pm)}
+    for(const pm of ML(pedestalW())){pm.position.set(x,0,z);add(pm)}
     const made=mk(),parts=Array.isArray(made)?made:[[made,1]];
-    for(const [pv,M] of parts)for(const sm of pv.meshLOD()){      // M = độ mịn đã nhân vào hình học => thu nhỏ lại k/M
+    for(const [pv,M] of parts)for(const sm of ML(pv)){      // M = độ mịn đã nhân vào hình học => thu nhỏ lại k/M
       sm.scale.set(k/M,k/M,k/M);
       sm.position.set(x,Y*(1-k),z);          // phóng to quanh mặt bệ: chân tượng vẫn đứng đúng trên bệ
       sm.rotation.y=st.psi;add(sm);st.meshes.push(sm);

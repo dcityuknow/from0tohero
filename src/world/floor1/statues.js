@@ -5,6 +5,7 @@
 //   thì tự xoay về điểm sông gần nhất và dời đèn pha theo (đèn tự lùi lại nếu rơi xuống nước). Tắt: STA.toRiver=false.
 // Nạp SAU pavilion.js, TRƯỚC nature.js (xem loader.js). Chỉnh nhanh ở STA / Q bên dưới.
 (function(){
+const ML=vb=>window.meshAtlas?meshAtlas(vb):ML(vb);   // meshAtlas (house.js): gộp mặt cùng phẳng + atlas màu; không có thì dùng meshLOD như cũ
 const STA={
   x:8*MAPK*F1K,z:6*MAPK*F1K+3.5,   // vị trí 2 bệ (dãn ra theo F1K; +3.5 = lùi xa sông, vào phía thảm cỏ. Tăng số này để lùi xa hơn, giảm để gần sông hơn)
   face:Math.PI,        // hướng mặt tượng khi CHƯA biết sông (rad, quanh trục y): PI = quay về -z (sông nằm phía -z của 2 bệ)
@@ -388,7 +389,7 @@ function lampFX(st){
     const bv=new VB();
     bv.box(0,.2,0,.9,.4,.9,ST,c(.1),true);          // bệ đá nhỏ
     bv.box(0,.62,0,.16,.45,.16,D,.03);              // trụ
-    for(const m of bv.meshLOD()){add(m);lp.base.push(m)}
+    for(const m of ML(bv)){add(m);lp.base.push(m)}
     boxes.push(lp.box);
     // đầu đèn: nhóm xoay về phía tượng (+z cục bộ = hướng chiếu)
     const gp=lp.gp=new THREE.Group();S.add(gp);
@@ -396,7 +397,7 @@ function lampFX(st){
     hv.box(0,0,0,.7,.45,.5,GD[2],.03);              // thân đèn
     hv.box(0,0,.26,.7,.45,.04,D,.03);               // viền mặt đèn
     hv.box(0,.27,-.02,.74,.05,.56,D,.03);           // nắp che trên
-    for(const m of hv.meshLOD())gp.add(m);
+    for(const m of ML(hv))gp.add(m);
     const lens=noRay(new THREE.Mesh(lensGeo,lensMat));lens.position.z=.285;gp.add(lens);   // mặt kính phát sáng
     for(const [g,mat] of[[gOut,mOut],[gIn,mIn]]){const b=noRay(new THREE.Mesh(g,mat));b.renderOrder=2;gp.add(b);lp.beams.push(b)}
     // quầng sáng (luôn quay về camera) ngay trước mặt đèn
@@ -421,8 +422,8 @@ function build(){
   FX.beams.length=FX.glows.length=FX.lights.length=FX.lens.length=0;ST_LIST.length=0;FACED=false;   // dựng lại (đổi tầng...) -> bỏ đăng ký của lần trước
   for(const [sx,mk] of[[-1,statueA],[1,statueB]]){
     const x=sx*STA.x,z=STA.z,k=STA.k,st={sx,x,z,psi:STA.face,meshes:[],lamps:[]};
-    for(const pm of pedestal().meshLOD()){pm.position.set(x,0,z);add(pm)}
-    for(const sm of mk().meshLOD()){
+    for(const pm of ML(pedestal())){pm.position.set(x,0,z);add(pm)}
+    for(const sm of ML(mk())){
       sm.scale.set(k,k,k);
       sm.position.set(x,Y*(1-k),z);          // phóng to quanh mặt bệ: chân tượng vẫn đứng đúng trên bệ
       sm.rotation.y=st.psi;add(sm);st.meshes.push(sm);
