@@ -10,6 +10,11 @@ const HX=0,HZ=15.5*F1K;                 // tâm nhà (x,z) trên sàn tầng 1
 // Mọi toạ độ bên dưới vẫn viết theo hệ cục bộ cũ; chỉ lúc đặt mesh / va chạm / đèn / che khuất mới đảo dấu (biến sg).
 const FACE_RIVER=true;
 const sg=FACE_RIVER?-1:1;           // -1 = đã xoay 180°: (x,z) cục bộ -> (HX-x, HZ-z)
+// NHÀ DÀI GẤP LEN LẦN: kéo giãn theo trục x cục bộ (chiều dài nhà), giữ nguyên chiều sâu (z) và chiều cao (y). Mọi logic / tọa độ bên dưới vẫn viết theo kích thước gốc;
+// chỉ lúc phát ra từng khối voxel (stretchVB), va chạm (cb), che khuất (OccSrc), màn hình, đèn và mặt phẳng texture (HG.scale) mới nhân x với LEN.
+// Mỗi ô voxel rộng gấp LEN lần theo x (không còn vuông tuyệt đối) nhưng hoa văn, cửa, cột, cầu thang... đều giãn đều nên không bị lệch / hở. Đặt LEN=1 để trở lại nhà cũ.
+const LEN=1.5;
+function stretchVB(b){const oc=b.cube;b.cube=function(x,y,z,sx,sy,sz,hex,ci,cj,ck){return oc.call(this,x*LEN,y,z,sx*LEN,sy,sz,hex,ci,cj,ck)}}
 const F=3.5;                        // (giữ tên cũ) mặt tiền ở z=+ cục bộ
 const FL=.875, WT=3.375, RY=3.625;  // TẦNG 1: mặt sàn hiên · đỉnh tường · chân mái dưới
 const RZ=-.25;                      // tâm z của mái dưới
@@ -263,11 +268,131 @@ function drawChat(k){
   open();
 })();
 
+// ---------- MẶT PHẲNG TEXTURE TÔ TỪNG Ô VOXEL (thay các tấm voxel phẳng lớn: sàn, thảm, bảng, cờ) ----------
+// Mỗi ô voxel được vẽ thành 1 khối ts x ts px trên canvas: độ sáng lệch ngẫu nhiên đúng công thức VB.cube ([.88,.95,1,1.07]) + viền sáng/tối nhẹ (khi ô đủ lớn)
+// -> nhìn vẫn như tấm ghép từ khối voxel, nhưng chỉ là 1 mặt phẳng (2 tam giác). Ô có màu < 0 (lỗ) để trong suốt (alphaTest).
+const HJT=[.88,.95,1,1.07];let _hseed=0;
+const tsOf=s=>Math.max(4,Math.min(8,Math.round(s*64)));
+function paintCells(nu,nv,ts,colorAt){
+  const c=document.createElement('canvas');c.width=nu*ts;c.height=nv*ts;const g=c.getContext('2d'),sd=(++_hseed)*2654435761|0,cl=v=>v<0?0:v>255?255:v|0;let hole=false;
+  for(let r=0;r<nv;r++)for(let u=0;u<nu;u++){
+    const hex=colorAt(u,r);if(hex===undefined||hex<0){hole=true;continue}
+    const h=(((u*73856093)^(r*19349663)^sd)>>>0),k=HJT[(h>>>7)&3],x=u*ts,y=r*ts;
+    g.fillStyle='rgb('+cl(((hex>>16)&255)*k)+','+cl(((hex>>8)&255)*k)+','+cl((hex&255)*k)+')';g.fillRect(x,y,ts,ts);
+    if(ts>=6){g.fillStyle='rgba(255,255,255,.08)';g.fillRect(x,y,ts,1);g.fillRect(x,y,1,ts);g.fillStyle='rgba(0,0,0,.14)';g.fillRect(x,y+ts-1,ts,1);g.fillRect(x+ts-1,y,1,ts)}
+  }
+  const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.anisotropy=Math.min(8,R.capabilities.getMaxAnisotropy());
+  t._own=true;   // floors.js dỡ tầng sẽ giải phóng texture này (mỗi lần dựng lại nhà tạo texture mới)
+  return {t,hole};
+}
+
+// ---------- GỘP MẶT + ATLAS MÀU (thay meshLOD cho nhà): giữ NGUYÊN hình khối, chỉ gộp các mặt cùng phẳng thành tứ giác lớn ----------
+// Mỗi mặt voxel còn lộ ra ngoài (sau khi VB.faceKeep bỏ mặt khuất) được xếp vào nhóm [hướng mặt · độ cao mặt phẳng · cỡ ô · khối 6m]. Trong mỗi nhóm, các ô liền kề (bất kể màu) được gộp
+// thành hình chữ nhật lớn nhất có thể (greedy). Màu từng ô - đã gồm độ sáng lệch ngẫu nhiên của VB.cube - được ghi thành 1 texel trong 1 ATLAS chung (lọc Nearest) -> nhìn y hệt khối voxel cũ,
+// nhưng 1 tấm ghế dài hay mặt bàn chỉ còn vài tam giác thay vì hàng nghìn. An toàn: gặp điều kiện lạ (vgap<1, ?cull=0, atlas quá lớn...) thì quay về v.meshLOD() như cũ.
+// Dùng được cho mọi VB tĩnh (tượng, bể tắm, chòi...): window.meshAtlas(vb) trả về mảng mesh giống meshLOD.
+function meshAtlas(v,opt){
+  opt=opt||{};
+  const nC=(v.k/24)|0,cc=v.cc;
+  if(!VTIGHT||!VCULL||v.keep||!cc||cc.length!==nC*6||nC<2)return v.meshLOD();
+  const info=v.faceKeep();if(!info)return v.meshLOD();
+  const keep=info.keep,Cl=v.c,CH=opt.chunk||6,KS=1.07,MAXW=opt.maxW||512,Q=1e4;
+  const qn=x=>Math.round(x*Q),lat=x=>{const r=Math.round(x);if(Math.abs(x-r)<1e-3)return[r,0];const fl=Math.floor(x);return[fl,Math.round((x-fl)*1000)]};
+  const KEY=(iw,iu)=>(iw+8192)*16384+(iu+8192);
+  // 1) gom mặt lộ ra theo nhóm
+  const groups=new Map(),ct=[0,0,0],sz=[0,0,0];
+  for(let c=0;c<nC;c++){
+    const o=c*6;ct[0]=cc[o];ct[1]=cc[o+1];ct[2]=cc[o+2];sz[0]=cc[o+3];sz[1]=cc[o+4];sz[2]=cc[o+5];
+    const chk=Math.floor(ct[0]/CH)+','+Math.floor(ct[1]/CH)+','+Math.floor(ct[2]/CH);
+    for(let f=0;f<6;f++){
+      if(!keep[c*6+f])continue;
+      const a=f>>1,s=(f&1)?-1:1,ua=s>0?(a+1)%3:(a+2)%3,wa=s>0?(a+2)%3:(a+1)%3;   // cùng quy ước FACES của voxel.js
+      const pl=ct[a]+s*sz[a]/2,su=sz[ua],sw=sz[wa],lu=lat(ct[ua]/su-.5),lw=lat(ct[wa]/sw-.5);
+      const key=f+'|'+qn(pl)+'|'+qn(su)+'|'+qn(sw)+'|'+lu[1]+'|'+lw[1]+'|'+chk;
+      let g=groups.get(key);if(!g){g={f,a,ua,wa,pl,su,sw,chk,cells:[]};groups.set(key,g)}
+      g.cells.push(lw[0],lu[0],c*6+f);
+    }
+  }
+  // 2) gộp tham lam từng nhóm thành hình chữ nhật
+  const rects=[];
+  for(const g of groups.values()){
+    const cs=g.cells,n=cs.length/3,idx=new Array(n),mp=new Map(),done=new Uint8Array(n);
+    for(let i=0;i<n;i++){idx[i]=i;mp.set(KEY(cs[i*3],cs[i*3+1]),i)}
+    idx.sort((p,q)=>(cs[p*3]-cs[q*3])||(cs[p*3+1]-cs[q*3+1]));
+    for(const p of idx){
+      if(done[p])continue;
+      const iw0=cs[p*3],iu0=cs[p*3+1];let wd=1,ht=1;
+      while(wd<MAXW){const j=mp.get(KEY(iw0,iu0+wd));if(j===undefined||done[j])break;wd++}
+      outer:while(ht<MAXW){for(let k=0;k<wd;k++){const j=mp.get(KEY(iw0+ht,iu0+k));if(j===undefined||done[j])break outer}ht++}
+      for(let r=0;r<ht;r++)for(let k=0;k<wd;k++)done[mp.get(KEY(iw0+r,iu0+k))]=1;
+      rects.push({g,iu0,iw0,wd,ht,mp,cs,x:0,y:0});
+    }
+  }
+  // 3) xếp vào atlas (mỗi hình chữ nhật có viền 1 texel nhân đôi mép để lọc không rỉ màu sang hình bên cạnh)
+  const AW=2048,order=rects.slice().sort((a,b)=>b.ht-a.ht);let px=0,py=0,rowH=0;
+  for(const r of order){const rw=r.wd+2,rh=r.ht+2;if(px+rw>AW){px=0;py+=rowH;rowH=0}r.x=px;r.y=py;px+=rw;if(rh>rowH)rowH=rh}
+  const AH=py+rowH;
+  if(AH>4096){console.warn('[meshAtlas] atlas quá lớn ('+AW+'x'+AH+'), dùng meshLOD');return v.meshLOD()}
+  const data=new Uint8Array(AW*AH*4),inv=255/KS;
+  for(const r of rects){
+    for(let jj=0;jj<r.ht+2;jj++){
+      const cj=Math.min(r.ht-1,Math.max(0,jj-1));
+      for(let ii=0;ii<r.wd+2;ii++){
+        const ci=Math.min(r.wd-1,Math.max(0,ii-1)),id=r.cs[r.mp.get(KEY(r.iw0+cj,r.iu0+ci))*3+2],s=id*12,o=((r.y+jj)*AW+r.x+ii)*4;
+        data[o]=Math.min(255,Cl[s]*inv+.5);data[o+1]=Math.min(255,Cl[s+1]*inv+.5);data[o+2]=Math.min(255,Cl[s+2]*inv+.5);data[o+3]=255;
+      }
+    }
+  }
+  const tex=new THREE.DataTexture(data,AW,AH,THREE.RGBAFormat);
+  tex.magFilter=tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;tex.needsUpdate=true;tex._own=true;   // _own: floors.js giải phóng khi dỡ tầng
+  const mat=new THREE.MeshLambertMaterial({map:tex,emissive:0x1e1e1e});mat.color.setRGB(KS,KS,KS);   // giống VMAT; nhân lại KS vì texel đã chia KS
+  // 4) dựng hình học theo từng khối 6m (để three.js còn bỏ vẽ phần ngoài tầm nhìn)
+  const chunks=new Map();
+  for(const r of rects){
+    const g=r.g,fid=r.cs[r.mp.get(KEY(r.iw0,r.iu0))*3+2],c0=(fid/6)|0,u0=cc[c0*6+g.ua]-g.su/2,w0=cc[c0*6+g.wa]-g.sw/2,u1=u0+r.wd*g.su,w1=w0+r.ht*g.sw;
+    let H=chunks.get(g.chk);if(!H){H={p:[],n:[],uv:[],i:[],q:0};chunks.set(g.chk,H)}
+    const tx0=(r.x+1)/AW,tx1=(r.x+1+r.wd)/AW,ty0=(r.y+1)/AH,ty1=(r.y+1+r.ht)/AH,s=(g.f&1)?-1:1,pt=[0,0,0],nn=[0,0,0];nn[g.a]=s;
+    const cu=[u0,u1,u1,u0],cw=[w0,w0,w1,w1],tu=[tx0,tx1,tx1,tx0],tw=[ty0,ty0,ty1,ty1];
+    for(let k=0;k<4;k++){pt[g.a]=g.pl;pt[g.ua]=cu[k];pt[g.wa]=cw[k];H.p.push(pt[0],pt[1],pt[2]);H.n.push(nn[0],nn[1],nn[2]);H.uv.push(tu[k],tw[k])}
+    const b=H.q;H.i.push(b,b+1,b+2,b,b+2,b+3);H.q+=4;
+  }
+  const out=[];
+  for(const H of chunks.values()){
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(H.p,3));geo.setAttribute('normal',new THREE.Float32BufferAttribute(H.n,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(H.uv,2));
+    geo.setIndex(H.i);geo.computeBoundingSphere();
+    const m=new THREE.Mesh(geo,mat);m.frustumCulled=true;out.push(m);
+  }
+  v.p=v.n=v.c=v.i=v.cc=null;   // giải phóng bộ nhớ CPU như meshLOD
+  if(opt.log)console.log('[meshAtlas] '+nC+' khối · '+rects.length+' tứ giác · atlas '+AW+'x'+AH+' · '+out.length+' mesh');
+  return out;
+}
+window.meshAtlas=meshAtlas;
+
 function buildHouse(hx,hz){
   for(const o of prevObjs){try{S.remove(o)}catch(e){}const k=meshes.indexOf(o);if(k>=0)meshes.splice(k,1)}
   prevObjs.length=0;
 
-  const v=new VB();
+  const v=new VB();stretchVB(v);
+  const HG=new THREE.Group();   // nhóm chứa các mặt phẳng texture (đặt / xoay cùng các mesh voxel của nhà)
+  // topP: mặt phẳng nằm ngang quay lên, tại độ cao y, phủ x0..x1 · z0..z1; fn(x,y,z,i,j,k) -> màu từng ô (như fp; j luôn 0, k chạy theo z)
+  const topP=(x0,x1,y,z0,z1,s,fn)=>{
+    const nx=Math.max(1,Math.round((x1-x0)/s)),nz=Math.max(1,Math.round((z1-z0)/s)),pt=paintCells(nx,nz,tsOf(s),(u,r)=>fn(x0+(u+.5)*s,y,z0+(r+.5)*s,u,0,r));
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({map:pt.t,alphaTest:pt.hole?.5:0}));
+    m.position.set((x0+x1)/2,y,(z0+z1)/2);m.userData.cx=0;   // cx: daycycle.js chỉ cho NHẬN bóng, không đổ bóng
+    HG.add(m);prevObjs.push(m);meshes.push(m);return m};
+  // wallP: mặt phẳng đứng (tấm mỏng) quay về các hướng faces ['+z','-z','+x','-x']; fn(x,y,z,i,j,k) như fp (lấy ô ở lớp sát mặt nhìn)
+  const wallP=(x0,x1,y0,y1,z0,z1,s,fn,faces)=>{
+    const nx=Math.max(1,Math.round((x1-x0)/s)),ny=Math.max(1,Math.round((y1-y0)/s)),nz=Math.max(1,Math.round((z1-z0)/s)),ts=tsOf(s),O=.0015;
+    for(const f of faces){
+      const zN=f[1]==='z',sgn=f[0]==='+'?1:-1,nu=zN?nx:nz;
+      const at=(c,r)=>{const j=ny-1-r,y=y0+(j+.5)*s;   // c: cột từ TRÁI (nhìn từ phía mặt quay tới) · r: hàng từ TRÊN
+        if(zN){const i=sgn>0?c:nx-1-c,k=sgn>0?nz-1:0;return fn(x0+(i+.5)*s,y,z0+(k+.5)*s,i,j,k)}
+        const k=sgn>0?nz-1-c:c,i=sgn>0?nx-1:0;return fn(x0+(i+.5)*s,y,z0+(k+.5)*s,i,j,k)};
+      const pt=paintCells(nu,ny,ts,at),m=new THREE.Mesh(new THREE.PlaneGeometry(nu*s,ny*s),new THREE.MeshLambertMaterial({map:pt.t,alphaTest:pt.hole?.5:0}));
+      if(zN){if(sgn<0)m.rotation.y=Math.PI;m.position.set((x0+x1)/2,(y0+y1)/2,sgn>0?z1+O:z0-O)}
+      else{m.rotation.y=sgn>0?Math.PI/2:-Math.PI/2;m.position.set(sgn>0?x1+O:x0-O,(y0+y1)/2,(z0+z1)/2)}
+      m.userData.cx=0;HG.add(m);prevObjs.push(m);meshes.push(m)}};
   const screens=[];                     // vị trí các màn hình chat theo thứ tự tạo (khớp CHAT_KEYS)
   const addScreen=(x,y,z,ry)=>screens.push({x,y,z,ry});
   const lamps=[];                       // đèn phát sáng: {x,y,z,s,light}
@@ -358,11 +483,13 @@ function buildHouse(hx,hz){
   fb(-1.5,1.5,0,.5,4.5,5.0,(i,j,k)=>STONE[(i*5+j+k*3)%5],.25);
 
   // ================= TẦNG 1: SÀN HIÊN + CHIẾU TATAMI =================
-  fb(-7,7,.75,FL,-3.5,4.0,(i,j,k)=>(k&1)?0x6b4a2e:0x5e402a,.125);
-  fb(-6.25,6.25,FL,GF,-3.0,2.5,(i,j,k)=>{
+  topP(-7,7,FL,-3.5,4.0,.125,(x,y,z,i,j,k)=>(k&1)?0x6b4a2e:0x5e402a);   // sàn hiên: 1 mặt phẳng texture (trước đây ~6.700 khối)
+  fb(-7,7,.75,FL-.004,-3.5,4.0,0x5e402a,10);
+  topP(-6.25,6.25,GF,-3.0,2.5,.125,(x,y,z,i,j,k)=>{
     if(i%14===0||k%28===0)return 0x3a3a22;
     return (((i/14)|0)+((k/28)|0))&1?0x9c9a62:0xa8a670;
-  },.125);
+  });
+  fb(-6.25,6.25,FL,GF-.004,-3.0,2.5,0x8a8858,10);
 
   // ================= TẦNG 1: TƯỜNG VÁN GỖ + CỘT ĐỎ + CỬA GIẤY =================
   const PF=[-6.375,-2.625,-1.375,1.375,2.625,6.375];
@@ -410,7 +537,7 @@ function buildHouse(hx,hz){
   tips(8.5,4.75,RZ,RY+.125);
 
   // ================= SÀN BAN CÔNG / SÀN TẦNG 2 (khoét giếng thang) =================
-  fp(-7.25,7.25,RY+1.0,FL2,-3.75,3.25,.125,(x,y,z,i,j,k)=>{
+  topP(-7.25,7.25,FL2,-3.75,3.25,.125,(x,y,z,i,j,k)=>{
     if(inH(x,z))return -1;
     if(x>-5.75&&x<5.75&&z>-2.5&&z<1.75){            // trong nhà: chiếu tatami
       const u=(x+5.75)/1.75,w=(z+2.5)/.875,fu=u-Math.floor(u),fw=w-Math.floor(w);
@@ -419,6 +546,9 @@ function buildHouse(hx,hz){
     }
     return (k&1)?0x6b4a2e:0x5e402a;                  // ngoài ban công: ván gỗ
   });
+  // thân sàn (không còn lát từng khối): 4 khối lớn bao quanh giếng thang, mặt trên thấp hơn tấm texture 4mm
+  fb(-7.25,7.25,RY+1.0,FL2-.004,-3.75,H.z0,0x5e402a,10);fb(-7.25,7.25,RY+1.0,FL2-.004,H.z1,3.25,0x5e402a,10);
+  fb(-7.25,H.x0,RY+1.0,FL2-.004,H.z0,H.z1,0x5e402a,10);fb(H.x1,7.25,RY+1.0,FL2-.004,H.z0,H.z1,0x5e402a,10);
 
   // ================= CẦU THANG GỖ (sát tường sau; bậc dưới ở phía +x mở ra phòng, đi lên về phía -x) =================
   for(let n=0;n<15;n++){
@@ -520,29 +650,30 @@ function buildHouse(hx,hz){
   const BLK=[0x1b1613,0x15110e,0x221b16,0x100d0b];           // gỗ đen: thớ nhẹ
   const BLKF=[0x2c241d,0x26201a,0x322a22];                   // viền / cột: đen hơi sáng hơn để nổi khung
   fb(-6.8,-6.6,0,3.05,5.1,5.3,(i,j,k)=>BLKF[(i+j*2+k)%3],.1);fb(-4.4,-4.2,0,3.05,5.1,5.3,(i,j,k)=>BLKF[(i+j*2+k)%3],.1);
-  fp(-6.8,-4.2,.75,3.05,5.15,5.25,.1,(x,y,z,i,j)=>(i<2||i>=24||j<2||j>=21)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4]);
+  wallP(-6.8,-4.2,.75,3.05,5.15,5.25,.1,(x,y,z,i,j)=>(i<2||i>=24||j<2||j>=21)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4],['+z','-z']);   // bảng hiệu: mặt trước + mặt sau
   logo(v,-5.5,2.23,5.35,2.0,false);
   text(v,'POWERED',-5.5,1.47,5.261,.04,0xffffff);
   text(v,'BY RLNC',-5.5,1.15,5.261,.04,0xffffff);
-  {const E=new VB();   // bản phủ phát sáng: cùng hình, nhích ra trước 1.2cm (cộng polygonOffset ở SIGNGLOW)
+  {const E=new VB();stretchVB(E);   // bản phủ phát sáng: cùng hình, nhích ra trước 1.2cm (cộng polygonOffset ở SIGNGLOW)
     logo(E,-5.5,2.23,5.35+.012,2.0,false);
     text(E,'POWERED',-5.5,1.47,5.261+.012,.04,0xffffff);
     text(E,'BY RLNC',-5.5,1.15,5.261+.012,.04,0xffffff);
     const gm=E.mesh();gm.material=SIGNGLOW;gm.position.set(hx,0,hz);if(FACE_RIVER)gm.rotation.y=Math.PI;S.add(gm);prevObjs.push(gm);}   // không vào meshes -> không ảnh hưởng va chạm / bắn
-  fp(-2.0,2.0,1.15,3.35,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=38||j<2||j>=20)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4]);   // bảng gỗ đen, y chang mặt trước
+  wallP(-2.0,2.0,1.15,3.35,-3.37,-3.25,.1,(x,y,z,i,j)=>(i<2||i>=38||j<2||j>=20)?BLKF[(i*3+j)%3]:BLK[(i*7+j*3)%4],['-z']);   // bảng gỗ đen, y chang mặt trước
   logo(v,0,2.25,-3.25-.18,3.0,true);
 
   // ====================================================================
   // ================= NỘI THẤT TẦNG 1 (mặt chiếu y = 1.0) ==============
   // ====================================================================
   // --- thảm giữa phòng ---
-  fp(-2.0,2.25,GF,GF+.0625,-2.5,.5,.0625,(x,y,z,i,j,k)=>{
+  topP(-2.0,2.25,GF+.0625,-2.5,.5,.0625,(x,y,z,i,j,k)=>{
     const a=Math.min(x+2.0,2.25-x,z+2.5,.5-z);
     if(a<.06)return 0x2a1a10;
     if(a<.14)return 0xc9a227;
     if(a<.3)return 0x6a1f1f;
     return (((i>>3)+(k>>3))&1)?0x8a2f2f:0x7a2626;
   });
+  fb(-2.0,2.25,GF,GF+.0625-.004,-2.5,.5,0x2a1a10,10);   // viền thảm
   // --- bàn trà thấp + đệm ngồi + bộ ấm chén + đèn bàn ---
   fp(-1.25,1.25,1.25,1.375,-1.75,-.75,.125,(x,y,z,i,j,k)=>(i===0||i===19||k===0||k===7)?0x3a2412:0x7a4a2a);
   for(const x of[-1.2,1.075])for(const z of[-1.7,-.875])fb(x,x+.125,GF,1.25,z,z+.125,0x3a2412,.125);
@@ -632,13 +763,14 @@ function buildHouse(hx,hz){
   // ================= NỘI THẤT TẦNG 2 (mặt sàn y = 4.75) ===============
   // ====================================================================
   // --- thảm giữa ---
-  fp(-2.0,2.5,FL2,FL2+.0625,-.9,1.1,.0625,(x,y,z,i,j,k)=>{
+  topP(-2.0,2.5,FL2+.0625,-.9,1.1,.0625,(x,y,z,i,j,k)=>{
     const a=Math.min(x+2.0,2.5-x,z+.9,1.1-z);
     if(a<.06)return 0x1a2230;
     if(a<.14)return 0xd9d2c0;
     if(a<.3)return 0x2c4a6e;
     return (((i>>3)+(k>>3))&1)?0x35577f:0x2f4f78;
   });
+  fb(-2.0,2.5,FL2,FL2+.0625-.004,-.9,1.1,0x1a2230,10);   // viền thảm
   // --- bàn thấp + đệm + trà ---
   fp(-.5,1.0,FL2+.375,FL2+.5,-.4,.6,.125,(x,y,z,i,j,k)=>(i===0||i===11||k===0||k===7)?0x3a2412:0xb98a56);
   for(const x of[-.45,.875])for(const z of[-.35,.475])fb(x,x+.125,FL2,FL2+.375,z,z+.125,0x4a2e1a,.125);
@@ -738,13 +870,13 @@ function buildHouse(hx,hz){
     let fi=0;
     const rod=(x0,x1,y,z0,z1)=>fb(x0,x1,y,y+.03,z0,z1,0x3a2412,.03);
     const flagB=cx=>{const k=ORDER[fi++],f=FLAGS[k],x0=cx-FW/2;     // tường sau (nhìn từ +z, u tăng theo +x)
-      fp(x0,x0+FW,FY0,FY0+FH,-2.5,-2.5+FT,.03,(x,y)=>f((x-x0)/FW*3,(y-FY0)/FH*2));
+      wallP(x0,x0+FW,FY0,FY0+FH,-2.5,-2.5+FT,.03,(x,y)=>f((x-x0)/FW*3,(y-FY0)/FH*2),['+z']);
       rod(x0-.03,x0+FW+.03,FY0+FH,-2.5,-2.5+FT*2)};
     const flagE=cz=>{const k=ORDER[fi++],f=FLAGS[k],z0=cz-FW/2;      // tường đông (nhìn từ -x, u tăng theo +z)
-      fp(5.75-FT,5.75,FY0,FY0+FH,z0,z0+FW,.03,(x,y,z)=>f((z-z0)/FW*3,(y-FY0)/FH*2));
+      wallP(5.75-FT,5.75,FY0,FY0+FH,z0,z0+FW,.03,(x,y,z)=>f((z-z0)/FW*3,(y-FY0)/FH*2),['-x']);
       rod(5.75-FT*2,5.75,FY0+FH,z0-.03,z0+FW+.03)};
     const flagF=cx=>{const k=ORDER[fi++],f=FLAGS[k],x1=cx+FW/2;      // tường trước (nhìn từ -z, u tăng theo -x)
-      fp(x1-FW,x1,FY0,FY0+FH,1.75-FT,1.75,.03,(x,y)=>f((x1-x)/FW*3,(y-FY0)/FH*2));
+      wallP(x1-FW,x1,FY0,FY0+FH,1.75-FT,1.75,.03,(x,y)=>f((x1-x)/FW*3,(y-FY0)/FH*2),['-z']);
       rod(x1-FW-.03,x1+.03,FY0+FH,1.75-FT*2,1.75)};
     for(let n=0;n<NPC;n++)flagB(PC0+n*PCD);       // 6 cờ trên tường sau
     flagE(-1.1);flagE(0);                          // 2 cờ trên tường đông
@@ -765,7 +897,7 @@ function buildHouse(hx,hz){
   for(const x of[-5.15,-3.25])for(const z of[.85,1.6])fb(x,x+.05,FL2,FL2+.1,z,z+.05,0x2a1a10,.05);
   cushion(-4.6,1.15,FL2+.4,0xc9a227,.2);cushion(-3.8,1.15,FL2+.4,0x8a2f2f,.2);
   // bảng gỗ đen phía sau logo (sát mặt trong tường z=1.75)
-  fp(-5.2,-3.0,5.55,6.85,1.68,1.75,.1,(x,y,z,i,j)=>(i<2||i>=20||j<2||j>=11)?BLKF2[(i*3+j)%3]:BLK2[(i*7+j*3)%4]);
+  wallP(-5.2,-3.0,5.55,6.85,1.68,1.75,.1,(x,y,z,i,j)=>(i<2||i>=20||j<2||j>=11)?BLKF2[(i*3+j)%3]:BLK2[(i*7+j*3)%4],['-z']);
   logo(v,-4.1,6.2,1.62,1.8,true);
   potPlant(-4.6,FL2,.1,1.1);
   // --- ĐÈN TREO TẦNG 2 ---
@@ -781,7 +913,9 @@ function buildHouse(hx,hz){
   v.ell(-7.9,.3,-3.4,.6,.35,.5,G,.1);v.ell(7.9,.3,-3.4,.6,.35,.5,G,.1);
   v.ell(3.5,.25,5.6,.45,.25,.4,G,.1);v.ell(-2.6,.25,5.7,.4,.2,.35,P,.1);
 
-  for(const m of v.meshLOD()){m.position.set(hx,0,hz);if(FACE_RIVER)m.rotation.y=Math.PI;S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
+  for(const m of meshAtlas(v,{log:true})){m.position.set(hx,0,hz);if(FACE_RIVER)m.rotation.y=Math.PI;S.add(m);meshes.push(m)}   // meshLOD: cắt ô + bản xa nhẹ (engine/voxel.js)
+  // MẶT PHẲNG texture (sàn / thảm / bảng / cờ): gắn vào nhóm HG, đặt + xoay đúng như các mesh voxel ở trên
+  HG.position.set(hx,0,hz);HG.scale.set(LEN,1,1);if(FACE_RIVER)HG.rotation.y=Math.PI;S.add(HG);prevObjs.push(HG);
 
   // ================= MÀN HÌNH CHAT (mặt phẳng canvas, không vào meshes -> không va chạm / không bắn trúng) =================
   screens.forEach((p,i)=>{
@@ -789,8 +923,8 @@ function buildHouse(hx,hz){
     const cv=document.createElement('canvas');cv.width=512;cv.height=288;
     const tex=new THREE.CanvasTexture(cv);if(THREE.SRGBColorSpace)tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
     SURF[k]={cv,g:cv.getContext('2d'),tex};
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(.8,.45),new THREE.MeshBasicMaterial({map:tex,toneMapped:false}));
-    m.position.set(hx+sg*p.x,p.y,hz+sg*p.z);m.rotation.y=p.ry+(FACE_RIVER?Math.PI:0);
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(.8*(Math.abs(Math.sin(p.ry))>.5?1:LEN),.45),new THREE.MeshBasicMaterial({map:tex,toneMapped:false}));
+    m.position.set(hx+sg*p.x*LEN,p.y,hz+sg*p.z);m.rotation.y=p.ry+(FACE_RIVER?Math.PI:0);
     S.add(m);prevObjs.push(m);drawChat(k);
   });
 
@@ -800,11 +934,11 @@ function buildHouse(hx,hz){
       const tex=glowTex();
       for(const l of lamps){
         const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));
-        sp.scale.set(l.s,l.s,1);sp.position.set(hx+sg*l.x,l.y,hz+sg*l.z);S.add(sp);prevObjs.push(sp);
+        sp.scale.set(l.s,l.s,1);sp.position.set(hx+sg*l.x*LEN,l.y,hz+sg*l.z);S.add(sp);prevObjs.push(sp);
         let pl=null;
         if(GLOW_LIGHTS&&l.light){
           pl=new THREE.PointLight(0xffc860,1.0,9,2);
-          pl.position.set(hx+sg*l.x,l.y-.1,hz+sg*l.z);S.add(pl);prevObjs.push(pl);
+          pl.position.set(hx+sg*l.x*LEN,l.y-.1,hz+sg*l.z);S.add(pl);prevObjs.push(pl);
         }
         if(window.DayCycle)DayCycle.reg(sp,pl);   // ban đêm đèn sáng rực, ban ngày chỉ còn quầng mờ
       }
@@ -815,8 +949,8 @@ function buildHouse(hx,hz){
   // wh = true: khối này bao quanh giếng thang -> physics.js (nohole) bỏ qua nó khi TÂM người chơi đang nằm trong giếng.
   // FIX 2: người chơi có bán kính .35 nên đầu / vai chạm trần, lan can, tường sau ngay cả khi tâm vẫn trong giếng rộng 1.25m
   //        (còn ~.17m làn đi) -> lệch chút là bị đẩy văng. Giờ chỉ cần tâm nằm trong giếng là leo thang bình thường.
-  const inWell=(x,z)=>inH(sg*(x-hx),sg*(z-hz));
-  const cb=(x0,x1,y0,y1,z0,z1,wh)=>{if(x1<=x0||y1<=y0||z1<=z0)return;const o=FACE_RIVER?{x0:hx-x1,x1:hx-x0,y0,y1,z0:hz-z1,z1:hz-z0}:{x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1};if(wh)o.hole=inWell;boxes.push(o)};
+  const inWell=(x,z)=>inH(sg*(x-hx)/LEN,sg*(z-hz));
+  const cb=(x0,x1,y0,y1,z0,z1,wh)=>{x0*=LEN;x1*=LEN;if(x1<=x0||y1<=y0||z1<=z0)return;const o=FACE_RIVER?{x0:hx-x1,x1:hx-x0,y0,y1,z0:hz-z1,z1:hz-z0}:{x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1};if(wh)o.hole=inWell;boxes.push(o)};
   const cbHole=(x0,x1,y0,y1,z0,z1)=>{          // hộp va chạm có khoét giếng thang
     if(x1<=H.x0||x0>=H.x1||z1<=H.z0||z0>=H.z1)return cb(x0,x1,y0,y1,z0,z1);
     cb(x0,H.x0,y0,y1,z0,z1,1);cb(H.x1,x1,y0,y1,z0,z1,1);
@@ -838,7 +972,7 @@ function buildHouse(hx,hz){
   (window.OccSrc=window.OccSrc||{}).house=[
     [-6.5,-1.25,FL,WT,2.5,2.75],[1.25,6.5,FL,WT,2.5,2.75],[-1.25,1.25,2.75,WT,2.5,2.75],[-6.5,6.5,FL,WT,-3.25,-3.0],[-6.5,-6.25,FL,WT,-3.25,2.75],[6.25,6.5,FL,WT,-3.25,2.75],
     [-6,-1.25,FL2,WT2,1.75,2.0],[1.25,6,FL2,WT2,1.75,2.0],[-1.25,1.25,FL2+1.875,WT2,1.75,2.0],[-6,6,FL2,WT2,-2.75,-2.5],[-6,-5.75,FL2,WT2,-2.75,2.0],[5.75,6,FL2,WT2,-2.75,2.0]]
-    .map(([x0,x1,y0,y1,z0,z1])=>FACE_RIVER?{x0:hx-x1,x1:hx-x0,y0,y1,z0:hz-z1,z1:hz-z0}:{x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1});
+    .map(([a0,a1,y0,y1,z0,z1])=>{const x0=a0*LEN,x1=a1*LEN;return FACE_RIVER?{x0:hx-x1,x1:hx-x0,y0,y1,z0:hz-z1,z1:hz-z0}:{x0:hx+x0,x1:hx+x1,y0,y1,z0:hz+z0,z1:hz+z1}});
   // trần tầng 1 + mái dưới + sàn tầng 2 (khoét giếng thang)
   cbHole(-6.75,6.75,WT,RY,-3.5,3.0);
   cbHole(-8.5,8.5,RY,RY+.5,RZ-4.75,RZ+4.75);
@@ -876,6 +1010,6 @@ function buildHouse(hx,hz){
   cb(4.65,5.35,0,1.3,5.25,5.95);                         // đèn đá
 }
 buildHouse(HX,HZ);
-window.HouseZone=(x,z)=>x>HX-8.8&&x<HX+8.8&&(FACE_RIVER?(z>HZ-6.2&&z<HZ+5.4):(z>HZ-5.4&&z<HZ+6.2));
+window.HouseZone=(x,z)=>x>HX-8.8*LEN&&x<HX+8.8*LEN&&(FACE_RIVER?(z>HZ-6.2&&z<HZ+5.4):(z>HZ-5.4&&z<HZ+6.2));
 window.House={build:buildHouse,rebuild:()=>buildHouse(HX,HZ)};
 })();
