@@ -13,7 +13,7 @@ const VCULL=new URLSearchParams(location.search).get('cull')!=='0';
 //  - vgap<1 (có khe): vẫn nhìn xuyên vào khe được, nên GIỮ mọi mặt của khối còn lộ ra ngoài (thành khe sâu ~1 ô), chỉ bỏ mặt giữa 2 khối nằm sâu >= VCULLD ô trong lòng khối.
 //  ?culld=N -> tự chọn độ sâu giữ lại (mặc định tự tính theo độ rộng khe; N lớn = khe nhìn sâu hơn, đổi lại bỏ ít mặt hơn).  ?cullbot=1 -> bỏ cả mặt khuất của VB nhớ khối (bot / boss).
 const VCULLD=(()=>{const v=parseInt(new URLSearchParams(location.search).get('culld'));return v>=1?v:Math.max(1,Math.ceil((1-VGAP)*10))})();   // tự động: khe càng rộng càng giữ sâu (.93->1 ô, .8->2 ô, .7->3 ô)
-const VCULLK=new URLSearchParams(location.search).get('cullbot')==='1';
+const VCULLK=new URLSearchParams(location.search).get('cullbot')!=='0';   // loại mặt khuất cho cả vật có keep (bot: 91k -> 32k tam giác / con). ?cullbot=0 để tắt
 const FACES=(()=>{const f=[];for(let a=0;a<3;a++)for(const s of[1,-1]){
   const A=(a+1)%3,B=(a+2)%3,u=s>0?A:B,v=s>0?B:A,n=[0,0,0];n[a]=s;
   f.push({n,q:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>{const p=[0,0,0];p[a]=s;p[u]=x;p[v]=y;return p})})}return f})();
