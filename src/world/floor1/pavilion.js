@@ -614,8 +614,8 @@ function build(hx,hz){
     for(const px of[-.6,.6])for(const pz of[-.4,.4])fb(cx+px-.03,cx+px+.03,FL+.64,FL+1.2,cz+pz-.03,cz+pz+.03,0x8b929b,.06);   // 4 cột kính
     fb(cx-.64,cx+.64,FL+1.2,FL+1.28,cz-.44,cz+.44,0x3a3f47,10);                               // nắp
     const gm=new THREE.Mesh(new THREE.BoxGeometry(1.2,.56,.8),GLASS_CASE);gm.position.set(hx+cx,FL+.92,hz+cz);S.add(gm);prevTrack.push(gm);   // thân kính trong suốt
-    EM.box(cx,FL+.3,cz+f*.405,1.0,.04,.02,0x66e6ff,.02);                                       // dải LED trước tủ
-    EM.box(cx,FL+1.285,cz,.7,.015,.45,0x66e6ff,.015);                                          // đế chiếu hologram trên nắp
+    EM.box(cx,FL+.3,cz+f*.405,1.0,.04,.02,0x66e6ff,10);                                       // dải LED trước tủ
+    EM.box(cx,FL+1.285,cz,.7,.015,.45,0x66e6ff,10);                                          // đế chiếu hologram trên nắp
     const col=CRYS[c.k%6];EM.box(cx,FL+.92,cz,.2,.2,.2,col,.05);                               // vật trưng bày: tinh thể + các mảnh bay quanh
     for(let q=0;q<6;q++){const a=q*Math.PI/3;EM.box(cx+Math.cos(a)*.34,FL+.92+Math.sin(q*1.7)*.12,cz+Math.sin(a)*.2,.08,.08,.08,col,.04)}
     cb(cx-.64,cx+.64,FL,FL+1.28,cz-.44,cz+.44);

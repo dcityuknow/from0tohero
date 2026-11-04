@@ -336,6 +336,7 @@ function meshAtlas(v,opt){
   if(AH>4096){console.warn('[meshAtlas] atlas quá lớn ('+AW+'x'+AH+'), dùng meshLOD');return v.meshLOD()}
   const data=new Uint8Array(AW*AH*4),inv=255/KS;
   for(const r of rects){
+    {let sr=0,sg=0,sb=0;const nn=r.wd*r.ht;for(let cj=0;cj<r.ht;cj++)for(let ci=0;ci<r.wd;ci++){const s0=r.cs[r.mp.get(KEY(r.iw0+cj,r.iu0+ci))*3+2]*12;sr+=Cl[s0];sg+=Cl[s0+1];sb+=Cl[s0+2]}r.avg=[sr/nn,sg/nn,sb/nn]}   // màu trung bình (apocalypse.js dùng để vỡ ra đúng màu)
     for(let jj=0;jj<r.ht+2;jj++){
       const cj=Math.min(r.ht-1,Math.max(0,jj-1));
       for(let ii=0;ii<r.wd+2;ii++){
@@ -346,21 +347,21 @@ function meshAtlas(v,opt){
   }
   const tex=new THREE.DataTexture(data,AW,AH,THREE.RGBAFormat);
   tex.magFilter=tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;tex.needsUpdate=true;tex._own=true;   // _own: floors.js giải phóng khi dỡ tầng
-  const mat=new THREE.MeshLambertMaterial({map:tex,emissive:0x1e1e1e});mat.color.setRGB(KS,KS,KS);   // giống VMAT; nhân lại KS vì texel đã chia KS
+  const mat=new THREE.MeshLambertMaterial({map:tex,emissive:0x1e1e1e});mat.color.setRGB(KS,KS,KS);mat.userData.atlas=true;   // cờ cho apocalypse.js: màu thật nằm ở thuộc tính 'color' của hình học   // giống VMAT; nhân lại KS vì texel đã chia KS
   // 4) dựng hình học theo từng khối 6m (để three.js còn bỏ vẽ phần ngoài tầm nhìn)
   const chunks=new Map();
   for(const r of rects){
     const g=r.g,fid=r.cs[r.mp.get(KEY(r.iw0,r.iu0))*3+2],c0=(fid/6)|0,u0=cc[c0*6+g.ua]-g.su/2,w0=cc[c0*6+g.wa]-g.sw/2,u1=u0+r.wd*g.su,w1=w0+r.ht*g.sw;
-    let H=chunks.get(g.chk);if(!H){H={p:[],n:[],uv:[],i:[],q:0};chunks.set(g.chk,H)}
+    let H=chunks.get(g.chk);if(!H){H={p:[],n:[],uv:[],c:[],i:[],q:0};chunks.set(g.chk,H)}
     const tx0=(r.x+1)/AW,tx1=(r.x+1+r.wd)/AW,ty0=(r.y+1)/AH,ty1=(r.y+1+r.ht)/AH,s=(g.f&1)?-1:1,pt=[0,0,0],nn=[0,0,0];nn[g.a]=s;
     const cu=[u0,u1,u1,u0],cw=[w0,w0,w1,w1],tu=[tx0,tx1,tx1,tx0],tw=[ty0,ty0,ty1,ty1];
-    for(let k=0;k<4;k++){pt[g.a]=g.pl;pt[g.ua]=cu[k];pt[g.wa]=cw[k];H.p.push(pt[0],pt[1],pt[2]);H.n.push(nn[0],nn[1],nn[2]);H.uv.push(tu[k],tw[k])}
+    for(let k=0;k<4;k++){pt[g.a]=g.pl;pt[g.ua]=cu[k];pt[g.wa]=cw[k];H.p.push(pt[0],pt[1],pt[2]);H.n.push(nn[0],nn[1],nn[2]);H.uv.push(tu[k],tw[k]);H.c.push(r.avg[0],r.avg[1],r.avg[2])}
     const b=H.q;H.i.push(b,b+1,b+2,b,b+2,b+3);H.q+=4;
   }
   const out=[];
   for(const H of chunks.values()){
     const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.Float32BufferAttribute(H.p,3));geo.setAttribute('normal',new THREE.Float32BufferAttribute(H.n,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(H.uv,2));
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(H.p,3));geo.setAttribute('normal',new THREE.Float32BufferAttribute(H.n,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(H.uv,2));geo.setAttribute('color',new THREE.Float32BufferAttribute(H.c,3));   // không dùng để vẽ (vật liệu không bật vertexColors), chỉ cho apocalypse.js
     geo.setIndex(H.i);geo.computeBoundingSphere();
     const m=new THREE.Mesh(geo,mat);m.frustumCulled=true;out.push(m);
   }
