@@ -149,8 +149,8 @@ const Apoc=(function(){
       o.updateWorldMatrix(true,false);
       const mcol=mats.map(m=>{
         if(!m||m.isShaderMaterial||(m.transparent&&m.opacity<.12))return null;
-        const c=m.color||_c.setRGB(1,1,1);let k=1;if(m.map&&c.r>.9&&c.g>.9&&c.b>.9)k=.55;
-        return [c.r*k,c.g*k,c.b*k,!!m.vertexColors]});
+        const c=m.color||_c.setRGB(1,1,1),at=!!(m.userData&&m.userData.atlas);let k=at?1/1.07:1;if(!at&&m.map&&c.r>.9&&c.g>.9&&c.b>.9)k=.55;   // at: vật liệu atlas (meshAtlas) - màu thật nằm trong thuộc tính color của hình học
+        return [c.r*k,c.g*k,c.b*k,!!m.vertexColors||at]});
       if(o.isInstancedMesh){   // cây / bụi...: mỗi instance là CẢ mô hình -> duyệt mọi khối của từng instance (trước đây mỗi cây chỉ thành 1 ô)
         for(let i=0;i<o.count&&n<capS;i++){
           o.getMatrixAt(i,_m);_w.multiplyMatrices(o.matrixWorld,_m);
