@@ -141,7 +141,7 @@ function buildFloor(f){
     }
     if(pos.length){
       // mặt nước mỏng, trong; màu đáy hồ (cát -> xanh đậm) hiện xuyên qua nên càng sâu càng tối
-      const mesh=new THREE.InstancedMesh(UG,new THREE.MeshLambertMaterial({color:0xffffff,transparent:!T.ice,opacity:T.ice?1:.62,depthWrite:!!T.ice,emissive:0x000000}),pos.length),col=new THREE.Color(),deep=new THREE.Color(),shal=new THREE.Color();
+      const mesh=new THREE.InstancedMesh(T.ice?UG:new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0xffffff,transparent:!T.ice,opacity:T.ice?1:.62,depthWrite:!!T.ice,emissive:0x000000,side:T.ice?THREE.FrontSide:THREE.DoubleSide}),pos.length)   /* nước: chỉ mặt trên (2 tam giác thay vì 12); ô cao bằng nhau nên không lộ mặt bên */,col=new THREE.Color(),deep=new THREE.Color(),shal=new THREE.Color();
       pos.forEach((q,i)=>{const w=T.water;
         q.h0=lakeH(l,q.x,q.z);const dd=T.ice?Math.min(1,(1-q.p)/.85):clamp01((q.h0-.1)/(l.dmax-.1));
         if(T.ice){shal.setHex(w[3]);deep.setHex(w[2]).multiplyScalar(.85);col.copy(shal).lerp(deep,Math.pow(dd,.7))}
@@ -337,7 +337,9 @@ function buildFloor(f){
   for(let i=0,n=Math.round(CFG.litter*k);i<n;i++){const x=rand.range(-lim,lim),z=rand.range(-lim,lim);
     if(wet(x,z,.2)||hitAny({x,y:y0+.02,z,r:.08,h:.3})||(f&&!sup(x,z,0)))continue;
     const s=rand.range(.06,.13);dc(x,y0+.105,z,s,.02,s*rand.range(.7,1.2),rand.pick(rand()<.55?T.leaf:T.leafB))}
-  const dm=d.mesh();dm.frustumCulled=false;S.add(dm);Fl.deco=dm;
+  const dg=new THREE.Group();   // bãi cát, đá cuội, lau sậy, lá rơi...: trước đây 1 mesh ~220.000 tam giác frustumCulled=false (luôn vẽ); nay chia khối 16m + gộp mặt, đúng khối mới được vẽ
+  for(const m of(window.meshAtlas&&!d.keep?meshAtlas(d,{chunk:16}):[d.mesh()]))dg.add(m);
+  S.add(dg);Fl.deco=dg;
 
   // 6) Bướm bay
   if(CFG.critters&&!T.ice)for(let i=0,n=3+f*2;i<n;i++){
