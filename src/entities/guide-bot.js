@@ -30,7 +30,7 @@ const CFG={
 // ---------- DỮ LIỆU ĐỌC ----------
 // Khóa định danh một bức tranh: bỏ dấu, bỏ "PROF." -> 'MURIEL MEDARD' (đổi chữ in trên bảng tên không làm mất tiểu sử)
 const keyOf=i=>String(i.n1).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^(PROF|DR)\.?\s+/,'');   // bỏ danh xưng PROF. / DR. khi tra tiểu sử
-const SPOKEN={ 'JEFFREY ELLIOTT':'Jeffrey Elliott','MURIEL MEDARD':'Prof. Muriel Médard','KISHORI KONWAR':'Dr. Kishori Konwar','NANCY LYNCH':'Prof. Nancy Lynch','SRIRAM VISWANATH':'Prof. Sriram Viswanath' };   // tên đọc khác với tên in trên bảng
+const SPOKEN={ 'JEFFREY ELLIOTT':'Jeffrey Elliott','MURIEL MEDARD':'Prof. Muriel Médard','KISHORI KONWAR':'Dr. Kishori Konwar','NANCY LYNCH':'Prof. Nancy Lynch','SRIRAM VISWANATH':'Prof. Sriram Viswanath','RXNDY':'Randy' };   // tên đọc khác với tên in trên bảng
 // Dữ kiện do bạn cung cấp (tiếng Việt; AI tự đọc sang ngôn ngữ đang chọn). Mỗi lần đọc AI chọn ý chính khác nhau + kiểu kể khác nhau.
 const FACTS={
   'MURIEL MEDARD':'Giáo sư Muriel Médard, đồng sáng lập và CEO của Optimum. Sinh ngày 1 tháng 2 năm 1968, quốc tịch Pháp–Mỹ, là nhà lý thuyết thông tin và kỹ sư điện. Bà là NEC Professor of Software Science and Engineering tại khoa EECS của MIT và dẫn dắt nhóm Network Coding and Reliable Communications tại Research Laboratory of Electronics. Học vấn toàn bộ tại MIT: cử nhân EECS và toán (1989), cử nhân nhân văn / Russian studies cùng thạc sĩ kỹ thuật điện (1991), tiến sĩ Sc.D. kỹ thuật điện (1995) dưới sự hướng dẫn của Robert G. Gallager. Sự nghiệp: nghiên cứu sau tiến sĩ tại MIT Lincoln Laboratory, trợ lý giáo sư tại University of Illinois Urbana–Champaign (1998), về MIT từ năm 2000; chủ tịch IEEE Information Theory Society (2012), từng là tổng biên tập IEEE Journal on Selected Areas in Communications. Bà đồng phát minh RLNC: các nút mạng gửi tổ hợp tuyến tính ngẫu nhiên của gói tin, không cần điều phối trung tâm, giúp truyền dữ liệu chịu mất gói và dùng băng thông hiệu quả hơn; Optimum áp dụng kỹ thuật này vào gossip và truyền block trên blockchain. Danh hiệu: thành viên US National Academy of Engineering (2020), American Academy of Arts and Sciences (2021), Leopoldina của Đức (2022); Fellow IEEE (2008), US National Academy of Inventors (2018), Royal Academy of Engineering (2025). Tiến sĩ danh dự từ Technical University of Munich (2020), Aalborg (2022), Budapest University of Technology and Economics (2023). Giải IEEE Richard W. Hamming Medal 2026 cho đóng góp về mã hóa cho truyền thông tin cậy. Bà đồng sáng lập CodeOn, Steinwurf (Chief Scientist) và các công ty chuyển giao công nghệ khác; Optimum là lần gần nhất, nơi bà làm CEO.',
@@ -47,7 +47,8 @@ const FACTS={
   'LEWEJ WHITELOW':'Lewej Whitelow, Senior Technical Program Manager (Senior TPM) của Optimum. Ông gia nhập Optimum khoảng tháng 6 năm 2026, phụ trách mảng product: dẫn dắt phát triển protocol và các đợt release. Ông vào đúng lúc team đẩy sản phẩm chính, mump2p, lên mainnet đầu tiên. Trước đó ông làm Technical Program Manager tại OP Labs (Optimism), mảng protocol engineering, và là founding program manager mảng product engineering tại Blocknative. Cả hai đều nằm trong hệ Ethereum, nên ông quen cách ship hạ tầng phân tán, lịch release và sản phẩm observability. Ông có bằng MBA, cùng các chứng chỉ PMP và CSPO.',
   'KISHORI KONWAR':'Tiến sĩ Kishori Konwar, đồng sáng lập và CTO của Optimum. Ông có chuyên môn sâu về distributed systems, coding theory và AI. Trước Optimum, ông từng là Senior Engineer & Scientist tại Meta, hoàn thành postdoc về Network Coding tại MIT, và từng làm quant tại Goldman Sachs. Học vấn gồm Master of Science (Physics) tại IIT Kanpur và MTech tại Indian Statistical Institute, Kolkata. Cùng Prof. Muriel Médard và Kent Lin, ông đồng sáng lập Optimum năm 2024 để đưa RLNC (Random Linear Network Coding) vào hạ tầng dữ liệu blockchain, tập trung vào tốc độ lan truyền và hiệu quả băng thông.',
   'NANCY LYNCH':'Giáo sư Nancy Lynch, cố vấn (advisor) học thuật gắn trực tiếp với nền tảng kỹ thuật của dự án. Bà là cựu NEC Chair tại MIT, người giữ ghế này trước Prof. Muriel Médard. Bà công bố chứng minh toán học đầu tiên về Byzantine Fault Tolerance (BFT) năm 1985, tính chất an toàn mà mọi giao thức consensus blockchain đều dựa vào. Năm 1988 bà đưa ra thuật toán DLS, tiền thân của Tendermint và các nhánh consensus sau này, trong đó có Ethereum.',
-  'SRIRAM VISWANATH':'Giáo sư Sriram Viswanath, cố vấn (advisor) học thuật gắn trực tiếp với nền tảng kỹ thuật của dự án. Ông có B.Tech tại IIT Madras, M.S. tại Caltech và PhD tại Stanford, đều ngành điện. Ông nghiên cứu information theory, truyền thông không dây và network science. Ông từng nhận NSF CAREER Award và giải IEEE IT/ComSoc Best Paper Award năm 2005.'
+  'SRIRAM VISWANATH':'Giáo sư Sriram Viswanath, cố vấn (advisor) học thuật gắn trực tiếp với nền tảng kỹ thuật của dự án. Ông có B.Tech tại IIT Madras, M.S. tại Caltech và PhD tại Stanford, đều ngành điện. Ông nghiên cứu information theory, truyền thông không dây và network science. Ông từng nhận NSF CAREER Award và giải IEEE IT/ComSoc Best Paper Award năm 2005.',
+  'RXNDY':'rxndy (tài khoản X @rxndy444), làm marketing tại Optimum. Bio trên X của ông ghi: writer, researcher, sauce haver, cash respecter, marketing guy @get_optimum, nghĩa là vừa viết, vừa nghiên cứu, và là người làm marketing cho Optimum. Ông được tag cùng đội ngũ chính thức trong các thông báo của Optimum, ví dụ buổi community call đầu tiên cùng CEO Muriel Médard, đồng sáng lập Kent Lin, Head of Marketing Eli Laipson và các thành viên khác. Ông cũng xuất hiện trong các bài giới thiệu sản phẩm của Optimum như Flexnodes, latency marketplace và mump2p.'
 };   // thêm / sửa dữ kiện thật của người khác tại đây (mỗi người 1 chuỗi, khóa = tên in trên bảng, viết hoa, bỏ dấu, bỏ "PROF."). Người không có mục: bot chỉ nói chức vụ + thông tin chung về Optimum, KHÔNG bịa tiểu sử.
 const COMMON='Optimum (x.com/get_optimum) là hạ tầng bộ nhớ hiệu năng cao / mạng tăng tốc dữ liệu cho mọi blockchain, xây trên RLNC, công nghệ ra đời từ nghiên cứu ở MIT. Sản phẩm đầu tiên mump2p tăng tốc lan truyền dữ liệu Ethereum; kế tiếp là deRAM (bộ nhớ phi tập trung) và deROM; Flexnode là node ai cũng chạy được. Tháng 4/2025 Optimum huy động 11 triệu USD, có 1kx, Spartan, Robot Ventures, Triton Capital, Finality Capital, SNZ ủng hộ. Đội ngũ công khai danh tính, nhiều người từ MIT, Harvard và Meta.';
 const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko; ngôn ngữ khác tự dịch bằng trLine)
@@ -110,7 +111,11 @@ const BIO={   // bản đọc dự phòng khi AI không dùng được (vi/en/ko
   'SRIRAM VISWANATH':{
     vi:'Ông là cố vấn học thuật gắn trực tiếp với nền tảng kỹ thuật của dự án. Ông có B.Tech tại IIT Madras, M.S. tại Caltech và PhD tại Stanford, đều ngành điện. Ông nghiên cứu information theory, truyền thông không dây và network science, từng nhận NSF CAREER Award và giải IEEE IT/ComSoc Best Paper Award năm 2005.',
     en:'He is an academic advisor tied directly to the project\'s technical foundations. He holds a B.Tech from IIT Madras, an M.S. from Caltech and a PhD from Stanford, all in electrical engineering. His research covers information theory, wireless communications and network science, and he has received an NSF CAREER Award and the 2005 IEEE IT/ComSoc Best Paper Award.',
-    ko:'프로젝트의 기술적 기반과 직결된 학술 자문역입니다. IIT Madras에서 B.Tech, Caltech에서 석사, Stanford에서 박사 학위를 모두 전기공학 분야로 받았습니다. 정보 이론, 무선 통신, 네트워크 과학을 연구하며 NSF CAREER Award와 2005년 IEEE IT/ComSoc 최우수 논문상을 받았습니다.'}
+    ko:'프로젝트의 기술적 기반과 직결된 학술 자문역입니다. IIT Madras에서 B.Tech, Caltech에서 석사, Stanford에서 박사 학위를 모두 전기공학 분야로 받았습니다. 정보 이론, 무선 통신, 네트워크 과학을 연구하며 NSF CAREER Award와 2005년 IEEE IT/ComSoc 최우수 논문상을 받았습니다.'},
+  'RXNDY':{
+    vi:'Ông làm marketing tại Optimum, dùng tài khoản X @rxndy444. Bio của ông ghi: writer, researcher, sauce haver, cash respecter, marketing guy tại Optimum. Ông được tag cùng đội ngũ chính thức trong các thông báo của Optimum, như buổi community call đầu tiên cùng Muriel Médard, Kent Lin và Eli Laipson, và các bài về Flexnodes, latency marketplace và mump2p.',
+    en:'He works in marketing at Optimum, posting on X as @rxndy444. His bio reads: writer, researcher, sauce haver, cash respecter, marketing guy at Optimum. He is tagged alongside the official team in Optimum announcements, such as the first community call with Muriel Médard, Kent Lin and Eli Laipson, and in posts about Flexnodes, the latency marketplace and mump2p.',
+    ko:'옵티멈에서 마케팅을 맡고 있으며 X 계정은 @rxndy444입니다. 소개글에는 writer, researcher, sauce haver, cash respecter, 옵티멈 마케팅 담당이라고 적혀 있습니다. Muriel Médard, Kent Lin, Eli Laipson과 함께한 첫 커뮤니티 콜과 Flexnodes, 레이턴시 마켓플레이스, mump2p 관련 게시물 등 옵티멈 공식 공지에서 팀과 함께 태그되었습니다.'}
 };
 const T={
   vi:{greet:['Xin chào, tôi là hướng dẫn viên của khu triển lãm Optimum.','Bạn cứ nhìn vào bức tranh nào, tôi sẽ giới thiệu bức tranh đó.'],
@@ -118,6 +123,7 @@ const T={
       ceo:'{n} là CEO của Optimum, người dẫn dắt định hướng của cả đội ngũ.',
       founder:'{n} là đồng sáng lập của Optimum, người cùng đặt nền móng cho dự án.',
       cmo:'{n} là CMO của Optimum, phụ trách marketing và truyền thông.',
+      mkt:'{n} làm marketing tại Optimum, đồng hành cùng đội ngũ trong truyền thông và nội dung.',
       apac:'{n} là APAC Growth Lead của Optimum, phụ trách tăng trưởng khu vực châu Á – Thái Bình Dương.',
       admin:'{n} là admin cộng đồng của Optimum, kết nối thành viên với đội ngũ.',
       mod:'{n} là lead moderator của Optimum, giữ Discord và hỗ trợ cộng đồng.',
@@ -136,6 +142,7 @@ const T={
       ceo:'{n} is the CEO of Optimum, leading the direction of the whole team.',
       founder:'{n} is a co-founder of Optimum, who helped lay the foundation of the project.',
       cmo:'{n} is the CMO of Optimum, in charge of marketing and communications.',
+      mkt:'{n} works in marketing at Optimum, helping the team with communications and content.',
       apac:'{n} is the APAC Growth Lead of Optimum, driving growth across Asia-Pacific.',
       admin:'{n} is the community admin of Optimum, connecting members with the team.',
       mod:'{n} is the lead moderator of Optimum, looking after Discord and supporting the community.',
@@ -154,6 +161,7 @@ const T={
       ceo:'{n}님은 옵티멈의 CEO로서 팀 전체의 방향을 이끌고 있습니다.',
       founder:'{n}님은 옵티멈의 공동 창업자로서 프로젝트의 토대를 함께 만들었습니다.',
       cmo:'{n}님은 옵티멈의 CMO로서 마케팅과 커뮤니케이션을 맡고 있습니다.',
+      mkt:'{n}님은 옵티멈에서 마케팅을 맡아 팀의 커뮤니케이션과 콘텐츠를 돕고 있습니다.',
       apac:'{n}님은 옵티멈의 APAC 성장 리드로서 아시아·태평양 지역의 성장을 이끌고 있습니다.',
       admin:'{n}님은 옵티멈의 커뮤니티 관리자로서 멤버와 팀을 이어 주고 있습니다.',
       mod:'{n}님은 옵티멈의 리드 모더레이터로서 디스코드를 관리하고 커뮤니티를 돕고 있습니다.',
@@ -176,7 +184,7 @@ const trAll=(lang,a)=>Promise.all(a.map(x=>tr1(lang,x)));
 const langName=lang=>{try{return LN.find(x=>x[0]===lang)[1]}catch(e){return lang}};
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const title=s=>String(s).toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()).replace(/\b(Ceo|Cmo|Apac|Vp|Tpm)\b/g,m=>m.toUpperCase());
-const kindOf=r=>/\bTPM\b|PROGRAM MANAGER/i.test(r)?'tpm':/TCSM/i.test(r)?'tcsm':/PRODUCT OFFICER|CPO/i.test(r)?'cpo':/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/ADMIN/i.test(r)?'admin':/MODERATOR/i.test(r)?'mod':/AMBASSADOR/i.test(r)?'amb':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
+const kindOf=r=>/\bTPM\b|PROGRAM MANAGER/i.test(r)?'tpm':/TCSM/i.test(r)?'tcsm':/PRODUCT OFFICER|CPO/i.test(r)?'cpo':/CEO/i.test(r)?'ceo':/FOUNDER/i.test(r)?'founder':/CMO/i.test(r)?'cmo':/MARKETING/i.test(r)?'mkt':/APAC/i.test(r)?'apac':/ENGINEER/i.test(r)?'eng':/ADMIN/i.test(r)?'admin':/MODERATOR/i.test(r)?'mod':/AMBASSADOR/i.test(r)?'amb':/STRATEGY|OPERATIONS/i.test(r)?'ops':'team';
 function getLang(){return typeof L!=='undefined'?L:'vi'}   // L = ngôn ngữ đang chọn (i18n.js)
 function template(info,lang){
   const k=keyOf(info),t=TT(lang),n=SPOKEN[k]||title(info.n1),bio=BIO[k]&&(BIO[k][lang]||BIO[k].en);
